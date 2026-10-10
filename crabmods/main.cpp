@@ -1,7 +1,7 @@
 // CrabMods: new items for Crab Champions.
 //   Arsenal (weapon mod): more damage for each other weapon mod you have.
 //   Hoarder (perk): more damage for each weapon mod and each perk level you have (Arsenal + Collector).
-//   Heavy Shot: the game's own mod, unlocked so it drops for every weapon, not just Bounce weapons.
+//   Heavy Shot: the game's own mod, unlocked so it drops without Bouncing Shot.
 //
 // The game has no Arsenal or Hoarder assets, so they are made at runtime as copies of Streak Shot and
 // Collector with new text, rarity and an unused type (see MakeDA), and added to the level manager's loot
@@ -94,8 +94,10 @@ void AddToPool(void* lm, void* da, const char* what) {
     CRAB_LOG("added %s to the loot pool (%d pickups)", what, pool.Num);
 }
 
-// Heavy Shot's asset asks for a weapon with the Bounce tag. Clearing that lets loot rolls offer it with any
-// weapon; the game's own Heavy Shot code already works on every projectile. Loot is rolled by the host.
+// Heavy Shot's asset is only offered to a player who already holds a Bounce-tagged pickup (Bouncing Shot).
+// Clearing that lets loot rolls offer it to anyone. Its effect is not tied to the weapon: every player weapon
+// fires projectiles, and the game's own Heavy Shot code adds its gravity and damage to each one. Loot is
+// rolled by the host.
 void UnlockHeavyShot(void* lm) {
     void* da = FindByType(Spawnables(lm, off::Spawnables_WeaponMods), WeaponMod_HeavyShot);
     if (!da) return;
@@ -104,7 +106,7 @@ void UnlockHeavyShot(void* lm) {
     if (g_heavyShotLogged) return;
     g_heavyShotLogged = true;
     bool inPool = Contains(At<TArray<void*>>(lm, off::LM_AllUnlockedPickups), da);
-    CRAB_LOG("Heavy Shot can now drop for every weapon (was %s)%s", wasLocked ? "Bounce weapons only" : "unrestricted",
+    CRAB_LOG("Heavy Shot can now drop without Bouncing Shot (was %s)%s", wasLocked ? "Bouncing Shot only" : "unrestricted",
              inPool ? "" : "; it is not unlocked in this save yet, so it still won't drop");
 }
 

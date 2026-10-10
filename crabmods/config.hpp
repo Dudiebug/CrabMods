@@ -19,7 +19,7 @@ struct Config {
         uint8_t rarity = 3;
     } hoarder;
     struct {
-        bool anyWeapon = true;  // Heavy Shot drops for every weapon, not just Bounce weapons
+        bool anyWeapon = true;  // Heavy Shot drops without Bouncing Shot
     } heavyShot;
 };
 
@@ -41,7 +41,8 @@ damagePercent = 3
 rarity = legendary
 
 [heavyShot]
-# The game's own Heavy Shot only drops if your weapon bounces. true lets it drop for every weapon.
+# The game's own Heavy Shot only drops once you hold Bouncing Shot. true lets it drop for everyone,
+# with any weapon.
 # Only the host's setting matters.
 anyWeapon = true
 )";

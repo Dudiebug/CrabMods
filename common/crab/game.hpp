@@ -120,8 +120,9 @@ constexpr int DA_Icon = 0x58;         // UTexture2D*; the rarity's background co
 constexpr int DA_PickupType = 0x60;   // ECrabPickupType
 constexpr int DA_Rarity = 0x62;       // ECrabRarity: 1 Common, 2 Epic, 3 Legendary
 constexpr int DA_PickupTag = 0x63;
-// When set, loot rolls offer the pickup only if the player's weapon has the same PickupTag. The roll reads
-// it from the asset each time (0x140d34050, 0x140d3417f, 0x140d3439e).
+// When set, loot rolls offer the pickup only if the player already holds a pickup with the same PickupTag
+// (ACrabPS.PSPickups, PS+0x340). The roll (0x140d33240) reads it from the asset each time (0x140d34050,
+// 0x140d3417f, 0x140d3439e).
 constexpr int DA_bRequiresMatchingPickupTag = 0x64;
 constexpr int DA_LevelDescription = 0xB8;  // FString; "PrimaryBuff" is replaced with the buff
 constexpr int DA_BaseBuff = 0xC8;
@@ -149,7 +150,7 @@ constexpr uint32_t RF_WasLoaded = 0x80000;  // makes the name stable for network
 
 // Item type ids (DA_ItemType)
 constexpr uint8_t WeaponMod_StreakShot = 27;  // ECrabWeaponModType; the enum ends at DiceShot = 94
-constexpr uint8_t WeaponMod_HeavyShot = 30;   // only drops for Bounce weapons unless unlocked
+constexpr uint8_t WeaponMod_HeavyShot = 30;   // PickupTag Bounce: only drops once you hold Bouncing Shot
 constexpr uint8_t Perk_Collector = 72;        // ECrabPerkType; the enum ends at FlashSale = 121
 
 }  // namespace crab

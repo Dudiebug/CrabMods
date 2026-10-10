@@ -6,7 +6,7 @@
 |---|---|---|
 | **Arsenal** | Epic weapon mod | Damage increased by **3%** for each other weapon mod you have. |
 | **Hoarder** | Legendary perk | Damage increased by **3%** for each weapon mod **and** each perk level you have. Arsenal and Collector in one. |
-| **Heavy Shot** | the game's own Common weapon mod | Now drops for **every weapon**. The base game only offers it with Bounce weapons. |
+| **Heavy Shot** | the game's own Common weapon mod | Drops **without Bouncing Shot**, for every weapon. The base game only offers it once you hold Bouncing Shot. |
 
 - Arsenal and Hoarder drop from chests and rewards of their rarity, like any other item.
 - Extra copies stack: two Arsenals give +6% per mod, and two Hoarder levels give +6% per mod and per perk level.
@@ -60,14 +60,16 @@ Both damage bonuses are applied where the game totals a player's damage buffs, b
 - Arsenal: your Arsenal level × your other weapon mods × 3%.
 - Hoarder: your Hoarder level × (your weapon mods + your perk levels) × 3%. It counts itself, as Collector does.
 
-Heavy Shot's asset says "only offer me with a Bounce weapon". The mod clears that flag in memory, and the game's own Heavy Shot code already works on every projectile.
+Heavy Shot's asset says "only offer me to a player who holds Bouncing Shot". The mod clears that flag in memory. Nothing else needs changing, because Heavy Shot's effect was never tied to a weapon:
+- Every weapon fires projectiles, and the game applies Heavy Shot to each one: gravity = (the bullet's own gravity + 2) × (1 + its 15% weight), plus its +50% damage.
+- So even bullets that normally fly dead straight (most guns) start to drop.
 
 ## Known limitations
 
 - Arsenal and Hoarder use the game's plain icons for their rarity (the same ones other items without their own art use).
 - Every player needs CrabMods. A player without it sees an empty slot where Arsenal or Hoarder should be.
 - Heavy Shot still needs to be unlocked in your save before it can drop.
-- On weapons whose shots don't fly as projectiles, Heavy Shot only adds its damage.
+- On very fast guns (Sniper, Marksman Rifle, Laser Cannons) the bullet reaches its target before it can drop much, so Heavy Shot is mostly its damage there. Fast Shot lowers the same gravity multiplier, so a lot of Fast Shot cancels the drop.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 
 ## Source

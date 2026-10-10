@@ -8,7 +8,7 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z` and `crabmod
 
 - Renamed from Arsenal: Arsenal is now one item in `CrabMods.dll`.
 - New: **Hoarder**, a Legendary perk. Damage +3% for each weapon mod and each perk level you have, Arsenal and Collector in one. It stacks with both.
-- New: **Heavy Shot** (the game's own weapon mod) can drop for every weapon, not just Bounce weapons.
+- New: **Heavy Shot** (the game's own weapon mod) no longer needs Bouncing Shot to drop. It works with every weapon.
 - Settings move to `CrabMods.ini`, with `[arsenal]`, `[hoarder]` and `[heavyShot]` sections. An existing `Arsenal.ini` is carried over on first launch.
 - If the old `Arsenal.dll` is still installed, CrabMods leaves Arsenal to it and says so in the log.
 

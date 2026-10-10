@@ -5,8 +5,8 @@ Arsenal (Epic weapon mod): damage increased by 3% for each other weapon mod
 you have.
 Hoarder (Legendary perk): damage increased by 3% for each weapon mod and each
 perk level you have. Arsenal and Collector in one, and it stacks with both.
-Heavy Shot (the game's own mod): can now drop for every weapon, not just
-Bounce weapons.
+Heavy Shot (the game's own mod): no longer needs Bouncing Shot to drop. It
+works with every weapon.
 
 EVERY PLAYER in the lobby needs it, the host and every friend.
 

@@ -110,9 +110,11 @@ The rarity colour is part of each icon image. The game ships plain per-rarity ic
 
 ## Loot rolls: pickup tags
 
-`UCrabPickupDA +0x63 PickupTag`, `+0x64 bRequiresMatchingPickupTag`. The roll checks the flag on the asset every time (`0x140d34050`, `0x140d3417f`, `0x140d3439e`: `cmp byte [da+0x64], 0`, and if it is set, compare `da+0x63` with the weapon's tag). Clearing `+0x64` in memory makes the item roll for every weapon. Only the host rolls loot, so only the host's copy matters.
+`UCrabPickupDA +0x63 PickupTag`, `+0x64 bRequiresMatchingPickupTag`. The roll is `0x140d33240`. It picks a player and copies their `ACrabPS.PSPickups` (`+0x340`, `TArray<UCrabPickupDA*>`, every pickup they hold) through `0x140d253a0`. It then checks the flag on each candidate asset (`0x140d34050`, `0x140d3417f`, `0x140d3439e`: `cmp byte [da+0x64], 0`); if it is set, the candidate is offered only if some held pickup has the same `+0x63` tag. The weapon itself plays no part: no weapon asset sets a `PickupTag`. Clearing `+0x64` in memory makes the item roll for everyone. Only the host rolls loot, so only the host's copy matters.
 
-Heavy Shot (`ECrabWeaponModType` 30): Common, BaseBuff 50, BaseDebuff 15, `PickupTag = Bounce`, `bRequiresMatchingPickupTag = true`.
+Tags pair "enabler" items with their follow-ups, for example Bouncing Shot (the only `Bounce` item without the flag) with Heavy Shot, and turret ability mods with the turret upgrades.
+
+Heavy Shot (`ECrabWeaponModType` 30): Common, BaseBuff 50, BaseDebuff 15, `PickupTag = Bounce`, `bRequiresMatchingPickupTag = true`: it is offered only once you hold Bouncing Shot.
 
 ## Perks
 
@@ -139,9 +141,10 @@ Killing a character through `TakeDamage` with enough damage plays out exactly li
 
 ## Projectiles and Heavy Shot
 
-- Projectile setup: `0x140d64840`. It applies every weapon mod through `0x140d61a70` (a switch on the mod type).
+- Every player weapon fires `ACrabProjectile`s: each `UCrabWeaponDA` has a projectile DA at `+0xC0`.
+- Projectile setup: `0x140d64840`. It sets `UCrabPMC+0x124` (gravity) from the projectile DA's `GravityScale` (`+0x5C`), then, for a player's projectile, copies the player's weapon mods onto it and applies each through `0x140d61a70` (a switch on the mod type). `0x140d61a70` first does damage multiplier ×= `0x140d25c30(PS)`, the weapon mods' damage buffs, which include Heavy Shot's.
 - Each projectile carries an unreflected `FCrabProjectileModInfo` at `proj+0x280`: `+0x280` damage multiplier, `+0x294` speed, `+0x29C` gravity multiplier.
 - Fast Shot (case `0xB`): speed += buff, gravity multiplier -= buff.
 - Heavy Shot (case `0x1E`): `UCrabPMC+0x124` (gravity) += 2.0, gravity multiplier += debuff, plus its damage buff.
-- `UCrabPMC` is the game's own movement component, not a `UProjectileMovementComponent`. Its velocity update is `0x140c9bb40` (found through its vtable): gravity = projectile DA `GravityScale` (`+0x5C`) × max(0, gravity multiplier), applied only after `GravityDelay` (DA `+0x60`).
-- So Heavy Shot already works on any projectile weapon. On weapons that don't fire projectiles it only adds damage.
+- `UCrabPMC` is the game's own movement component, not a `UProjectileMovementComponent`. Its velocity update is `0x140c9bb40` (found through its vtable): gravity = projectile DA `GravityScale` (`+0x5C`) × max(0, gravity multiplier), applied only after `GravityDelay` (DA `+0x60`). Setup folds the multiplier in at the end: `PMC+0x124 *= max(0, proj+0x29C)`.
+- So with Heavy Shot, gravity = (`GravityScale` + 2) × (1 + debuff − Fast Shot's buff), on every weapon. Most weapons have `GravityScale` 0 and fly straight without it. Very fast projectiles (speed 100000: Sniper, Marksman Rifle, Laser Cannons) live too briefly to drop much.
