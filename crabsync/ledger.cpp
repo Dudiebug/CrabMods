@@ -25,6 +25,8 @@ void Ledger::reset() {
     damage_ = teamMax_ = 0.f;
     team_ = {};
     base_.clear();
+    poolEmpty_ = false;
+    doomed_.clear();
 }
 
 void Ledger::updateTeamHealth() {
@@ -67,6 +69,9 @@ void Ledger::seed(const std::vector<const Inventory*>& players) {
     }
     hasTeam_ = true;
     updateTeamHealth();
+    // Starting from an already empty pool is not the pool emptying: nobody is killed for it.
+    poolEmpty_ = poolIsEmpty();
+    doomed_.clear();
 }
 
 void Ledger::absorbItem(int c, const Item* before, const Item* now, std::vector<Change>* changes) {
@@ -200,6 +205,7 @@ void Ledger::absorbAll(const std::vector<PlayerKey>& keys, const std::vector<Inv
     updateTeamHealth();
     if (!hasTeam_) return;
 
+    float damageBefore = damage_;
     std::vector<size_t> seen;  // players with a baseline
     for (size_t i = 0; i < keys.size(); i++)
         if (base_.count(keys[i])) seen.push_back(i);
@@ -225,6 +231,29 @@ void Ledger::absorbAll(const std::vector<PlayerKey>& keys, const std::vector<Inv
 
     for (size_t i = 0; i < keys.size(); i++)
         if (!hold || !(*hold)[i]) absorb(keys[i], now[i], changes ? &(*changes)[i] : nullptr);
+
+    bool empty = poolIsEmpty();
+    if (empty && !poolEmpty_ && damage_ > damageBefore) {
+        // Damage emptied the pool: everyone alive now dies.
+        doomed_.clear();
+        for (auto& n : now)
+            if (n.life == Life::Alive) doomed_.push_back(n.body);
+    } else if (empty && doomed_.empty()) {
+        // Empty without anyone taking the killing damage: a lower max (new or respawned characters) or a
+        // pool left over from before. Start it again from whoever is alive instead of killing them.
+        healthValid_ = false;
+        for (auto& n : now) {
+            if (n.life != Life::Alive) continue;
+            float dmg = std::max(0.f, n.maxHealth - n.health);
+            if (!healthValid_ || dmg < damage_) damage_ = dmg;
+            healthValid_ = true;
+        }
+        updateTeamHealth();
+        empty = poolIsEmpty();
+    } else if (!empty) {
+        doomed_.clear();
+    }
+    poolEmpty_ = empty;
 }
 
 Inventory Ledger::target(const Inventory& cur) const {
@@ -235,8 +264,8 @@ Inventory Ledger::target(const Inventory& cur) const {
     if (s_.slots) t.slots = team_.slots;
     if (s_.crystals) t.crystals = team_.crystals;
     if (s_.health && healthValid_ && cur.life == Life::Alive) {
-        if (teamMax_ > 0.f && damage_ >= teamMax_) {
-            t.life = Life::Dead;  // the pool is empty: everyone dies
+        if (std::find(doomed_.begin(), doomed_.end(), cur.body) != doomed_.end()) {
+            t.life = Life::Dead;  // the pool emptied: everyone alive at that moment dies
             t.health = 0.f;
         } else {
             // Everyone normally has the same max; one that is briefly lower (a character that just

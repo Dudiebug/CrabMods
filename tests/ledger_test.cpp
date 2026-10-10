@@ -358,6 +358,29 @@ static void TestHealthPoolEmptyKillsEveryone() {
     }
 }
 
+static void TestHealthEmptyPoolKillsOnce() {
+    std::puts("health: an empty pool kills who was alive then, never a character that spawns later");
+    Sim s;
+    Spawn(s.players[1], 101, 50);
+    s.Poll();
+    Hit(s.players[1], 60);
+    s.Poll();
+    CHECK(s.players[1].life == Life::Dead);
+    Spawn(s.players[1], 201, 40);  // respawned (or a lobby character) while the old pool is still empty
+    for (int i = 0; i < 3; i++) s.Poll();
+    CHECK(s.players[1].life == Life::Alive && s.players[1].health >= 1.f);
+}
+
+static void TestHealthStaleSeedDoesNotKill() {
+    std::puts("health: a team started from a badly hurt character does not kill a fresh one");
+    Sim s;
+    Spawn(s.players[1], 101, 314, 613);  // the run's last character, 299 damage taken
+    s.Poll();
+    Spawn(s.players[1], 201, 100, 100);  // the lobby character: less max health than the damage
+    for (int i = 0; i < 3; i++) s.Poll();
+    CHECK(s.players[1].life == Life::Alive);
+}
+
 static void TestHealthNoFalseWipe() {
     std::puts("health: loading, respawned or uninitialised characters never drain the pool");
     Sim s;
@@ -422,6 +445,8 @@ static void TestHealthDisabledStaysLocal() {
 int main() {
     TestHealthPoolShared();
     TestHealthPoolEmptyKillsEveryone();
+    TestHealthEmptyPoolKillsOnce();
+    TestHealthStaleSeedDoesNotKill();
     TestHealthNoFalseWipe();
     TestHealthWaitsForSomeoneAlive();
     TestHealthPoolGrowsWithPlayers();

@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.0";
+constexpr const char kVersion[] = "1.0.1";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -87,6 +87,25 @@ void DumpInventory(const char* who, const Inventory& inv) {
                      i.enhancements.size());
 }
 
+// Which parts of a player's inventory differ from what was written, for the retry log.
+std::string Mismatch(const Inventory& cur, const Inventory& tgt) {
+    std::string out;
+    auto add = [&](const std::string& s) { out += (out.empty() ? "" : ", ") + s; };
+    for (int e = 0; e < NumEquip; e++)
+        if (cur.equip[e] != tgt.equip[e]) add(std::string(EquipName(e)) + " " + ItemName(tgt.equip[e]));
+    if (cur.slots != tgt.slots) add("slots");
+    if (cur.crystals != tgt.crystals) add("crystals " + std::to_string(cur.crystals) + " -> " + std::to_string(tgt.crystals));
+    for (int c = 0; c < NumCats; c++)
+        if (cur.items[c] != tgt.items[c]) add(std::string(CatName(c)) + "s");
+    if (cur.life != tgt.life || cur.health != tgt.health) {
+        char buf[96];
+        snprintf(buf, sizeof buf, "health %.0f/%.0f -> %.0f%s", cur.health, cur.maxHealth, tgt.health,
+                 tgt.life == Life::Dead ? " (dead)" : "");
+        add(buf);
+    }
+    return out;
+}
+
 void Sync(void* gs) {
     static void* psClass = StaticClass(va::ACrabPS_StaticClass);
     auto& arr = At<TArray<void*>>(gs, off::GS_PlayerArray);
@@ -102,7 +121,7 @@ void Sync(void* gs) {
     g_ledger.retain(keys);
 
     // Each player after the first adds healthPerPlayer to everyone's max, so the pool grows with the team.
-    float extra = g_cfg.sync.health ? g_cfg.healthPerPlayer * float(players.size() - 1) : 0.f;
+    float extra = g_ledger.settings().health ? g_cfg.healthPerPlayer * float(players.size() - 1) : 0.f;
     bool extraChanged = extra != g_extraHealth;
     if (extraChanged)
         CRAB_LOG("%zu player(s): shared health pool max is everyone's own max + %.0f", players.size(), extra);
@@ -172,7 +191,8 @@ void Sync(void* gs) {
             }
             if (done && !(cur[i] == tgt) && g.mismatchLogs < 50) {
                 g.mismatchLogs++;
-                CRAB_LOG("%s: could not fully apply the team inventory yet (retrying)", PlayerName(players[i]).c_str());
+                CRAB_LOG("%s: could not fully apply the team inventory yet (retrying): %s", PlayerName(players[i]).c_str(),
+                         Mismatch(cur[i], tgt).c_str());
             }
         }
         // Whatever we wrote is now the baseline, so it is never mistaken for the player's own change.
@@ -253,10 +273,20 @@ void OnTick(void* engine, float dt) {
         // Starting a run resets slots, crystals and health for everyone; wait for that to finish, then
         // rebuild the team from it instead of counting the reset as everyone losing things.
         if (g.lastIsland == uint8_t(IslandType::Lobby)) g.runStarting = true;
-        if (island == uint8_t(IslandType::Lobby)) g.runStarting = false;
+        if (island == uint8_t(IslandType::Lobby)) {
+            // Back from a run: let the lobby characters spawn before the new team is read from them.
+            g.runStarting = false;
+            g.sinceLoad = 0.f;
+        }
         if (g.runStarting && island != uint8_t(IslandType::None)) g.sinceLoad = 0.f;
         g.lastIsland = island;
     }
+    // Health is not shared in the lobby: nothing there hurts, and a pool carried over from the run's last
+    // fight would be applied to the fresh lobby characters.
+    Settings st = g_cfg.sync;
+    if (island == uint8_t(IslandType::Lobby)) st.health = false;
+    g_ledger.setSettings(st);
+
     const char* pause = nullptr;
     if (g.sinceLoad < g_cfg.settleSeconds) {
         g.sinceLoad += dt;

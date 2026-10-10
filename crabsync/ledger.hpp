@@ -137,6 +137,11 @@ private:
     // health pickup): team health = max health - damage_.
     float damage_ = 0.f;
     float teamMax_ = 0.f;  // the highest max health of anyone alive
+    // The characters alive when the pool emptied: they are the ones killed. A character that spawns later
+    // (respawn, lobby, a stale pool after a reset) is never killed for an old empty pool.
+    bool poolEmpty_ = false;
+    std::vector<uintptr_t> doomed_;
+    bool poolIsEmpty() const { return s_.health && healthValid_ && teamMax_ > 0.f && damage_ >= teamMax_; }
     std::unordered_map<PlayerKey, Inventory> base_;
 };
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed: returning to the lobby after a run could kill you over and over. The health pool carried the run's damage into the lobby, where your max health is lower, so the pool counted as empty.
+- Health is no longer shared in the lobby.
+- CrabSync now waits a moment after you arrive in the lobby before starting the new team.
+- An empty pool only kills the characters that were alive when the damage emptied it. A respawned or new character is never killed for an old empty pool; the pool restarts from it instead.
+- The "could not fully apply" log line now says what was out of sync.
+
 ## 1.0.0
 
 First release.
