@@ -5,7 +5,7 @@ Native mods for **Crab Champions**, and the reverse-engineering notes and SDK th
 | Mod | What it does | Who installs it | Download |
 |---|---|---|---|
 | [**CrabSync**](crabsync/README.md) | One team, one inventory, one health bar: every pickup, crystal and hit is shared by the whole lobby. | The host only | [`CrabSync-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync) |
-| [**CrabMods**](crabmods/README.md) | 19 new items: damage perks and relics (Hoarder, Minimalist, Underdog, Last Crab Standing, ...), Specialist relics that make one kind of loot 3× as likely, Double or Nothing, Recharge, Heavy Shot for every weapon, and Spiked Chests that cost 35% max health. In multiplayer the host's settings are used by everyone. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
+| [**CrabMods**](crabmods/README.md) | 19 new items: damage perks and relics (Hoarder, Minimalist, Underdog, Last Crab Standing, ...), Specialist relics that make one kind of loot 3× as likely, Double or Nothing, Recharge, Heavy Shot for every weapon, and Spiked Chests that cost 35% max health (35% for the whole team with CrabSync). In multiplayer the host's settings are used by everyone. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
 | [**CrabMods Manager**](manager/README.md) | Installs, updates, switches on/off and removes the mods; edits their settings and shares them as codes. Windows, or Proton/wine on Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
 
 The two mods work together or on their own. Each one's page has its settings, details and known issues.

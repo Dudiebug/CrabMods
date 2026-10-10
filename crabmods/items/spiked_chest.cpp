@@ -4,16 +4,35 @@
 //   spawns. Only the host's matters: the host spawns the chests and takes the payment.
 // - The portal text is a fixed-length literal in the game's own strings, rewritten in place on every machine
 //   (the description is built by each player's game). In multiplayer it uses the host's setting like the rest.
+// - With CrabSync's shared health pool (syncHealth, chestHealthCost = split), CrabSync shares each chest's cost
+//   out so that every player opening one costs the team this percent in all, and the portal says so.
 #include <algorithm>
 #include <cwchar>
+#include <fstream>
 #include <iterator>
 
-#include "../item.hpp"
+#include "../config.hpp"
 
 namespace crabmods {
 namespace {
 
 constexpr int kGameCost = 25;
+
+// CrabSync is loaded with its shared health pool and chests split between the players (its CrabSync.ini).
+bool TeamPaysOnce() {
+    if (!GetModuleHandleW(L"CrabSync.dll")) return false;
+    bool health = true, split = true;
+    std::ifstream f((ModuleDir() + L"CrabSync.ini").c_str());
+    for (std::string line; std::getline(f, line);) {
+        if (auto c = line.find_first_of("#;"); c != std::string::npos) line.resize(c);
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string k = Trim(line.substr(0, eq)), v = Trim(line.substr(eq + 1));
+        if (k == "syncHealth") health = ParseBool(v);
+        if (k == "chestHealthCost") split = v == "split";
+    }
+    return health && split;
+}
 
 class SpikedChest : public Item {
 public:
@@ -57,10 +76,14 @@ private:
     }
 
     void SetPortalText() {
-        if (text_ == cost_) return;
+        bool team = TeamPaysOnce();
+        if (text_ == cost_ && team_ == team) return;
         wchar_t s[va::kSpikedChestDescriptionLen + 1];
         if (cost_ == 0)
             swprintf(s, std::size(s), L"A chest that contains Epic loot and costs nothing to open");
+        else if (team)
+            swprintf(s, std::size(s), L"Epic loot. All the team's spiked chests together cost %d%% of base max health",
+                     cost_);
         else
             swprintf(s, std::size(s), L"A chest that contains Epic loot but costs %d%% of your base max health to open",
                      cost_);
@@ -69,9 +92,10 @@ private:
         for (; n < size_t(va::kSpikedChestDescriptionLen); n++) s[n] = L' ';
         s[n] = 0;
         auto* dst = reinterpret_cast<wchar_t*>(Addr(va::Text_SpikedChestDescription));
-        if (wcsncmp(dst, L"A chest that contains Epic loot ", 32) != 0) {
+        if (text_ == kGameCost && !team_ && wcsncmp(dst, L"A chest that contains Epic loot ", 32) != 0) {
             CRAB_LOG("spikedChest: the portal description isn't where expected; left unchanged");
             text_ = cost_;
+            team_ = team;
             return;
         }
         DWORD old;
@@ -79,10 +103,13 @@ private:
         memcpy(dst, s, sizeof s);
         VirtualProtect(dst, sizeof s, old, &old);
         text_ = cost_;
+        team_ = team;
     }
 
     int cost_ = 35;
     int text_ = kGameCost;  // the cost the portal text says now
+    bool team_ = false;     // and whether it says it is for the whole team
+
     bool warned_ = false;
 };
 

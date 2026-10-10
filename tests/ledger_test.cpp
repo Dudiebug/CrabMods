@@ -1,4 +1,5 @@
 // Ledger tests. Simulates the host poll loop from main.cpp with in-memory players.
+#include <cmath>
 #include <algorithm>
 #include <cstdio>
 #include <map>
@@ -517,7 +518,7 @@ static void TestChestCostSplit() {
     s.modelMax = true;
     for (PlayerKey k = 1; k <= 4; k++) Spawn(s.players[k], 100 + k, 400, 400);
     s.Poll();
-    // Player 1 opens a greed chest: 20% of their base max.
+    // A max health cost given without its fraction is divided by the number of players.
     AddBase(s.players[1], -80.f);
     s.ledger.chestCost(1, -80.f, 0.f);
     s.Poll();
@@ -532,6 +533,25 @@ static void TestChestCostSplit() {
     Hit(s.players[2], 40);
     s.Poll();
     for (auto& [k, v] : s.players) CHECK(v.health == 330.f);
+}
+
+static void TestSpikedChestsTotal() {
+    std::puts("max health: every player opening a 35% spiked chest costs the team 35% in all");
+    for (int n = 1; n <= 4; n++) {
+        Sim s;
+        s.modelMax = true;
+        for (PlayerKey k = 1; k <= PlayerKey(n); k++) Spawn(s.players[k], 100 + k, 400, 400);
+        s.Poll();
+        for (PlayerKey k = 1; k <= PlayerKey(n); k++) {
+            float d = -0.35f * s.players[k].baseMax;
+            AddBase(s.players[k], d);
+            s.ledger.chestCost(k, d, 0.f, 0.35f);
+            s.Poll();
+            s.Poll();
+            if (n > 1 && k == 1) CHECK(s.players[2].maxHealth > 300.f);  // one chest is only a share
+        }
+        for (auto& [k, v] : s.players) CHECK(std::fabs(v.maxHealth - 260.f) < 0.5f && v.health == v.maxHealth);
+    }
 }
 
 static void TestChestCostFullAndFree() {
@@ -596,6 +616,8 @@ int main() {
     TestMaxHealthShared();
     TestChestCostSplit();
     TestChestCostFullAndFree();
+    TestSpikedChestsTotal();
+
     TestMaxHealthNotSharedInLobby();
 
     TestGameWideChangeCountedOnce();

@@ -4,7 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.3.2
+
+- With CrabSync's shared health pool (and `chestHealthCost = split`), the Spiked island's portal says "All the team's spiked chests together cost 35% of base max health", which CrabSync 1.0.3 now makes true.
+
 ### 0.3.1
+
 
 - **Spiked Chest** costs **35%** of your base max health instead of the game's 25%, and the Spiked island's portal says "costs 35% of your base max health". Set it with `costPercent` in the new `[spikedChest]` section (0 to 99; 25 is the game's own). In multiplayer the host's value is used, for the cost and for everyone's portal text.
 
@@ -59,6 +64,10 @@ First release.
 - `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
+
+### 1.0.3
+
+- Max health chests (spiked) are shared out so that **every player opening one costs the team what one chest costs alone**, compounding included: with a 35% spiked chest, four players lose about 10.2% each and exactly 35% together (it was the cost divided by the number of players, which came to about 31%). Health costs are still divided by the number of players.
 
 ### 1.0.2
 

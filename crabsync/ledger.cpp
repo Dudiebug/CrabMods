@@ -1,6 +1,7 @@
 #include "ledger.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 namespace crabsync {
@@ -39,14 +40,21 @@ float Ledger::chestShare(float cost) const {
     }
 }
 
+float Ledger::chestMaxShare(float cost, float fraction) const {
+    if (s_.chestCost != ChestCost::Split || fraction <= 0.f || fraction > 1.f) return chestShare(cost);
+    float each = 1.f - std::pow(1.f - fraction, 1.f / float(players_ ? players_ : 1));
+    return cost * each / fraction;
+}
+
 void Ledger::addBaseMax(float amount) {
     if (maxSynced()) team_.baseMax += amount;
 }
 
-void Ledger::chestCost(PlayerKey k, float baseMax, float health) {
+void Ledger::chestCost(PlayerKey k, float baseMax, float health, float fraction) {
     if (!maxSynced()) return;
     // The opener's own base is overwritten with the team's on the next poll, so only the share counts.
-    team_.baseMax += chestShare(baseMax);
+    team_.baseMax += chestMaxShare(baseMax, fraction);
+
     if (health > 0.f) refund_[k] += health - chestShare(health);
 }
 

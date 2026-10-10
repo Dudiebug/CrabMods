@@ -46,8 +46,9 @@ syncHealth = true
 # Max health added to the pool for each player after the first (2 players = your max + 250).
 healthPerPlayer = 250
 # Chests that cost health or max health (spiked and greed chests):
-#   split = the team pays the cost divided by the number of players (4 players opening one each
-#           costs what one chest costs alone)
+#   split = each player's chest costs the team a share, so all of them together cost what one
+#           chest costs alone (4 players opening a 35% spiked chest each: 35% in all)
+
 #   full  = the team pays every chest's whole cost
 #   free  = they cost the team nothing
 chestHealthCost = split

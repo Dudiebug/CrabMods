@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.2";
+constexpr const char kVersion[] = "1.0.3";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -417,13 +417,15 @@ void HkChestPay(void* chest, void* opener) {
     float baseMax = g_chestBaseMax;
     g_chestBaseMax = 0.f;
     if (!g_ledger.hasTeam() || (taken == 0.f && baseMax == 0.f)) return;
-    g_ledger.chestCost(reinterpret_cast<PlayerKey>(ps), baseMax, currency == 2 ? taken : 0.f);
+    float fraction = currency == 3 ? float(At<int32_t>(chest, off::Chest_Cost)) * 0.01f : 0.f;
+    g_ledger.chestCost(reinterpret_cast<PlayerKey>(ps), baseMax, currency == 2 ? taken : 0.f, fraction);
     if (currency == 2)
         CRAB_LOG("%s: opened a chest for %.0f health; the team pays %.0f", PlayerName(ps).c_str(), taken,
                  g_ledger.chestShare(taken));
     else
         CRAB_LOG("%s: opened a chest for %.1f max health; the team pays %.1f (team base max %.1f)",
-                 PlayerName(ps).c_str(), -baseMax, -g_ledger.chestShare(baseMax), g_ledger.team().baseMax);
+                 PlayerName(ps).c_str(), -baseMax, -g_ledger.chestMaxShare(baseMax, fraction), g_ledger.team().baseMax);
+
 }
 
 DWORD WINAPI Init(LPVOID) {

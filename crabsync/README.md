@@ -22,7 +22,8 @@ Only the host installs it. Your friends join like normal, with nothing to instal
 
 The health pool grows with the team: its max is your normal max health **plus 250 for each extra player**. Two players start at 500, three at 750, four at 1000. Max-health pickups stack on top. Armor plates stay per-player.
 
-**Spiked and greed chests** (the ones that cost health or max health) would add up fast with a shared pool: four players opening one each would cost the team four chests' worth. So by default the team pays **the cost divided by the number of players**. Four players opening one chest each cost the same as one player opening one alone. Set `chestHealthCost` to `full` to pay every chest in full, or `free` to make them cost nothing.
+**Spiked and greed chests** (the ones that cost health or max health) would add up fast with a shared pool: four players opening one each would cost the team four chests' worth. So by default each chest costs the team **a share**, and all the players opening one each cost the same as one player opening one alone. A spiked chest (35% of max health with [CrabMods](../crabmods/README.md), 25% without) costs four players about 10.2% each, and **35% in all** once all four have opened theirs. A health cost is divided by the number of players.
+ Set `chestHealthCost` to `full` to pay every chest in full, or `free` to make them cost nothing.
 
 Every part can be switched off in `CrabSync.ini`.
 
@@ -57,7 +58,7 @@ Every part can be switched off in `CrabSync.ini`.
 | `syncCrystals` | `true` | One shared crystal wallet. |
 | `syncHealth` | `true` | One shared health pool and one shared max health. |
 | `healthPerPlayer` | `250` | Max health added to the pool for each player after the first. |
-| `chestHealthCost` | `split` | What spiked and greed chests cost the team: `split` (the cost divided by the number of players), `full` or `free`. |
+| `chestHealthCost` | `split` | What spiked and greed chests cost the team: `split` (a share each, so every player opening one costs what one chest costs alone), `full` or `free`. |
 | `announcePickups` | `true` | Teammates' pickups show the pickup popup and trigger perk effects, like a real pickup. |
 | `settleSeconds` | `3` | How long to wait after a map loads or a run starts before syncing. |
 | `pollSeconds` | `0.1` | How often the host checks for changes. |

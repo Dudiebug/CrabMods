@@ -58,7 +58,7 @@ struct Inventory {
 
 // What a chest that costs health or max health (spiked and greed chests) takes from the shared pool.
 enum class ChestCost : uint8_t {
-    Split,  // the cost divided by the number of players: everyone opening one costs what one costs alone
+    Split,  // shared out so that every player opening one costs the team what one costs alone
     Full,   // the whole cost, for every chest anyone opens
     Free,   // nothing
 };
@@ -141,10 +141,16 @@ public:
     // A player's own change (anything but a chest's cost): the whole team gets it.
     void addBaseMax(float amount);
     // A chest's cost, already taken from the opener: max health taken (negative) and health taken
-    // (positive). The team pays the share chestCost says instead.
-    void chestCost(PlayerKey opener, float baseMax, float health);
-    // The part of a chest's cost the team pays.
+    // (positive). fraction: a max health chest's cost as a fraction of the opener's max (Cost / 100).
+    // The team pays the share chestCost says instead.
+    void chestCost(PlayerKey opener, float baseMax, float health, float fraction = 0.f);
+    // The part of a health cost the team pays. Split: the cost divided by the number of players.
     float chestShare(float cost) const;
+    // The part of a max health cost the team pays. Split: a fraction f of max health per chest, so that
+    // all n players opening one leaves (1 - f)^n = 1 - fraction, the same as one chest alone (a 35% chest
+    // costs 4 players 10.2% each, 35% together). Without a fraction, as chestShare.
+    float chestMaxShare(float cost, float fraction) const;
+
 
 private:
     void absorbItem(int cat, const Item* before, const Item* now, std::vector<Change>* changes);

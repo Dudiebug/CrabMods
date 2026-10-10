@@ -2,7 +2,7 @@
 
 **New items for Crab Champions.** 19 items: perks, relics, a weapon mod and an ability mod. Each one drops from chests and rewards like the game's own.
 
-> **Status: early (0.3.1), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
+> **Status: early (0.3.2), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
 ## Items
 
@@ -40,7 +40,8 @@
 
 | Change | Effect |
 |---|---|
-| **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%. The island's portal says "costs 35% of your base max health". |
+| **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
+
 
 - Extra copies stack: each level of an item adds its bonus again (two Minimalists give +10% per empty slot).
 - Every damage bonus is added like the game's own damage perks, so they all stack with each other and with the game's items.
