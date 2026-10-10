@@ -1,0 +1,472 @@
+{
+ "Scavenger": [
+  "HasPerk@0x140ca41b3 in 0x140ca4020",
+  "HasPerk@0x140d3b7f0 in 0x140d3b750",
+  "InvArr_GetLevel@0x140d61ca7 in 0x140d61a70"
+ ],
+ "ExplodingEnemies": [
+  "HasPerk@0x140ca4495 in 0x140ca4020",
+  "InvArr_GetLevel@0x140d67507 in 0x140d66f90"
+ ],
+ "FreezingEnemies": [
+  "HasPerk@0x140ca4711 in 0x140ca4020"
+ ],
+ "FlammableEnemies": [
+  "HasPerk@0x140ca4872 in 0x140ca4020"
+ ],
+ "ElectricEnemies": [
+  "HasPerk@0x140ca49b6 in 0x140ca4020"
+ ],
+ "PoisonousEnemies": [
+  "HasPerk@0x140ca4afd in 0x140ca4020"
+ ],
+ "DoubleTrouble": [
+  "HasPerk@0x140ca5da2 in 0x140ca5ca0",
+  "InvArr_GetBuff@0x140d2502e in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28afb in 0x140d28a30"
+ ],
+ "Snatcher": [
+  "HasPerk@0x140ca8723 in 0x140ca7fe0",
+  "InvArr_GetBuff@0x140d63af4 in 0x140d62690",
+  "InvArr_GetLevel@0x140d63ae6 in 0x140d62690"
+ ],
+ "CrimsonHaze": [
+  "HasPerk@0x140ca87d8 in 0x140ca7fe0"
+ ],
+ "ExplosiveArmor": [
+  "HasPerk@0x140ca8857 in 0x140ca7fe0"
+ ],
+ "PoisonousArmor": [
+  "HasPerk@0x140ca892a in 0x140ca7fe0"
+ ],
+ "FlammableArmor": [
+  "HasPerk@0x140ca8a2a in 0x140ca7fe0",
+  "InvArr_GetLevel@0x140d63ddb in 0x140d62690"
+ ],
+ "DoubleEdgedSword": [
+  "HasPerk@0x140ca8c35 in 0x140ca7fe0",
+  "HasPerk@0x140d17ead in 0x140d17be0"
+ ],
+ "ValuedCustomer": [
+  "HasPerk@0x140cb6274 in 0x140cb5860",
+  "HasPerk@0x140d3d04f in 0x140d3cf00",
+  "InvArr_GetBuff@0x140d225cc in 0x140d225a0",
+  "InvArr_GetLevel@0x140d60f0a in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61b3e in 0x140d61a70"
+ ],
+ "HotSteam": [
+  "HasPerk@0x140cbbcd4 in 0x140cbbae0"
+ ],
+ "Driller": [
+  "HasPerk@0x140cc3b44 in 0x140cc34d0",
+  "HasPerk@0x140cf0ec5 in 0x140cf0e60"
+ ],
+ "PersonalSpace": [
+  "HasPerk@0x140ce5a97 in 0x140ce5780",
+  "InvArr_GetBuff@0x140d225da in 0x140d225a0",
+  "InvArr_GetBuff@0x140d60f66 in 0x140d60e80",
+  "InvArr_GetLevel@0x140d60f3f in 0x140d60e80",
+  "InvArr_GetLevel@0x140d60f52 in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61bb1 in 0x140d61a70"
+ ],
+ "Bullseye": [
+  "HasPerk@0x140ce5ac1 in 0x140ce5780",
+  "InvArr_GetBuff@0x140d225e8 in 0x140d225a0",
+  "InvArr_GetLevel@0x140d61be7 in 0x140d61a70"
+ ],
+ "GrimReaper": [
+  "HasPerk@0x140ce5ae7 in 0x140ce5780"
+ ],
+ "Checklist": [
+  "HasPerk@0x140ce5b04 in 0x140ce5780",
+  "UpdatePerkBuff@0x140d22550 in 0x140d22530"
+ ],
+ "Assassin": [
+  "HasPerk@0x140ce5b1e in 0x140ce5780",
+  "UpdatePerkBuff@0x140d22490 in 0x140d22470"
+ ],
+ "BonusChests": [
+  "HasPerk@0x140ce5b34 in 0x140ce5780",
+  "InvArr_GetBuff@0x140d224de in 0x140d224b0"
+ ],
+ "Fortitude": [
+  "HasPerk@0x140ce9fa7 in 0x140ce9650",
+  "InvArr_GetBuff@0x140d225b7 in 0x140d225a0",
+  "InvArr_GetLevel@0x140d60ef0 in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61b00 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d61b2b in 0x140d61a70",
+  "InvArr_GetLevel@0x140d67f14 in 0x140d66f90",
+  "InvArr_GetLevel@0x140d67f26 in 0x140d66f90"
+ ],
+ "Paycheck": [
+  "HasPerk@0x140ce9fcd in 0x140ce9650",
+  "InvArr_GetBuff@0x140d63b3b in 0x140d62690"
+ ],
+ "LevelUp": [
+  "HasPerk@0x140cea040 in 0x140ce9650"
+ ],
+ "SlipperySlope": [
+  "HasPerk@0x140cead40 in 0x140cea670"
+ ],
+ "Endurance": [
+  "HasPerk@0x140ceadeb in 0x140cea670",
+  "InvArr_GetBuff@0x140d22604 in 0x140d225a0",
+  "InvArr_GetLevel@0x140d61c3b in 0x140d61a70"
+ ],
+ "Regenerator": [
+  "HasPerk@0x140ceae06 in 0x140cea670",
+  "InvArr_GetBuff@0x140d6103e in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61c65 in 0x140d61a70"
+ ],
+ "TonysBlackCard": [
+  "HasPerk@0x140cf2866 in 0x140cf2800",
+  "InvArr_GetBuff@0x140d63844 in 0x140d62690",
+  "InvArr_GetLevel@0x140d63770 in 0x140d62690"
+ ],
+ "CarePackage": [
+  "HasPerk@0x140d0283b in 0x140d01610"
+ ],
+ "?": [
+  "HasPerk@0x140d122de in 0x140d11f80",
+  "HasPerk@0x140d1b051 in 0x140d1ae30",
+  "HasPerk@0x140d3ce70 in 0x140d3cc60",
+  "HasPerk@0x140d3dc0b in 0x140d3d320",
+  "GetPerkBaseBuff@0x140d16cf8 in 0x140d168d0",
+  "InvArr_GetBuff@0x140d22637 in None",
+  "InvArr_GetBuff@0x140d250c7 in None",
+  "InvArr_GetBuff@0x140d254b7 in None",
+  "InvArr_GetBuff@0x140d27748 in 0x140d276e0",
+  "InvArr_GetBuff@0x140d6109d in 0x140d60e80",
+  "InvArr_GetBuff@0x140d67877 in 0x140d66f90",
+  "InvArr_GetLevel@0x140d1fe64 in 0x140d1fd60",
+  "InvArr_GetLevel@0x140d20244 in 0x140d20140",
+  "InvArr_GetLevel@0x140d205eb in 0x140d20520",
+  "InvArr_GetLevel@0x140d2064d in 0x140d20520",
+  "InvArr_GetLevel@0x140d211a4 in 0x140d210a0",
+  "InvArr_GetLevel@0x140d22657 in None",
+  "InvArr_GetLevel@0x140d22ab5 in 0x140d22a50",
+  "InvArr_GetLevel@0x140d22b55 in 0x140d22af0",
+  "InvArr_GetLevel@0x140d22bf5 in 0x140d22b90",
+  "InvArr_GetLevel@0x140d22cd5 in 0x140d22c70",
+  "InvArr_GetLevel@0x140d23adb in 0x140d23ad0",
+  "InvArr_GetLevel@0x140d23b7b in 0x140d23b70",
+  "InvArr_GetLevel@0x140d23b9b in 0x140d23b90",
+  "InvArr_GetLevel@0x140d23bfb in 0x140d23bf0",
+  "InvArr_GetLevel@0x140d250e7 in None",
+  "InvArr_GetLevel@0x140d254d7 in None",
+  "InvArr_GetLevel@0x140d25fd7 in None",
+  "InvArr_GetLevel@0x140d265bb in 0x140d26080",
+  "InvArr_GetLevel@0x140d265f9 in 0x140d26080",
+  "InvArr_GetLevel@0x140d26633 in 0x140d26080",
+  "InvArr_GetLevel@0x140d26671 in 0x140d26080",
+  "InvArr_GetLevel@0x140d28c48 in 0x140d28c10",
+  "InvArr_GetLevel@0x140d29352 in 0x140d28ee0",
+  "InvArr_GetLevel@0x140d2a3a2 in 0x140d2a150"
+ ],
+ "DaggerDash": [
+  "HasPerk@0x140d13a82 in 0x140d138a0",
+  "InvArr_GetBuff@0x140d65aca in 0x140d64840"
+ ],
+ "IceDash": [
+  "HasPerk@0x140d13c45 in 0x140d13b70",
+  "HasPerk@0x140d1aa0c in 0x140d1a990"
+ ],
+ "LightningDash": [
+  "HasPerk@0x140d13cab in 0x140d13b70",
+  "HasPerk@0x140d1ab7e in 0x140d1a990"
+ ],
+ "LeapOfFaith": [
+  "HasPerk@0x140d15638 in 0x140d15580",
+  "InvArr_GetBuff@0x140d25012 in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28add in 0x140d28a30"
+ ],
+ "OrbitingScythes": [
+  "HasPerk@0x140d166eb in 0x140d16680",
+  "InvArr_GetBuff@0x140d65ab4 in 0x140d64840"
+ ],
+ "GraveDodger": [
+  "HasPerk@0x140d16822 in 0x140d167d0"
+ ],
+ "Collector": [
+  "HasPerk@0x140d16cc6 in 0x140d168d0",
+  "InvArr_GetBuff@0x140d22ea2 in 0x140d22e90",
+  "InvArr_GetBuff@0x140d238a7 in 0x140d23700",
+  "UpdatePerkBuff@0x140d16ce4 in 0x140d168d0"
+ ],
+ "Shockwave": [
+  "HasPerk@0x140d17d27 in 0x140d17be0"
+ ],
+ "Bribe": [
+  "HasPerk@0x140d17e43 in 0x140d17be0",
+  "InvArr_GetBuff@0x140d25020 in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28aec in 0x140d28a30"
+ ],
+ "DamageSeeker": [
+  "HasPerk@0x140d17e71 in 0x140d17be0",
+  "InvArr_GetBuff@0x140d23a35 in 0x140d23700"
+ ],
+ "GoldCoating": [
+  "HasPerk@0x140d18022 in 0x140d17f90"
+ ],
+ "Powerslide": [
+  "HasPerk@0x140d1b922 in 0x140d1b8a0"
+ ],
+ "DamageAura": [
+  "HasPerk@0x140d1f4b7 in 0x140d1ecb0",
+  "InvArr_GetBuff@0x140d63c7b in 0x140d62690",
+  "InvArr_GetLevel@0x140d63c6d in 0x140d62690"
+ ],
+ "BubblingAcid": [
+  "InvArr_GetBuff@0x140d182a4 in 0x140d18200"
+ ],
+ "ElementalSpecialist": [
+  "InvArr_GetBuff@0x140d2169b in 0x140d21480",
+  "InvArr_GetLevel@0x140d215f8 in 0x140d21480"
+ ],
+ "ElementalExpert": [
+  "InvArr_GetBuff@0x140d216aa in 0x140d21480"
+ ],
+ "DangerClose": [
+  "InvArr_GetBuff@0x140d217ac in 0x140d21480",
+  "InvArr_GetLevel@0x140d61e55 in 0x140d61a70"
+ ],
+ "EagleEye": [
+  "InvArr_GetBuff@0x140d217c0 in 0x140d21480",
+  "InvArr_GetLevel@0x140d61e6a in 0x140d61a70",
+  "InvArr_GetLevel@0x140d61e78 in 0x140d61a70"
+ ],
+ "IceCold": [
+  "InvArr_GetBuff@0x140d217cf in 0x140d21480",
+  "InvArr_GetLevel@0x140d67816 in 0x140d66f90"
+ ],
+ "Firestarter": [
+  "InvArr_GetBuff@0x140d21839 in 0x140d21480",
+  "InvArr_GetBuff@0x140d63447 in 0x140d62690",
+  "InvArr_GetLevel@0x140d6340c in 0x140d62690"
+ ],
+ "HighVoltage": [
+  "InvArr_GetBuff@0x140d21895 in 0x140d21480",
+  "InvArr_GetBuff@0x140d65a2a in 0x140d64840",
+  "InvArr_GetLevel@0x140d63497 in 0x140d62690"
+ ],
+ "PotentMagic": [
+  "InvArr_GetBuff@0x140d2193b in 0x140d21480",
+  "InvArr_GetBuff@0x140d63957 in 0x140d62690",
+  "InvArr_GetLevel@0x140d63892 in 0x140d62690"
+ ],
+ "PowerPunch": [
+  "InvArr_GetBuff@0x140d21b3d in 0x140d21480",
+  "InvArr_GetBuff@0x140d23056 in 0x140d23030",
+  "InvArr_GetBuff@0x140d65986 in 0x140d64840",
+  "InvArr_GetLevel@0x140d6326e in 0x140d62690"
+ ],
+ "CriticalThinking": [
+  "InvArr_GetBuff@0x140d21b54 in 0x140d21480",
+  "InvArr_GetBuff@0x140d23071 in 0x140d23030",
+  "InvArr_GetBuff@0x140d659ae in 0x140d64840",
+  "InvArr_GetLevel@0x140d22187 in 0x140d21480",
+  "InvArr_GetLevel@0x140d632f9 in 0x140d62690"
+ ],
+ "Banana": [
+  "InvArr_GetBuff@0x140d225f6 in 0x140d225a0",
+  "InvArr_GetBuff@0x140d25004 in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28ace in 0x140d28a30",
+  "InvArr_GetLevel@0x140d60fcc in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61c11 in 0x140d61a70"
+ ],
+ "DamageCombo": [
+  "InvArr_GetBuff@0x140d22612 in 0x140d225a0",
+  "InvArr_GetBuff@0x140d23202 in 0x140d231f0",
+  "InvArr_GetBuff@0x140d237ca in 0x140d23700"
+ ],
+ "Mango": [
+  "InvArr_GetBuff@0x140d2273f in 0x140d22720",
+  "InvArr_GetBuff@0x140d28aa3 in 0x140d28a30"
+ ],
+ "Bulletproof": [
+  "InvArr_GetBuff@0x140d2279b in 0x140d22780"
+ ],
+ "Survivor": [
+  "InvArr_GetBuff@0x140d227ac in 0x140d22780",
+  "InvArr_GetBuff@0x140d23d88 in 0x140d23d30"
+ ],
+ "SpeedDemon": [
+  "InvArr_GetBuff@0x140d227f7 in 0x140d227e0",
+  "InvArr_GetBuff@0x140d239cf in 0x140d23700",
+  "InvArr_GetBuff@0x140d25b4d in 0x140d25b20"
+ ],
+ "Sharpshooter": [
+  "InvArr_GetBuff@0x140d22f40 in 0x140d22f20",
+  "InvArr_GetBuff@0x140d610db in 0x140d60e80",
+  "InvArr_GetLevel@0x140d610c3 in 0x140d60e80"
+ ],
+ "HotShot": [
+  "InvArr_GetBuff@0x140d22f59 in 0x140d22f20",
+  "InvArr_GetBuff@0x140d65936 in 0x140d64840",
+  "InvArr_GetLevel@0x140d631ac in 0x140d62690"
+ ],
+ "CrystalCombo": [
+  "InvArr_GetBuff@0x140d23122 in 0x140d23110",
+  "InvArr_GetBuff@0x140d2317b in 0x140d23160",
+  "InvArr_GetBuff@0x140d639c3 in 0x140d62690"
+ ],
+ "BonusCrystals": [
+  "InvArr_GetBuff@0x140d2319c in 0x140d23160"
+ ],
+ "Workaholic": [
+  "InvArr_GetBuff@0x140d231ae in 0x140d23160"
+ ],
+ "RisingStar": [
+  "InvArr_GetBuff@0x140d231c0 in 0x140d23160"
+ ],
+ "LimitedLoot": [
+  "InvArr_GetBuff@0x140d231d2 in 0x140d23160"
+ ],
+ "Equalizer": [
+  "InvArr_GetBuff@0x140d236eb in 0x140d236b0",
+  "InvArr_GetBuff@0x140d23878 in 0x140d23700",
+  "InvArr_GetLevel@0x140d236c6 in 0x140d236b0",
+  "InvArr_GetLevel@0x140d23861 in 0x140d23700"
+ ],
+ "Vitality": [
+  "InvArr_GetBuff@0x140d237b6 in 0x140d23700",
+  "InvArr_GetBuff@0x140d25c0b in 0x140d25bb0",
+  "InvArr_GetLevel@0x140d61058 in 0x140d60e80",
+  "InvArr_GetLevel@0x140d61d58 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d64258 in 0x140d62690",
+  "InvArr_GetLevel@0x140d67f8e in 0x140d66f90"
+ ],
+ "AntiCrit": [
+  "InvArr_GetBuff@0x140d237ea in 0x140d23700",
+  "InvArr_GetBuff@0x140d6595e in 0x140d64840",
+  "InvArr_GetLevel@0x140d6320d in 0x140d62690"
+ ],
+ "PowerArmor": [
+  "InvArr_GetBuff@0x140d23839 in 0x140d23700",
+  "InvArr_GetBuff@0x140d2568c in 0x140d25630",
+  "InvArr_GetBuff@0x140d63a1f in 0x140d62690",
+  "InvArr_GetLevel@0x140d237fc in 0x140d23700",
+  "InvArr_GetLevel@0x140d25649 in 0x140d25630",
+  "InvArr_GetLevel@0x140d63a11 in 0x140d62690"
+ ],
+ "TastyOrange": [
+  "InvArr_GetBuff@0x140d23885 in 0x140d23700",
+  "UpdatePerkBuff@0x140d26c41 in 0x140d26c00",
+  "UpdatePerkBuff@0x140d27380 in 0x140d27340",
+  "UpdatePerkBuff@0x140d28f61 in 0x140d28ee0",
+  "UpdatePerkBuff@0x140d29d3f in None"
+ ],
+ "MoneyIsPower": [
+  "InvArr_GetBuff@0x140d23909 in 0x140d23700",
+  "InvArr_GetBuff@0x140d251bd in 0x140d25190",
+  "InvArr_GetLevel@0x140d238f5 in 0x140d23700",
+  "InvArr_GetLevel@0x140d251a9 in 0x140d25190",
+  "InvArr_GetLevel@0x140d641a3 in 0x140d62690"
+ ],
+ "HealthIsPower": [
+  "InvArr_GetBuff@0x140d2398f in 0x140d23700",
+  "InvArr_GetBuff@0x140d23c9c in 0x140d23c40",
+  "InvArr_GetLevel@0x140d23952 in 0x140d23700",
+  "InvArr_GetLevel@0x140d23c59 in 0x140d23c40"
+ ],
+ "SpeedIsPower": [
+  "InvArr_GetBuff@0x140d239f1 in 0x140d23700",
+  "InvArr_GetBuff@0x140d25b70 in 0x140d25b20",
+  "InvArr_GetLevel@0x140d239bb in 0x140d23700",
+  "InvArr_GetLevel@0x140d25b36 in 0x140d25b20"
+ ],
+ "BigBones": [
+  "InvArr_GetBuff@0x140d23a12 in 0x140d23700",
+  "InvArr_GetBuff@0x140d2504a in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28b19 in 0x140d28a30"
+ ],
+ "GlassCannon": [
+  "InvArr_GetBuff@0x140d23a27 in 0x140d23700"
+ ],
+ "BruteForce": [
+  "InvArr_GetBuff@0x140d23a43 in 0x140d23700"
+ ],
+ "UpTheAnte": [
+  "InvArr_GetBuff@0x140d23a51 in 0x140d23700"
+ ],
+ "HardTarget": [
+  "InvArr_GetBuff@0x140d23d76 in 0x140d23d30"
+ ],
+ "Juggernaut": [
+  "InvArr_GetBuff@0x140d2503c in 0x140d24fe0",
+  "InvArr_GetBuff@0x140d28b0a in 0x140d28a30"
+ ],
+ "SpecialDelivery": [
+  "InvArr_GetBuff@0x140d6370b in 0x140d62690",
+  "InvArr_GetLevel@0x140d635cb in 0x140d62690"
+ ],
+ "CrystalFertilizer": [
+  "InvArr_GetBuff@0x140d63b7b in 0x140d62690",
+  "InvArr_GetLevel@0x140d63b6d in 0x140d62690"
+ ],
+ "EnhancedTurrets": [
+  "InvArr_GetBuff@0x140d63bbb in 0x140d62690",
+  "InvArr_GetLevel@0x140d63bad in 0x140d62690"
+ ],
+ "TurboTurrets": [
+  "InvArr_GetBuff@0x140d63bfb in 0x140d62690",
+  "InvArr_GetLevel@0x140d620b1 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d63bed in 0x140d62690"
+ ],
+ "TurretFriendship": [
+  "InvArr_GetBuff@0x140d63c3b in 0x140d62690",
+  "InvArr_GetLevel@0x140d620e9 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d621f7 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d63c2d in 0x140d62690"
+ ],
+ "IceAura": [
+  "InvArr_GetBuff@0x140d63cbb in 0x140d62690",
+  "InvArr_GetLevel@0x140d63cad in 0x140d62690"
+ ],
+ "FireAura": [
+  "InvArr_GetBuff@0x140d63d07 in 0x140d62690",
+  "InvArr_GetLevel@0x140d63cf9 in 0x140d62690"
+ ],
+ "CriticalArrow": [
+  "InvArr_GetBuff@0x140d659d6 in 0x140d64840",
+  "InvArr_GetLevel@0x140d21cd3 in 0x140d21480",
+  "InvArr_GetLevel@0x140d61df3 in 0x140d61a70",
+  "InvArr_GetLevel@0x140d6337c in 0x140d62690"
+ ],
+ "Toxic": [
+  "InvArr_GetBuff@0x140d65a52 in 0x140d64840",
+  "InvArr_GetLevel@0x140d6351a in 0x140d62690"
+ ],
+ "CriticalBlast": [
+  "InvArr_GetLevel@0x140d21d5a in 0x140d21480"
+ ],
+ "CriticalLightning": [
+  "InvArr_GetLevel@0x140d22130 in 0x140d21480"
+ ],
+ "Stamina": [
+  "InvArr_GetLevel@0x140d61eea in 0x140d61a70"
+ ],
+ "LightningAura": [
+  "InvArr_GetLevel@0x140d6211a in 0x140d61a70",
+  "InvArr_GetLevel@0x140d63d45 in 0x140d62690"
+ ],
+ "PoisonAura": [
+  "InvArr_GetLevel@0x140d6214a in 0x140d61a70",
+  "InvArr_GetLevel@0x140d63d90 in 0x140d62690"
+ ],
+ "ArcaneRift": [
+  "InvArr_GetLevel@0x140d63a61 in 0x140d62690"
+ ],
+ "Frostbite": [
+  "InvArr_GetLevel@0x140d63a9b in 0x140d62690"
+ ],
+ "SturdyTotems": [
+  "InvArr_GetLevel@0x140d67585 in 0x140d66f90"
+ ],
+ "Gemstone": [
+  "UpdatePerkBuff@0x140cea036 in 0x140ce9650"
+ ],
+ "SilverLining": [
+  "UpdatePerkBuff@0x140d17d1d in 0x140d17be0"
+ ]
+}

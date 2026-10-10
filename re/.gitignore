@@ -1,0 +1,13 @@
+# Game files and anything extracted or decompiled from them stay local (copyright).
+/game.exe
+/game.pak
+/assets/
+/decomp/
+/ghidra/
+/ghidra_quick/
+/strings_*.txt
+/pak_files.txt
+/pickup_catalog.json
+# Local tooling
+/.venv/
+__pycache__/

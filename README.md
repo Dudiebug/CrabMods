@@ -48,9 +48,14 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 | `common/crab/` | Shared by both: game addresses, minimal Unreal Engine types, logging, hooking. |
 | `loader/` | The `xinput1_3.dll` mod loader. |
 | `tests/` | CrabSync ledger tests. |
+| `re/` | Reverse-engineering notes, SDK and scripts. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
 
 Every address in `common/crab/game.hpp` comes from static analysis of the game binary. The mods read and call the game's own code; they do not modify any game files.
+
+## Reverse engineering
+
+[`re/`](re/README.md) has everything the mods are built on: a [report](re/REPORT.md) of the game's internals with addresses, a generated C++ SDK of every reflected class, struct and enum, native function and vtable tables, and the scripts that produced them. It is all static analysis. The game's own files, and anything decompiled or extracted from them, are not included.
 
 ## License
 
