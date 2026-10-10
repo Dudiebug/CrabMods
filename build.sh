@@ -110,7 +110,12 @@ for arg in "$@"; do
         ;;
     install)
         GAME="${CRAB_GAME:-$HOME/.local/share/Steam/steamapps/common/Crab Champions}/CrabChampions/Binaries/Win64"
-        cp "$OUT/xinput1_3.dll" "$OUT/CrabSync.dll" "$OUT/CrabMods.dll" "$GAME/"
+        # Overwriting DLLs the running game has loaded crashes it.
+        if command -v pgrep >/dev/null && pgrep -f CrabChampions-Win64-Shipping >/dev/null; then
+            echo "Crab Champions is running: close it, then install again" >&2
+            exit 1
+        fi
+        cp"$OUT/xinput1_3.dll" "$OUT/CrabSync.dll" "$OUT/CrabMods.dll" "$GAME/"
         # CrabMods replaces the old standalone Arsenal.dll (its settings move into CrabMods.ini on first launch).
         rm -f "$GAME/Arsenal.dll" "$GAME/Arsenal.log"
         echo "installed to $GAME (each mod's ini and log appear there on first launch)"
