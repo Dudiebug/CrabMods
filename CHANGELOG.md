@@ -1,8 +1,31 @@
 # Changelog
 
-Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z` and `crabmods-vX.Y.Z`.
+Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-vX.Y.Z` and `manager-vX.Y.Z`.
 
 ## CrabMods
+
+### 0.3.0
+
+16 new items. All percentages are per level, kept low because levels stack.
+
+- Perks:
+  - **Minimalist** (Epic): +5% damage per empty weapon mod slot.
+  - **Underdog** (Epic): +0.5% damage per 1% of health missing.
+  - **Untouchable** (Epic): +1% damage per second without being hit, up to +20%.
+  - **Jack of All Trades** (Legendary): +3% damage per different pickup tag you have.
+  - **Greed Is Power** (Greed): +5% damage per Greed perk level.
+- Relics:
+  - **Purist** (Epic): +10% damage while all your elemental pickups are one element.
+  - **Martyr** (Epic): while you are down, each teammate deals +15% damage.
+  - **Last Crab Standing** (Epic): +25% damage per downed teammate, +25% more when you are the last one up. It never drops when you play alone.
+  - **Double or Nothing** (Greed): every chest you open offers twice as many choices or nothing at all. It applies after every other chest perk and relic.
+  - **Fire, Ice, Lightning, Poison, Critical, Damage and Luck Specialist** (Epic): pickups of that kind are offered 3× as often. Damage and Luck Specialist also make those islands 3× as likely.
+- Ability mod: **Recharge** (Epic): each kill takes 0.1 s off your ability cooldown.
+- **The host's settings are used by everyone** in multiplayer. They are sent to each player who joins and used until they leave; your own `CrabMods.ini` is not changed.
+- New items' sections are added to an existing `CrabMods.ini`, keeping your values.
+- With every item switched off, CrabMods still loads, so a host's settings can apply.
+- The DLLs now carry a version number (file properties), which the manager reads.
+
 
 ### 0.2.0
 
@@ -17,6 +40,18 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z` and `crabmod
 First release, as Arsenal.
 
 - **Arsenal**, an Epic weapon mod: damage +3% for each other weapon mod you have.
+
+## CrabMods Manager
+
+### 0.1.0
+
+First release.
+
+- Finds the game in every Steam library (also under Proton/wine and Flatpak Steam), or lets you browse to it.
+- Installs, updates, switches on/off and removes CrabMods and CrabSync from the latest GitHub release.
+- Edits each mod's settings.
+- Shares settings as `CRAB1-` codes: copy, then paste into another manager.
+- `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
 

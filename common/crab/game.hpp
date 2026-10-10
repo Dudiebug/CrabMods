@@ -15,6 +15,17 @@ constexpr uintptr_t UGameEngine_Tick = 0x1422eefb0;     // void(UGameEngine*, fl
 constexpr uintptr_t FMemory_Realloc = 0x140e017e0;      // void*(void* Ptr, size_t Size, uint32 Align)
 constexpr uintptr_t FMemory_Free = 0x140df0dc0;         // void(void* Ptr)
 constexpr uintptr_t FMulticastDelegate_Broadcast0 = 0x14078da30;  // void(FMulticastDelegate*)
+// Calling a UFunction: ProcessEvent is UObject vtable slot 0x220, void(UObject*, UFunction*, void* Params). A Net
+// function called on the server goes over the network to the object's owner.
+constexpr int UObject_ProcessEvent_Slot = 0x220;
+constexpr uintptr_t UObject_FindFunctionChecked = 0x1410c96b0;  // UFunction*(UObject*, FName)
+constexpr uintptr_t FName_ClientMessage = 0x14440f450;  // FName L"ClientMessage", set during startup
+// void(APlayerController*, const FString& S, FName Type, float MsgLifeTime): a ClientMessage RPC arriving
+// (it prints S to the console). Params: FString S at 0, FName Type at 0x10, float at 0x18; 0x20 bytes.
+constexpr uintptr_t APlayerController_ClientMessage_Impl = 0x14255c410;
+// void(AGameModeBase*, APlayerController*): the K2_PostLogin event, called by PostLogin on the server for every
+// player who joins, the host's own included.
+constexpr uintptr_t AGameModeBase_K2_PostLogin = 0x1427e2de0;
 constexpr uintptr_t FName_Ctor = 0x140ed46e0;           // FName*(FName*, const wchar_t*, EFindName)
 // NewObject<UObject>(Outer, Class, Name, Flags, Template, bCopyTransientsFromClassDefaults,
 // InstanceGraph, ExternalPackage) -> UObject*. FName is passed by value (8 bytes).
@@ -26,8 +37,11 @@ constexpr uintptr_t ACrabGS_StaticClass = 0x140d76930;
 constexpr uintptr_t ACrabPS_StaticClass = 0x140d80420;
 constexpr uintptr_t ACrabC_StaticClass = 0x140d707f0;
 constexpr uintptr_t ACrabPlayerC_StaticClass = 0x140d7d2a0;
+constexpr uintptr_t ACrabSpectatorC_StaticClass = 0x140d83600;  // a dead player's pawn until revived
 constexpr uintptr_t UCrabWeaponModDA_StaticClass = 0x140d8a380;
 constexpr uintptr_t UCrabPerkDA_StaticClass = 0x140d7c920;
+constexpr uintptr_t UCrabRelicDA_StaticClass = 0x140d824b0;
+constexpr uintptr_t UCrabAbilityModDA_StaticClass = 0x140d6f2b0;
 
 // Inventory
 constexpr uintptr_t ACrabPlayerC_GivePickup = 0x140d168d0;    // void(ACrabPlayerC*, FCrabPickupInfo*)
@@ -52,11 +66,31 @@ constexpr uintptr_t UCrabHC_TakeDamage = 0x140c9afe0;        // void(UCrabHC*, F
 constexpr uintptr_t UCrabHC_OnRep_HealthInfo = 0x140c9b4a0;  // void(UCrabHC*): broadcasts health changed, Previous = Current
 constexpr uintptr_t ACrabC_SetMaxHealth = 0x140cbd780;       // void(ACrabC*, float): sets HC max, clamps health down to it
 
+// Ability cooldown (ACrabPlayerC fields, not replicated: counted down by the owner, and maybe the host too)
+// void(ACrabPlayerC*): a 0.25 s timer. AbilityCooldown -= 0.25 (to 0); on reaching 0 one charge comes back and,
+// if charges are still short, the next cooldown starts. Also counts down the melee cooldown (+0xA28).
+constexpr uintptr_t ACrabPlayerC_TickCooldowns = 0x140d1e9e0;
+// void(ACrabPlayerC*): if AbilityCooldown is 0 and charges < max, starts one: Ability.Cooldown x the player's
+// cooldown stats, at least 0.25 s.
+constexpr uintptr_t ACrabPlayerC_StartAbilityCooldown = 0x140d1c530;
+
 // Loot and damage
 constexpr uintptr_t ACrabLM_BeginPlay = 0x140cf73d0;  // void(ACrabLM*): fills AllUnlockedPickups
 // float(ACrabPS*): (DamageMultiplier + additive damage perks) * (1 + multiplier perks). Returns
 // DamageMultiplier alone when the player has no pawn.
 constexpr uintptr_t ACrabPS_GetDamageBuff = 0x140d23700;
+// void(Source, uint8 LootPool, uint8 Rarity, TArray<ACrabPS*>* Players, int Choices, float, TArray<FCrabPickupInfo>* Out).
+// For each of Choices slots it picks one of Players, reads what that player holds (ACrabPS_GetPickups), filters the
+// candidates and picks one weighted by DA_SpawnWeight, read from each asset at roll time.
+constexpr uintptr_t LootRoll = 0x140d33240;
+constexpr uintptr_t WeightedPick = 0x140d32450;       // int(TArray<float>*): index by weight, -1 if none
+constexpr uintptr_t ACrabPS_GetPickups = 0x140d253a0;  // TArray<UCrabPickupDA*>*(ACrabPS*, TArray* Out): copies PSPickups
+constexpr uintptr_t ACrabChest_RollLoot = 0x140caf1c0; // void(ACrabChest*, ACrabPS* Opener): LootRoll for the opener
+constexpr uintptr_t ACrabLM_SpawnPortals = 0x140d00210;  // void(ACrabLM*): rolls every portal's reward, then SetInfo
+constexpr uintptr_t ACrabPortal_SetInfo = 0x140cb2cc0;   // void(ACrabPortal*, FCrabPortalInfo*), server only
+// UEngine::GetWorldFromContextObject(GEngine, Object, 1 = LogAndReturnNull) -> UWorld*, as LootRoll does it.
+constexpr uintptr_t GEngine = 0x1443fe458;  // UEngine*
+constexpr uintptr_t UEngine_GetWorldFromContextObject = 0x142709ab0;
 }  // namespace va
 
 namespace off {
@@ -72,7 +106,8 @@ constexpr int Object_Outer = 0x20;
 constexpr int Actor_Owner = 0xE0;
 constexpr int Actor_Role = 0xF0;  // ENetRole; 3 = ROLE_Authority
 // AGameStateBase / ACrabGS
-constexpr int GS_PlayerArray = 0x238;
+constexpr int GS_PlayerArray = 0x238;  // TArray<APlayerState*>
+constexpr int GS_LM = 0x270;           // ACrabLM*, the level manager
 constexpr int GS_CurrentIsland = 0x2D4;
 constexpr int GS_CurrentIslandType = 0x2D8;
 // ACrabLM (level manager)
@@ -80,11 +115,15 @@ constexpr int LM_SpawnablesDA = 0x388;
 constexpr int LM_AllUnlockedPickups = 0x420;  // TArray<UCrabPickupDA*>: what chests and rewards roll from
 // UCrabSpawnablesDA
 constexpr int Spawnables_WeaponMods = 0x108;  // TArray<UCrabWeaponModDA*>
+constexpr int Spawnables_AbilityMods = 0x118;  // TArray<UCrabAbilityModDA*>
 constexpr int Spawnables_Perks = 0x138;       // TArray<UCrabPerkDA*>
+constexpr int Spawnables_Relics = 0x148;      // TArray<UCrabRelicDA*>
 // APlayerState / ACrabPS
 constexpr int PS_PlayerId = 0x224;
 constexpr int PS_Pawn = 0x280;
 constexpr int PS_PlayerName = 0x300;  // FString
+constexpr int PS_Eliminations = 0x358;  // int: enemies this player has killed (replicated)
+constexpr int PS_PSPickups = 0x340;  // TArray<UCrabPickupDA*>: every pickup held, what PickupTag checks look at
 constexpr int PS_DamageMultiplier = 0x3A0;
 constexpr int PS_WeaponDA = 0x3C0;
 constexpr int PS_AbilityDA = 0x3C8;
@@ -97,15 +136,22 @@ constexpr int PS_NumMeleeModSlots = 0x408;
 constexpr int PS_MeleeMods = 0x410;
 constexpr int PS_NumPerkSlots = 0x420;
 constexpr int PS_Perks = 0x428;  // TArray<FCrabPerk>
-constexpr int PS_Relics = 0x438;
+constexpr int PS_Relics = 0x438;  // TArray<FCrabRelic>
 constexpr int PS_Crystals = 0x470;
 constexpr int PS_OnInventoryChanged = 0x520;  // native FMulticastDelegate
 // Inventory items (FCrabWeaponMod, FCrabPerk, ...): 0x28 bytes, DA at +0, level (stack count) at +8
 constexpr int Item_Size = 0x28;
 constexpr int Item_Level = 0x08;
+// APawn
+constexpr int Pawn_PlayerState = 0x240;
 // ACrabC (any character)
 constexpr int C_HC = 0x4C0;             // UCrabHC*
 constexpr int C_bIsEliminated = 0x668;  // bit 0
+// ACrabPlayerC
+constexpr int PlayerC_AbilityDA = 0x7D0;
+constexpr int PlayerC_AbilityCooldown = 0xA10;    // float: seconds left, 0 = not counting down
+constexpr int PlayerC_AbilityCharges = 0xA14;     // int: uses available now
+constexpr int PlayerC_AbilityMaxCharges = 0xA18;  // int
 // UCrabHC
 constexpr int HC_OwningC = 0xB0;              // set when the component initialises
 constexpr int HC_bDead = 0xD8;                // unreflected: set by TakeDamage when health reaches 0
@@ -120,16 +166,26 @@ constexpr int DA_Icon = 0x58;         // UTexture2D*; the rarity's background co
 constexpr int DA_PickupType = 0x60;   // ECrabPickupType
 constexpr int DA_Rarity = 0x62;       // ECrabRarity: 1 Common, 2 Epic, 3 Legendary
 constexpr int DA_PickupTag = 0x63;
+constexpr int DA_LootPool = 0x61;     // ECrabLootPool
 // When set, loot rolls offer the pickup only if the player already holds a pickup with the same PickupTag
 // (ACrabPS.PSPickups, PS+0x340). The roll (0x140d33240) reads it from the asset each time (0x140d34050,
 // 0x140d3417f, 0x140d3439e).
 constexpr int DA_bRequiresMatchingPickupTag = 0x64;
+constexpr int DA_SpawnWeight = 0x68;  // float, relative chance in a loot roll
 constexpr int DA_LevelDescription = 0xB8;  // FString; "PrimaryBuff" is replaced with the buff
 constexpr int DA_BaseBuff = 0xC8;
 constexpr int DA_bHyperbolicBuff = 0xCC;
 constexpr int DA_bLimited = 0xCD;
 constexpr int DA_bGetBuffAsMultiplier = 0xCE;  // BaseBuff is a percentage
+constexpr int DA_BaseDebuff = 0xD0;
+constexpr int DA_bGetDebuffAsMultiplier = 0xD5;
 constexpr int DA_ItemType = 0xD8;  // per-category type enum (WeaponModType, PerkType, ...)
+// FCrabDamageInfo
+constexpr int DamageInfo_DamagedActor = 0x00;
+constexpr int DamageInfo_Damage = 0x08;  // float
+constexpr int DamageInfo_DamagingC = 0x40;  // ACrabC*
+// FCrabPortalInfo
+constexpr int PortalInfo_RewardLootPool = 0x19;
 }  // namespace off
 
 enum class IslandType : uint8_t { None = 0, Lobby = 1, NewRun = 2, ContinueRun = 3 };  // ECrabIslandType, 0..16
@@ -142,6 +198,18 @@ inline const char* IslandTypeName(uint8_t t) {
 }
 constexpr uint8_t ROLE_Authority = 3;
 
+namespace rarity {  // ECrabRarity
+constexpr uint8_t Common = 1, Epic = 2, Legendary = 3, Greed = 4;
+}
+namespace tag {  // ECrabPickupTag
+constexpr uint8_t None = 0, Healing = 1, DamageOverTime = 2, Critical = 3, Speed = 4, Bounce = 5, Ice = 6, Fire = 7,
+                  Lightning = 8, Poison = 9, Arcane = 10, Turret = 11, Combo = 12, GlueShot = 13;
+}
+namespace pool {  // ECrabLootPool (also a portal's reward)
+constexpr uint8_t None = 0, Damage = 1, Critical = 2, Elemental = 3, Speed = 4, Luck = 5, Health = 6, Economy = 7,
+                  Skill = 8, Greed = 9, Upgrade = 10, Random = 11, Anvil = 12, Relic = 13, Spiked = 14;
+}
+
 // UObject flags (UE 4.27 EObjectFlags)
 constexpr uint32_t RF_Public = 0x1;
 constexpr uint32_t RF_Standalone = 0x2;
@@ -152,5 +220,9 @@ constexpr uint32_t RF_WasLoaded = 0x80000;  // makes the name stable for network
 constexpr uint8_t WeaponMod_StreakShot = 27;  // ECrabWeaponModType; the enum ends at DiceShot = 94
 constexpr uint8_t WeaponMod_HeavyShot = 30;   // PickupTag Bounce: only drops once you hold Bouncing Shot
 constexpr uint8_t Perk_Collector = 72;        // ECrabPerkType; the enum ends at FlashSale = 121
+constexpr uint8_t AbilityMod_HeatSink = 11;   // ECrabAbilityModType
+constexpr uint8_t Relic_RingOfDefense = 21;   // ECrabRelicType
+constexpr uint8_t Relic_RingOfFury = 27;
+constexpr uint8_t Relic_FireRing = 31;        // ECrabRelicType; the enum ends at RushedRing = 67
 
 }  // namespace crab

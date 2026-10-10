@@ -1,140 +1,136 @@
-// CrabMods.ini: [section] headers, key=value lines, '#' or ';' comments. Missing keys keep their defaults.
+// CrabMods.ini: [section] headers, key=value lines, '#' or ';' comments. Each item reads its own [section];
+// missing keys keep their defaults. Sections for items added in an update are appended to an existing file.
 #pragma once
+#include <algorithm>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 
+#include "item.hpp"
+
 namespace crabmods {
 
-struct Config {
-    struct {
-        bool enabled = true;
-        float damagePerModPercent = 3.f;  // per other weapon mod, per Arsenal level
-        uint8_t rarity = 2;               // ECrabRarity: 1 Common, 2 Epic, 3 Legendary
-        bool countStacks = false;         // a x3 stack counts as three mods (Hoarder too)
-    } arsenal;
-    struct {
-        bool enabled = true;
-        float damagePercent = 3.f;  // per weapon mod and per perk level, per Hoarder level
-        uint8_t rarity = 3;
-    } hoarder;
-    struct {
-        bool anyWeapon = true;  // Heavy Shot drops without Bouncing Shot
-    } heavyShot;
-};
-
-// Written next to the DLL on first launch. {arsenal} is replaced with the [arsenal] keys.
-inline constexpr const char kDefaultIni[] = R"(# CrabMods: new items for Crab Champions.
-# Every player needs CrabMods installed, and everyone should use the same settings.
-
-[arsenal]
-# Arsenal, a weapon mod: more damage for each other weapon mod you have.
-{arsenal}
-[hoarder]
-# Hoarder, a perk: more damage for each weapon mod and each perk level you have.
-enabled = true
-
-# Damage bonus for each weapon mod and each perk level, in percent. Each extra Hoarder stacks it again.
-damagePercent = 3
-
-# Which chests it drops from: common, epic or legendary.
-rarity = legendary
-
-[heavyShot]
-# The game's own Heavy Shot only drops once you hold Bouncing Shot. true lets it drop for everyone,
-# with any weapon.
-# Only the host's setting matters.
-anyWeapon = true
+inline constexpr const char kIniHeader[] = R"(# CrabMods: new items for Crab Champions.
+# Every player needs CrabMods installed. In multiplayer the host's settings are used by everyone.
 )";
-
-inline constexpr const char kDefaultArsenal[] = R"(enabled = true
-
-# Damage bonus for each other weapon mod you hold, in percent. Each extra Arsenal stacks it again.
-damagePerModPercent = 3
-
-# Which chests it drops from: common, epic or legendary.
-rarity = epic
-
-# true: a x3 stack of a mod counts as three mods (for Arsenal and Hoarder). false: each different mod
-# counts once.
-countStacks = false
-)";
-
-inline bool ParseBool(const std::string& v) { return v == "1" || v == "true" || v == "yes" || v == "on"; }
-
-inline uint8_t ParseRarity(const std::string& v, uint8_t def) {
-    if (v == "common" || v == "1") return 1;
-    if (v == "epic" || v == "2") return 2;
-    if (v == "legendary" || v == "3") return 3;
-    return def;
-}
 
 inline std::string Trim(const std::string& s) {
     size_t a = s.find_first_not_of(" \t\r\n"), b = s.find_last_not_of(" \t\r\n");
     return a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
 }
 
-// Applies one ini text to c. Keys outside any section belong to [arsenal] (the old Arsenal.ini had none).
-inline void ParseIni(std::istream& f, Config& c) {
+// Items in ini order.
+inline std::vector<Item*> SortedItems() {
+    std::vector<Item*> v = Items();
+    std::stable_sort(v.begin(), v.end(), [](Item* a, Item* b) { return a->Order() < b->Order(); });
+    return v;
+}
+
+// Applies an ini text to the items and returns the sections it has. Keys before any section belong to
+// [arsenal] (the old Arsenal.ini had no sections). Bad values are skipped.
+inline std::set<std::string> ApplyIni(const std::string& text) {
+    std::set<std::string> sections;
+    std::istringstream f(text);
     std::string line, section = "arsenal";
+    Item* item = FindItem(section);
     while (std::getline(f, line)) {
         auto hash = line.find_first_of("#;");
         if (hash != std::string::npos) line.resize(hash);
         line = Trim(line);
         if (line.size() > 1 && line.front() == '[' && line.back() == ']') {
             section = Trim(line.substr(1, line.size() - 2));
+            sections.insert(section);
+            item = FindItem(section);
             continue;
         }
         auto eq = line.find('=');
-        if (eq == std::string::npos) continue;
-        std::string k = Trim(line.substr(0, eq)), v = Trim(line.substr(eq + 1));
+        if (eq == std::string::npos || !item) continue;
         try {
-            if (section == "arsenal") {
-                if (k == "enabled") c.arsenal.enabled = ParseBool(v);
-                else if (k == "damagePerModPercent") c.arsenal.damagePerModPercent = std::stof(v);
-                else if (k == "rarity") c.arsenal.rarity = ParseRarity(v, c.arsenal.rarity);
-                else if (k == "countStacks") c.arsenal.countStacks = ParseBool(v);
-            } else if (section == "hoarder") {
-                if (k == "enabled") c.hoarder.enabled = ParseBool(v);
-                else if (k == "damagePercent") c.hoarder.damagePercent = std::stof(v);
-                else if (k == "rarity") c.hoarder.rarity = ParseRarity(v, c.hoarder.rarity);
-            } else if (section == "heavyShot") {
-                if (k == "anyWeapon") c.heavyShot.anyWeapon = ParseBool(v);
-            }
+            item->Set(Trim(line.substr(0, eq)), Trim(line.substr(eq + 1)));
         } catch (...) {
         }
     }
+    return sections;
 }
 
-// Reads the ini, creating it with the defaults if it does not exist yet. A first launch next to an old
-// Arsenal.ini carries its settings over into [arsenal].
-inline Config LoadConfig(const std::wstring& path, const std::wstring& oldArsenalIni, bool* created = nullptr,
-                         bool* migrated = nullptr) {
-    Config c;
-    std::ifstream f(path.c_str());
+inline std::string SectionText(Item* item) { return std::string("[") + item->Section() + "]\n" + item->DefaultIni(); }
+
+// The settings alone ("[section]" and "key = value" lines), as the host sends them to the other players.
+inline std::string CompactIni(const std::string& text) {
+    std::string out, line;
+    for (std::istringstream f(text); std::getline(f, line);) {
+        auto hash = line.find_first_of("#;");
+        if (hash != std::string::npos) line.resize(hash);
+        line = Trim(line);
+        if (!line.empty()) out += line + "\n";
+    }
+    return out;
+}
+
+// Replaces every setting: defaults first, then the given ini (so anything it leaves out is the default, not
+// whatever was set before).
+inline void ApplyAllSettings(const std::string& text) {
+    std::string defaults;
+    for (Item* item : SortedItems()) defaults += SectionText(item);
+    ApplyIni(defaults);
+    ApplyIni(text);
+}
+
+struct LoadResult {
+    std::string text;           // the ini as written on disk
+    bool created = false;       // there was no CrabMods.ini
+    bool migrated = false;      // Arsenal settings were taken from an old Arsenal.ini
+    std::string added;          // sections appended to an existing file, "minimalist, underdog"
+};
+
+// Reads the ini into the items, creating it with the defaults if it does not exist yet. A first launch next
+// to an old Arsenal.ini carries its settings over into [arsenal].
+inline LoadResult LoadConfig(const std::wstring& path, const std::wstring& oldArsenalIni) {
+    LoadResult r;
+    std::ifstream f(path.c_str(), std::ios::binary);
     if (f) {
-        ParseIni(f, c);
-        return c;
-    }
-    std::string arsenal = kDefaultArsenal;
-    if (std::ifstream old(oldArsenalIni.c_str()); old) {
         std::stringstream ss;
-        ss << old.rdbuf();
-        arsenal.clear();
-        std::string line;
-        for (std::istringstream in(ss.str()); std::getline(in, line);) {
-            if (line.rfind("# Arsenal:", 0) == 0 || line.rfind("# Every player", 0) == 0) continue;
-            arsenal += line + "\n";
+        ss << f.rdbuf();
+        r.text = ss.str();
+        std::set<std::string> have = ApplyIni(r.text);
+        std::string append;
+        for (Item* item : SortedItems()) {
+            if (have.count(item->Section())) continue;
+            append += "\n" + SectionText(item);
+            r.added += (r.added.empty() ? "" : ", ") + std::string(item->Section());
         }
-        std::istringstream in(arsenal);
-        ParseIni(in, c);
-        if (migrated) *migrated = true;
+        if (!append.empty()) {
+            if (!r.text.empty() && r.text.back() != '\n') r.text += "\n";
+            r.text += append;
+            ApplyIni(append);
+            std::ofstream(path.c_str(), std::ios::binary) << r.text;
+        }
+        return r;
     }
-    std::string ini = kDefaultIni;
-    ini.replace(ini.find("{arsenal}\n"), 10, Trim(arsenal) + "\n\n");
-    std::ofstream(path.c_str(), std::ios::binary) << ini;
-    if (created) *created = true;
-    return c;
+    r.text = kIniHeader;
+    for (Item* item : SortedItems()) {
+        std::string body = item->DefaultIni();
+        if (std::string(item->Section()) == "arsenal") {
+            if (std::ifstream old(oldArsenalIni.c_str()); old) {
+                // Keep Arsenal's heading comment, then the old file's lines minus its own header.
+                std::stringstream ss;
+                ss << old.rdbuf();
+                std::string kept = body.substr(0, body.find('\n') + 1), line;
+                for (std::istringstream in(ss.str()); std::getline(in, line);) {
+                    if (line.rfind("# Arsenal:", 0) == 0 || line.rfind("# Every player", 0) == 0) continue;
+                    kept += line + "\n";
+                }
+                body = Trim(kept) + "\n";
+                r.migrated = true;
+            }
+        }
+        r.text += "\n[" + std::string(item->Section()) + "]\n" + body;
+    }
+    ApplyIni(r.text);
+    std::ofstream(path.c_str(), std::ios::binary) << r.text;
+    r.created = true;
+    return r;
 }
 
 }  // namespace crabmods

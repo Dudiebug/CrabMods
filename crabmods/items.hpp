@@ -37,13 +37,13 @@ inline void Append(TArray<void*>& a, void* v) {
     a.Data[a.Num++] = v;
 }
 
-// A list of data assets in the level manager's SpawnablesDA (Spawnables_WeaponMods, Spawnables_Perks).
+// A list of data assets in the level manager's SpawnablesDA (off::Spawnables_*).
 inline TArray<void*>* Spawnables(void* lm, int listOffset) {
     void* spawnables = At<void*>(lm, off::LM_SpawnablesDA);
     return spawnables ? &At<TArray<void*>>(spawnables, listOffset) : nullptr;
 }
 
-// The asset in the list with the given type byte (WeaponModType / PerkType, both at +0xD8).
+// The asset in the list with the given type byte (WeaponModType, PerkType, RelicType, AbilityModType: +0xD8).
 inline void* FindByType(TArray<void*>* list, uint8_t type) {
     if (!list) return nullptr;
     for (int i = 0; i < list->Num; i++)
@@ -51,12 +51,12 @@ inline void* FindByType(TArray<void*>* list, uint8_t type) {
     return nullptr;
 }
 
-// The game's generic icon for a rarity, prefix + Rare/Epic/Legendary (T_Icon_WeaponMod_Epic,
-// T_Icon_Perk_Legendary), taken from an asset in the list that uses it. The rarity's background colour is
-// part of the image.
+// The game's generic icon for a rarity, prefix + Rare/Epic/Legendary/Greed (T_Icon_WeaponMod_Epic,
+// T_Icon_Perk_Legendary, T_Icon_Relic_Greed), taken from an asset in the list that uses it. The rarity's
+// background colour is part of the image.
 inline void* GenericIcon(TArray<void*>* list, const char* prefix, uint8_t rarity) {
-    static const char* names[] = {"", "Rare", "Epic", "Legendary"};
-    if (!list || rarity < 1 || rarity > 3) return nullptr;
+    static const char* names[] = {"", "Rare", "Epic", "Legendary", "Greed"};
+    if (!list || rarity < 1 || rarity > 4) return nullptr;
     std::string want = std::string(prefix) + names[rarity];
     for (int i = 0; i < list->Num; i++) {
         void* icon = list->Data[i] ? At<void*>(list->Data[i], off::DA_Icon) : nullptr;
@@ -79,7 +79,8 @@ inline void* MakeDA(void* cls, void* templ, const wchar_t* objectName) {
     return da;
 }
 
-// Walks an inventory array (FCrabWeaponMod / FCrabPerk, 0x28 bytes: DA at +0, level at +8).
+// Walks an inventory array (FCrabWeaponMod, FCrabAbilityMod, FCrabPerk, FCrabRelic: 0x28 bytes, DA at +0,
+// level at +8).
 template <class F>
 void ForEachItem(void* owner, int arrayOffset, F&& f) {
     auto& a = At<TArray<uint8_t>>(owner, arrayOffset);

@@ -1,14 +1,21 @@
 // CrabMods: new items for Crab Champions.
-//   Arsenal (weapon mod): more damage for each other weapon mod you have.
-//   Hoarder (perk): more damage for each weapon mod and each perk level you have (Arsenal + Collector).
-//   Heavy Shot: the game's own mod, unlocked so it drops without Bouncing Shot.
 //
-// The game has no Arsenal or Hoarder assets, so they are made at runtime as copies of Streak Shot and
-// Collector with new text, rarity and an unused type (see MakeDA), and added to the level manager's loot
-// list so chests roll them. Their effect is applied in the player's damage multiplier, added like the
-// game's own damage perks.
+// The game has none of these assets, so they are made at runtime as copies of its own (see AssetItem and
+// MakeDA) and added to the loot lists, so chests roll them like any other pickup. Their effects come from the
+// hooks below, which pass each game event to every item (crabmods/items/*.cpp):
+//   ACrabLM::BeginPlay      level start: items make their assets and join the loot lists
+//   ACrabPS::GetDamageBuff  the player's damage multiplier: items add their damage bonus
+//   UCrabHC::TakeDamage     a character is hit
+//   ACrabChest open         the number of loot choices a chest offers
+//   LootRoll                every loot roll: items scale how likely each pickup is, per player
+//   SpawnPortals            the next islands' rewards
+//   ability cooldown tick   every 0.25 s while a player's ability recharges
+//   PostLogin, ClientMessage the host's settings, sent to every player who joins
 #include <windows.h>
 
+#include <chrono>
+#include <cwchar>
+#include <random>
 #include <unordered_map>
 
 #include <crab/hook.hpp>
@@ -16,191 +23,352 @@
 #include <crab/ue.hpp>
 
 #include "config.hpp"
-#include "items.hpp"
+#include "item.hpp"
+#include "world.hpp"
 
 using namespace crab;
 using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.2.0";
-constexpr uint8_t kArsenalType = 200;  // ECrabWeaponModType has nothing past 94
-constexpr uint8_t kHoarderType = 200;  // ECrabPerkType has nothing past 121
+constexpr const char kVersion[] = "0.3.0";
 
-Config g_cfg;
-void* g_arsenal = nullptr;  // data assets, rooted for the life of the process
-void* g_hoarder = nullptr;
-bool g_heavyShotLogged = false;
+std::vector<Item*> g_items;  // enabled items, in ini order
+
+template <class F>
+void ForEachEnabled(F&& f) {
+    for (Item* i : g_items)
+        if (i->Enabled()) f(i);
+}
+
+// --- Level start -------------------------------------------------------------------------------------------
 
 using BeginPlayFn = void (*)(void*);
-using DamageBuffFn = float (*)(void*);
 BeginPlayFn oBeginPlay;
-DamageBuffFn oDamageBuff;
-
-// Last bonus logged per player, so the log shows changes rather than every shot.
-std::unordered_map<void*, float> g_loggedBonus;
-
-void* CreateArsenal(void* lm) {
-    auto* mods = Spawnables(lm, off::Spawnables_WeaponMods);
-    void* templ = FindByType(mods, WeaponMod_StreakShot);
-    if (!templ && mods && mods->Num) templ = mods->Data[0];
-    if (!templ) return nullptr;
-    void* da = MakeDA(StaticClass(va::UCrabWeaponModDA_StaticClass), templ, L"DA_WeaponMod_Arsenal");
-    if (!da) return nullptr;
-    SetFString(da, off::DA_Name, L"Arsenal");
-    SetFString(da, off::DA_Description, L"Shots deal more damage for each weapon mod you have");
-    SetFString(da, off::DA_LevelDescription, L"Damage increased by PrimaryBuff% for each other weapon mod you have");
-    At<bool>(da, off::DA_bRequiresUnlock) = false;
-    At<uint8_t>(da, off::DA_Rarity) = g_cfg.arsenal.rarity;
-    At<float>(da, off::DA_BaseBuff) = g_cfg.arsenal.damagePerModPercent;
-    At<bool>(da, off::DA_bHyperbolicBuff) = false;
-    At<bool>(da, off::DA_bLimited) = false;
-    At<bool>(da, off::DA_bGetBuffAsMultiplier) = true;
-    At<uint8_t>(da, off::DA_ItemType) = kArsenalType;
-    if (void* icon = GenericIcon(mods, "T_Icon_WeaponMod_", g_cfg.arsenal.rarity)) At<void*>(da, off::DA_Icon) = icon;
-    CRAB_LOG("created %s from %s, icon %s", ObjectName(da).c_str(), ObjectName(templ).c_str(),
-             ObjectName(At<void*>(da, off::DA_Icon)).c_str());
-    return da;
-}
-
-void* CreateHoarder(void* lm) {
-    auto* perks = Spawnables(lm, off::Spawnables_Perks);
-    void* templ = FindByType(perks, Perk_Collector);
-    if (!templ) return nullptr;
-    void* da = MakeDA(StaticClass(va::UCrabPerkDA_StaticClass), templ, L"DA_Perk_Hoarder");
-    if (!da) return nullptr;
-    SetFString(da, off::DA_Name, L"Hoarder");
-    SetFString(da, off::DA_Description, L"Damage increased for each weapon mod and perk level you have");
-    SetFString(da, off::DA_LevelDescription,
-               L"Damage increased by PrimaryBuff% for each weapon mod and each perk level you have");
-    At<bool>(da, off::DA_bRequiresUnlock) = false;
-    At<uint8_t>(da, off::DA_Rarity) = g_cfg.hoarder.rarity;
-    At<float>(da, off::DA_BaseBuff) = g_cfg.hoarder.damagePercent;
-    At<bool>(da, off::DA_bHyperbolicBuff) = false;
-    At<bool>(da, off::DA_bLimited) = false;
-    At<bool>(da, off::DA_bGetBuffAsMultiplier) = true;
-    At<uint8_t>(da, off::DA_ItemType) = kHoarderType;
-    if (void* icon = GenericIcon(perks, "T_Icon_Perk_", g_cfg.hoarder.rarity)) At<void*>(da, off::DA_Icon) = icon;
-    CRAB_LOG("created %s from %s, icon %s", ObjectName(da).c_str(), ObjectName(templ).c_str(),
-             ObjectName(At<void*>(da, off::DA_Icon)).c_str());
-    return da;
-}
-
-void AddToPool(void* lm, void* da, const char* what) {
-    if (!da) return;
-    auto& pool = At<TArray<void*>>(lm, off::LM_AllUnlockedPickups);
-    if (Contains(pool, da)) return;
-    Append(pool, da);
-    CRAB_LOG("added %s to the loot pool (%d pickups)", what, pool.Num);
-}
-
-// Heavy Shot's asset is only offered to a player who already holds a Bounce-tagged pickup (Bouncing Shot).
-// Clearing that lets loot rolls offer it to anyone. Its effect is not tied to the weapon: every player weapon
-// fires projectiles, and the game's own Heavy Shot code adds its gravity and damage to each one. Loot is
-// rolled by the host.
-void UnlockHeavyShot(void* lm) {
-    void* da = FindByType(Spawnables(lm, off::Spawnables_WeaponMods), WeaponMod_HeavyShot);
-    if (!da) return;
-    bool wasLocked = At<bool>(da, off::DA_bRequiresMatchingPickupTag);
-    At<bool>(da, off::DA_bRequiresMatchingPickupTag) = false;
-    if (g_heavyShotLogged) return;
-    g_heavyShotLogged = true;
-    bool inPool = Contains(At<TArray<void*>>(lm, off::LM_AllUnlockedPickups), da);
-    CRAB_LOG("Heavy Shot can now drop without Bouncing Shot (was %s)%s", wasLocked ? "Bouncing Shot only" : "unrestricted",
-             inPool ? "" : "; it is not unlocked in this save yet, so it still won't drop");
-}
 
 void HkBeginPlay(void* lm) {
     oBeginPlay(lm);
-    if (g_cfg.arsenal.enabled && !g_arsenal) {
-        if (GetModuleHandleW(L"Arsenal.dll")) {
-            static bool warned = false;
-            if (!warned) CRAB_LOG("the old Arsenal.dll is also installed: delete it, CrabMods includes Arsenal");
-            warned = true;
-        } else {
-            g_arsenal = CreateArsenal(lm);
-            if (!g_arsenal) CRAB_LOG("could not create Arsenal yet");
-        }
-    }
-    if (g_cfg.hoarder.enabled && !g_hoarder) {
-        g_hoarder = CreateHoarder(lm);
-        if (!g_hoarder) CRAB_LOG("could not create Hoarder yet");
-    }
-    AddToPool(lm, g_arsenal, "Arsenal");
-    AddToPool(lm, g_hoarder, "Hoarder");
-    if (g_cfg.heavyShot.anyWeapon) UnlockHeavyShot(lm);
+    ForEachEnabled([&](Item* i) { i->OnBeginPlay(lm); });
 }
 
-struct Bonus {
-    float arsenal = 0.f, hoarder = 0.f;
+// --- Damage ------------------------------------------------------------------------------------------------
+
+using DamageBuffFn = float (*)(void*);
+DamageBuffFn oDamageBuff;
+
+// What was last logged per player, so the log shows changes rather than every shot. Bonuses that change
+// continuously (health, time) are logged at most every few seconds.
+struct LoggedBonus {
+    std::string names, text;
+    std::chrono::steady_clock::time_point at;
 };
+std::unordered_map<void*, LoggedBonus> g_logged;
 
-// Arsenal: Arsenal level x other weapon mods. Hoarder: Hoarder level x (weapon mods + perk levels), counting
-// itself like Collector does. Both as fractions (0.03 = +3%).
-Bonus GetBonus(void* ps) {
-    int arsenal = 0, others = 0, mods = 0;
-    ForEachItem(ps, off::PS_WeaponMods, [&](void* da, int level) {
-        int n = g_cfg.arsenal.countStacks ? level : 1;
-        mods += n;
-        if (da == g_arsenal && g_arsenal)
-            arsenal += level;
-        else
-            others += n;
-    });
-    int hoarder = 0, perkLevels = 0;
-    if (g_hoarder) {
-        ForEachItem(ps, off::PS_Perks, [&](void* da, int level) {
-            perkLevels += level;
-            if (da == g_hoarder) hoarder += level;
-        });
-    }
-    return {arsenal * others * g_cfg.arsenal.damagePerModPercent * 0.01f,
-            hoarder * (mods + perkLevels) * g_cfg.hoarder.damagePercent * 0.01f};
+void LogBonus(void* ps, const std::string& names, const std::string& text, float buff) {
+    auto& last = g_logged[ps];
+    auto now = std::chrono::steady_clock::now();
+    if (text == last.text) return;
+    if (names == last.names && now - last.at < std::chrono::seconds(5)) return;
+    last = {names, text, now};
+    CRAB_LOG("player %p: %s damage (buff now %.2f)", ps, text.empty() ? "no bonus" : text.c_str(), buff);
 }
 
-// The bonus goes into DamageMultiplier for the length of the call, so it is added alongside the game's
-// own damage perks (Collector included) and scaled by the same multipliers.
+// The bonus goes into DamageMultiplier for the length of the call, so it is added alongside the game's own
+// damage perks (Collector included) and scaled by the same multipliers.
 float HkDamageBuff(void* ps) {
-    Bonus b = ps ? GetBonus(ps) : Bonus{};
-    float bonus = b.arsenal + b.hoarder;
-    if (bonus == 0.f) return oDamageBuff(ps);
+    if (!ps) return oDamageBuff(ps);
+    float bonus = 0.f;
+    std::string names, text;
+    ForEachEnabled([&](Item* i) {
+        float b = i->DamageBonus(ps);
+        if (b == 0.f) return;
+        bonus += b;
+        names += std::string(i->Section()) + " ";
+        char part[64];
+        snprintf(part, sizeof part, "%s%s %+.0f%%", text.empty() ? "" : ", ", i->Section(), b * 100.f);
+        text += part;
+    });
     float& mult = At<float>(ps, off::PS_DamageMultiplier);
     float saved = mult;
     mult += bonus;
     float r = oDamageBuff(ps);
     mult = saved;
-    auto& last = g_loggedBonus[ps];
-    if (last != bonus) {
-        last = bonus;
-        CRAB_LOG("player %p: Arsenal +%.0f%%, Hoarder +%.0f%% damage (buff now %.2f)", ps, b.arsenal * 100.f,
-                 b.hoarder * 100.f, r);
-    }
+    if (bonus != 0.f || g_logged.count(ps)) LogBonus(ps, names, text, r);
     return r;
 }
+
+using TakeDamageFn = void (*)(void*, void*);
+TakeDamageFn oTakeDamage;
+
+void HkTakeDamage(void* hc, void* info) {
+    if (hc && info) ForEachEnabled([&](Item* i) { i->OnTakeDamage(hc, info); });
+    oTakeDamage(hc, info);
+}
+
+// --- Loot --------------------------------------------------------------------------------------------------
+
+using ChestRollFn = void (*)(void*, void*);
+using LootRollFn = void (*)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+using GetPickupsFn = void* (*)(void*, void*);
+using WeightedPickFn = int (*)(TArray<float>*);
+ChestRollFn oChestRoll;
+LootRollFn oLootRoll;
+GetPickupsFn oGetPickups;
+WeightedPickFn oWeightedPick;
+
+void* g_chestOpener = nullptr;  // set while a chest rolls its loot
+int g_rollDepth = 0;            // inside LootRoll
+void* g_rollSource = nullptr;   // LootRoll's world context
+std::unordered_map<void*, float> g_baseWeight;  // SpawnWeights changed during this roll, to restore after
+std::minstd_rand g_rng{std::random_device{}()};
+
+// The chest works out how many choices to offer (its own count, the opener's perks and relics, at least 1)
+// and passes that to LootRoll.
+void HkChestRoll(void* chest, void* opener) {
+    g_chestOpener = opener;
+    oChestRoll(chest, opener);
+    g_chestOpener = nullptr;
+}
+
+// Sets every pickup's SpawnWeight for the player LootRoll is choosing for: its base weight times each item's
+// LootWeight. The roll reads the weights right after asking the player what they hold.
+void ApplyWeights(void* ps) {
+    void* lm = LevelManagerOf(g_rollSource);
+    if (!lm) return;
+    auto apply = [&](TArray<void*>* list) {
+        if (!list || !list->Data) return;
+        for (int i = 0; i < list->Num; i++) {
+            void* da = list->Data[i];
+            if (!da) continue;
+            auto [it, fresh] = g_baseWeight.try_emplace(da, At<float>(da, off::DA_SpawnWeight));
+            float w = it->second;
+            ForEachEnabled([&](Item* item) { w *= item->LootWeight(ps, da); });
+            At<float>(da, off::DA_SpawnWeight) = w;
+        }
+    };
+    apply(&At<TArray<void*>>(lm, off::LM_AllUnlockedPickups));
+    for (int list = off::Spawnables_WeaponMods; list <= off::Spawnables_Relics; list += 0x10)
+        apply(Spawnables(lm, list));
+}
+
+void* HkGetPickups(void* ps, void* out) {
+    void* r = oGetPickups(ps, out);
+    if (g_rollDepth > 0 && ps) ApplyWeights(ps);
+    return r;
+}
+
+// The game's pick, except that a weight of 0 is never picked (the game's can pick it when rand() is 0).
+int HkWeightedPick(TArray<float>* weights) {
+    if (g_rollDepth == 0 || !weights || !weights->Data) return oWeightedPick(weights);
+    float total = 0.f;
+    for (int i = 0; i < weights->Num; i++) total += weights->Data[i] > 0.f ? weights->Data[i] : 0.f;
+    if (total <= 0.f) return -1;
+    float r = std::uniform_real_distribution<float>(0.f, total)(g_rng), sum = 0.f;
+    int last = -1;
+    for (int i = 0; i < weights->Num; i++) {
+        if (weights->Data[i] <= 0.f) continue;
+        sum += weights->Data[i];
+        last = i;
+        if (r < sum) return i;
+    }
+    return last;
+}
+
+// void(Source, uint8 Pool, uint8 Rarity, TArray<ACrabPS*>*, int Choices, float, TArray<FCrabPickupInfo>* Out),
+// taken as raw 64-bit slots so every argument passes through untouched.
+void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t players, uint64_t choices, uint64_t f,
+                uint64_t out) {
+    if (void* opener = g_chestOpener) {
+        g_chestOpener = nullptr;
+        int n = int(uint32_t(choices)), was = n;
+        ForEachEnabled([&](Item* i) { n = i->ChestChoices(opener, n); });
+        if (n < 0) n = 0;
+        if (n != was) CRAB_LOG("chest opened by %p: %d loot choices instead of %d", opener, n, was);
+        choices = uint32_t(n);
+    }
+    void* savedSource = g_rollSource;
+    g_rollSource = reinterpret_cast<void*>(source);
+    g_rollDepth++;
+    oLootRoll(source, pool, rarity, players, choices, f, out);
+    g_rollDepth--;
+    g_rollSource = savedSource;
+    if (g_rollDepth == 0) {
+        for (auto& [da, w] : g_baseWeight) At<float>(da, off::DA_SpawnWeight) = w;
+        g_baseWeight.clear();
+    }
+}
+
+// --- Portal rewards ----------------------------------------------------------------------------------------
+//
+// SpawnPortals picks a reward pool for each Arena, Horde and Demolition portal, by weight and without repeats,
+// then calls SetInfo for the portal. When an item makes a pool more likely, the reward is picked again here
+// with the same weights times the items' factors. Anvil and Spiked rewards come with their own rules, so
+// those are left alone and never picked.
+
+using SpawnPortalsFn = void (*)(void*);
+using SetPortalInfoFn = void (*)(void*, void*);
+SpawnPortalsFn oSpawnPortals;
+SetPortalInfoFn oSetPortalInfo;
+
+void* g_spawningPortals = nullptr;  // the level manager, while it spawns portals
+bool g_rewardUsed[16];              // pools already given to a portal this time
+
+float BaseRewardWeight(uint8_t p) {
+    switch (p) {
+    case pool::Damage: case pool::Health: case pool::Random: return 1.25f;
+    case pool::Critical: case pool::Elemental: case pool::Speed: case pool::Luck:
+    case pool::Economy: case pool::Skill: return 0.75f;
+    case pool::Greed: return 0.2f;
+    case pool::Upgrade: return 0.4f;
+    case pool::Relic: return 0.5f;
+    }
+    return 0.f;  // not picked again here
+}
+
+void HkSpawnPortals(void* lm) {
+    for (bool& b : g_rewardUsed) b = false;
+    g_spawningPortals = lm;
+    oSpawnPortals(lm);
+    g_spawningPortals = nullptr;
+}
+
+void HkSetPortalInfo(void* portal, void* info) {
+    if (g_spawningPortals && info) {
+        uint8_t& reward = At<uint8_t>(info, off::PortalInfo_RewardLootPool);
+        if (reward > 0 && reward < 16 && BaseRewardWeight(reward) > 0.f) {
+            float w[16] = {}, total = 0.f;
+            bool boosted = false;
+            for (uint8_t p = 1; p < 16; p++) {
+                if (g_rewardUsed[p] || BaseRewardWeight(p) == 0.f) continue;
+                float m = 1.f;
+                ForEachEnabled([&](Item* i) { m *= i->PortalRewardWeight(g_spawningPortals, p); });
+                if (m != 1.f) boosted = true;
+                w[p] = BaseRewardWeight(p) * m;
+                total += w[p];
+            }
+            if (boosted && total > 0.f) {
+                float r = std::uniform_real_distribution<float>(0.f, total)(g_rng), sum = 0.f;
+                uint8_t pick = reward;
+                for (uint8_t p = 1; p < 16; p++) {
+                    if (w[p] <= 0.f) continue;
+                    sum += w[p];
+                    pick = p;
+                    if (r < sum) break;
+                }
+                if (pick != reward) CRAB_LOG("portal reward pool %d instead of %d", pick, reward);
+                reward = pick;
+            }
+        }
+        if (reward < 16) g_rewardUsed[reward] = true;
+    }
+    oSetPortalInfo(portal, info);
+}
+
+// --- Ability cooldown --------------------------------------------------------------------------------------
+
+using TickCooldownsFn = void (*)(void*);
+TickCooldownsFn oTickCooldowns;
+
+void HkTickCooldowns(void* c) {
+    if (c) {
+        void* ps = At<void*>(c, off::Pawn_PlayerState);
+        if (IsA(ps, StaticClass(va::ACrabPS_StaticClass)))
+            ForEachEnabled([&](Item* i) { i->OnCooldownTick(c, ps); });
+    }
+    oTickCooldowns(c);
+}
+
+// --- Host settings -----------------------------------------------------------------------------------------
+//
+// In multiplayer everyone plays by the host's CrabMods.ini. When a player joins, the host sends its settings
+// as a ClientMessage (the RPC behind console messages) starting with a marker; CrabMods on the player's
+// machine applies them and keeps the message off the console. The host sends them to itself too, so hosting
+// a game puts your own settings back after playing in someone else's. A player without CrabMods would just
+// get the text in their console.
+
+constexpr wchar_t kSettingsTag[] = L"CrabMods settings\n";
+constexpr size_t kSettingsTagLen = std::size(kSettingsTag) - 1;
+std::string g_ownSettings;  // this machine's CrabMods.ini, settings only
+std::string g_settings;     // what is in use now
+
+void SendSettings(void* pc) {
+    std::wstring msg = kSettingsTag;
+    for (char ch : g_ownSettings) msg.push_back(wchar_t(uint8_t(ch)));
+    struct {
+        TArray<wchar_t> s;
+        uint64_t type;  // FName None
+        float lifeTime;
+        uint32_t pad;
+    } params{{msg.data(), int32_t(msg.size() + 1), int32_t(msg.size() + 1)}, 0, 0.f, 0};
+    uint64_t name = *reinterpret_cast<uint64_t*>(Addr(va::FName_ClientMessage));
+    void* fn = Fn<void* (*)(void*, uint64_t)>(va::UObject_FindFunctionChecked)(pc, name);
+    if (!fn) return;
+    void** vtable = *reinterpret_cast<void***>(pc);
+    reinterpret_cast<void (*)(void*, void*, void*)>(vtable[va::UObject_ProcessEvent_Slot / 8])(pc, fn, &params);
+}
+
+using PostLoginFn = void (*)(void*, void*);
+using ClientMessageFn = void (*)(void*, TArray<wchar_t>*, uint64_t, float);
+PostLoginFn oPostLogin;
+ClientMessageFn oClientMessage;
+
+void HkPostLogin(void* gm, void* pc) {
+    oPostLogin(gm, pc);
+    if (pc) SendSettings(pc);
+}
+
+void HkClientMessage(void* pc, TArray<wchar_t>* s, uint64_t type, float lifeTime) {
+    if (!s || !s->Data || s->Num <= int(kSettingsTagLen) || wcsncmp(s->Data, kSettingsTag, kSettingsTagLen) != 0)
+        return oClientMessage(pc, s, type, lifeTime);
+    std::string text;
+    for (int i = int(kSettingsTagLen); i < s->Num && s->Data[i]; i++) text.push_back(char(s->Data[i]));
+    if (text == g_settings) return;
+    g_settings = text;
+    ApplyAllSettings(text);
+    CRAB_LOG("%s", text == g_ownSettings ? "using your own settings" : "using the host's settings:");
+    for (Item* i : g_items)
+        if (text != g_ownSettings) CRAB_LOG("  %s: %s", i->Section(), i->Enabled() ? i->Describe().c_str() : "off");
+    // Already in a level: update the items' assets now rather than at the next level.
+    void* lm = LevelManagerOf(pc);
+    if (lm && At<TArray<void*>>(lm, off::LM_AllUnlockedPickups).Num > 0)
+        ForEachEnabled([&](Item* i) { i->OnBeginPlay(lm); });
+}
+
+// --- Start -------------------------------------------------------------------------------------------------
 
 DWORD WINAPI Init(LPVOID) {
     std::wstring dir = ModuleDir();
     Log::Get().Open(dir + L"CrabMods.log");
-    bool created = false, migrated = false;
-    g_cfg = LoadConfig(dir + L"CrabMods.ini", dir + L"Arsenal.ini", &created, &migrated);
-    if (created) CRAB_LOG("wrote default CrabMods.ini%s", migrated ? " (Arsenal settings taken from Arsenal.ini)" : "");
+    LoadResult cfg = LoadConfig(dir + L"CrabMods.ini", dir + L"Arsenal.ini");
+    if (cfg.created)
+        CRAB_LOG("wrote default CrabMods.ini%s", cfg.migrated ? " (Arsenal settings taken from Arsenal.ini)" : "");
+    if (!cfg.added.empty()) CRAB_LOG("added new items to CrabMods.ini: %s", cfg.added.c_str());
     if (!InitImage()) {
         CRAB_LOG("unsupported game build (PE timestamp mismatch); CrabMods is disabled");
         return 0;
     }
-    if (!g_cfg.arsenal.enabled && !g_cfg.hoarder.enabled && !g_cfg.heavyShot.anyWeapon) {
-        CRAB_LOG("everything is disabled in CrabMods.ini");
-        return 0;
-    }
+    g_items = SortedItems();
+    g_ownSettings = g_settings = CompactIni(cfg.text);
+    bool any = false;
+    for (Item* i : g_items) any |= i->Enabled();
+    // Hooked anyway: in someone else's game their settings are used.
+    if (!any) CRAB_LOG("everything is disabled in CrabMods.ini (a host's settings still apply in their games)");
     if (!HookInit()) return 0;
     Hook(va::ACrabLM_BeginPlay, &HkBeginPlay, &oBeginPlay, "ACrabLM::BeginPlay");
     Hook(va::ACrabPS_GetDamageBuff, &HkDamageBuff, &oDamageBuff, "ACrabPS::GetDamageBuff");
+    Hook(va::UCrabHC_TakeDamage, &HkTakeDamage, &oTakeDamage, "UCrabHC::TakeDamage");
+    Hook(va::ACrabChest_RollLoot, &HkChestRoll, &oChestRoll, "ACrabChest roll");
+    Hook(va::LootRoll, &HkLootRoll, &oLootRoll, "LootRoll");
+    Hook(va::ACrabPS_GetPickups, &HkGetPickups, &oGetPickups, "ACrabPS::GetPickups");
+    Hook(va::WeightedPick, &HkWeightedPick, &oWeightedPick, "WeightedPick");
+    Hook(va::ACrabLM_SpawnPortals, &HkSpawnPortals, &oSpawnPortals, "ACrabLM::SpawnPortals");
+    Hook(va::ACrabPortal_SetInfo, &HkSetPortalInfo, &oSetPortalInfo, "ACrabPortal::SetInfo");
+    Hook(va::ACrabPlayerC_TickCooldowns, &HkTickCooldowns, &oTickCooldowns, "ACrabPlayerC cooldown tick");
+    Hook(va::AGameModeBase_K2_PostLogin, &HkPostLogin, &oPostLogin, "AGameModeBase::K2_PostLogin");
+    Hook(va::APlayerController_ClientMessage_Impl, &HkClientMessage, &oClientMessage, "ClientMessage");
     CRAB_LOG("CrabMods %s loaded", kVersion);
-    CRAB_LOG("  Arsenal: %s, +%.1f%% per weapon mod, rarity %d, countStacks %d", g_cfg.arsenal.enabled ? "on" : "off",
-             g_cfg.arsenal.damagePerModPercent, g_cfg.arsenal.rarity, g_cfg.arsenal.countStacks);
-    CRAB_LOG("  Hoarder: %s, +%.1f%% per weapon mod and perk level, rarity %d", g_cfg.hoarder.enabled ? "on" : "off",
-             g_cfg.hoarder.damagePercent, g_cfg.hoarder.rarity);
-    CRAB_LOG("  Heavy Shot for every weapon: %s", g_cfg.heavyShot.anyWeapon ? "on" : "off");
+    for (Item* i : g_items)
+        CRAB_LOG("  %s: %s", i->Section(), i->Enabled() ? i->Describe().c_str() : "off");
     return 0;
 }
 

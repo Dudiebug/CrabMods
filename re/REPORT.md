@@ -98,12 +98,12 @@ TastyOrange is natively **+1% per elimination on the current island** (resets pe
 
 ## Making new items at runtime
 
-Both new CrabMods items (Arsenal, Hoarder) are data assets created in memory; nothing is added to the pak.
+Every new CrabMods item is a data asset created in memory; nothing is added to the pak.
 
-1. Find a template with the same class in `SpawnablesDA` (Streak Shot for a weapon mod, Collector for a perk).
+1. Find a template with the same class in `SpawnablesDA`: Streak Shot for a weapon mod, Collector for a perk, Heat Sink (11) for an ability mod (`AbilityMods +0x118`, `UCrabAbilityModDA::StaticClass 0x140d6f2b0`), a ring for a relic (`Relics +0x148`, `UCrabRelicDA::StaticClass 0x140d824b0`; Ring of Defense 21, Ring of Fury 27, Fire Ring 31).
 2. `NewObject(Outer = Template->Class->Outer, Class = Template->Class, Name = "DA_...", Flags, Template)`. Outer is the `/Script/CrabChampions` package, so the asset gets the stable path `/Script/CrabChampions.DA_...`.
 3. Flags `RF_Public | RF_Standalone | RF_MarkAsRootSet`, then OR in `RF_WasLoaded` (`0x80000`) on the object. With it, the net driver treats the object as stably named and replicates references to it **by path**. Every player must create the same asset, or clients cannot resolve it (they see an empty slot).
-4. Overwrite the fields: `Name +0x38`, `Description +0x48` (FStrings), `Icon +0x58`, `Rarity +0x62`, `LevelDescription +0xB8` (`PrimaryBuff` is replaced with the buff in the UI), `BaseBuff +0xC8`, `bGetBuffAsMultiplier +0xCE`, and the item type at `+0xD8`. Free type ids: weapon mods above `DiceShot = 94`, perks above `FlashSale = 121`.
+4. Overwrite the fields: `Name +0x38`, `Description +0x48` (FStrings), `Icon +0x58`, `Rarity +0x62`, `LevelDescription +0xB8` (`PrimaryBuff` is replaced with the buff in the UI), `BaseBuff +0xC8`, `bGetBuffAsMultiplier +0xCE`, and the item type at `+0xD8`. Free type ids: weapon mods above `DiceShot = 94`, perks above `FlashSale = 121`, relics above `RushedRing = 67`. CrabMods uses 200 and up. `LootPool` is at `+0x61`, `SpawnWeight` (float) at `+0x68`.
 5. Append it to `LM.AllUnlockedPickups` on every `ACrabLM::BeginPlay`.
 
 The rarity colour is part of each icon image. The game ships plain per-rarity icons (`T_Icon_WeaponMod_<Rarity>`, `T_Icon_Perk_<Rarity>`) used by items without their own art; they can be found through any loaded item that uses them.
@@ -148,3 +148,49 @@ Killing a character through `TakeDamage` with enough damage plays out exactly li
 - Heavy Shot (case `0x1E`): `UCrabPMC+0x124` (gravity) += 2.0, gravity multiplier += debuff, plus its damage buff.
 - `UCrabPMC` is the game's own movement component, not a `UProjectileMovementComponent`. Its velocity update is `0x140c9bb40` (found through its vtable): gravity = projectile DA `GravityScale` (`+0x5C`) × max(0, gravity multiplier), applied only after `GravityDelay` (DA `+0x60`). Setup folds the multiplier in at the end: `PMC+0x124 *= max(0, proj+0x29C)`.
 - So with Heavy Shot, gravity = (`GravityScale` + 2) × (1 + debuff − Fast Shot's buff), on every weapon. Most weapons have `GravityScale` 0 and fly straight without it. Very fast projectiles (speed 100000: Sniper, Marksman Rifle, Laser Cannons) live too briefly to drop much.
+
+## Loot weights
+
+- `LootRoll` `0x140d33240`: `void(Source, u8 LootPool, u8 Rarity, TArray<ACrabPS*>* Players, int Choices, float, TArray<FCrabPickupInfo>* Out)`. For each of `Choices` slots it picks one of `Players`, copies what that player holds through `ACrabPS::GetPickups` (`0x140d253a0`), filters the candidates (pool, rarity, tags, already offered) and picks one with `WeightedPick`.
+- The weights are each candidate's `SpawnWeight` (`DA+0x68`), **read from the asset at roll time**, after `GetPickups` returns. Per-player loot odds can therefore be set by rewriting `SpawnWeight` on every asset right after `GetPickups` returns inside a roll (CrabMods' hook), and restoring them when the outermost `LootRoll` returns.
+- `WeightedPick` `0x140d32450`: `int(TArray<float>*)`, the index by weight, -1 if empty. It can pick a weight-0 entry when `rand()` returns 0, so a hook that wants weight 0 to mean "never" replaces the pick.
+- The world for a roll comes from `UEngine::GetWorldFromContextObject(GEngine 0x1443fe458, Source, 1)` (`0x142709ab0`). The level manager is `GameState+0x270`; `GameState+0x238` is the `PlayerArray`.
+
+## Chest choices
+
+`ACrabChest` roll `0x140caf1c0`: `void(ACrabChest*, ACrabPS* Opener)`. It works out the number of choices (the chest's own count, then the opener's perks and relics, at least 1) and calls `LootRoll` once with that count. Hooking the chest roll to note the opener, then `LootRoll` to rewrite `Choices` on its first call, changes the count **after** every game modifier. `Choices = 0` gives an empty chest.
+
+## Island rewards
+
+- `ACrabLM::SpawnPortals` `0x140d00210` rolls a reward pool for each Arena, Horde and Demolition portal, by weight and without repeats, then calls `ACrabPortal::SetInfo` (`0x140cb2cc0`, `void(ACrabPortal*, FCrabPortalInfo*)`, server only) for each. `FCrabPortalInfo+0x19` is the reward's `ECrabLootPool`.
+- Reward weights: Damage, Health, Random 1.25; Critical, Elemental, Speed, Luck, Economy, Skill 0.75; Relic 0.5; Upgrade 0.4; Greed 0.2. Anvil and Spiked come with their own rules.
+- To bias rewards, CrabMods re-picks the pool in `SetInfo` with these weights times its items' factors, skipping pools already given out during that `SpawnPortals`.
+
+## Kills
+
+- `ACrabPS+0x358 Eliminations` (int, replicated with `OnRep`) counts the player's kills. It is incremented by `0x140d26c00`, called from the game mode's damage handler `0x140ce5780` when a hit eliminates an enemy. The unreflected `+0x35C` counts too (it feeds Tasty Orange).
+- The counter replicates to everyone, so any machine can see kills by watching it change.
+
+## Ability cooldown (ACrabPlayerC)
+
+| | |
+|---|---|
+| `+0x7D0` | Ability DA |
+| `+0xA10` | float: cooldown seconds left, 0 = not counting down |
+| `+0xA14` / `+0xA18` | int: charges available / max charges |
+| `+0xA28` | melee cooldown |
+| `0x140d1c530` | Start: if the cooldown is 0 and charges < max, cooldown = the ability's Cooldown × the player's cooldown stats, at least 0.25 s |
+| `0x140d1e9e0` | Tick, a 0.25 s timer while recharging: cooldown -= 0.25 (to 0); at 0 a charge comes back and, if still short, the next cooldown starts |
+
+The fields are not replicated: the owning player's machine counts them down. Lowering `+0xA10` in the tick (CrabMods keeps it ≥ 0.01 so the game's own "reached 0" path runs) shortens the cooldown.
+
+## Downed players
+
+A downed (eliminated, waiting for revive) player's `PlayerState+0x280` pawn is an `ACrabSpectatorC` (`StaticClass 0x140d83600`) until they are revived. An `ACrabC` pawn with `+0x668` bit 0 (`bIsEliminated`) set also counts as down. Both replicate.
+
+## Sending data to every player
+
+No new RPC is needed: `APlayerController::ClientMessage(FString S, FName Type, float MsgLifeTime)` is a reliable client RPC that every player controller has.
+- `AGameModeBase::K2_PostLogin` `0x1427e2de0` (`void(GM*, PC*)`, a BlueprintImplementableEvent stub) is called by `PostLogin` on the server for every player who joins, the host's own controller included. Hooking it gives each new player's controller.
+- To send: `UObject::FindFunctionChecked` (`0x1410c96b0`, `UFunction*(UObject*, FName)`) with the `ClientMessage` FName (a global at `0x14440f450`, set at startup), then `ProcessEvent` (vtable +0x220). Params: `FString S` at 0, `FName Type` at 0x10, `float` at 0x18; 0x20 bytes.
+- On the receiving side, `APlayerController::ClientMessage_Implementation` `0x14255c410` (`void(PC*, const FString*, FName, float)`, not overridden by `ACrabPC`) runs; hooking it lets a mod take its own tagged messages before they reach the console.

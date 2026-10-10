@@ -5,11 +5,16 @@ Native mods for **Crab Champions**, and the reverse-engineering notes and SDK th
 | Mod | What it does | Who installs it | Download |
 |---|---|---|---|
 | [**CrabSync**](crabsync/README.md) | One team, one inventory, one health bar: every pickup, crystal and hit is shared by the whole lobby. | The host only | [`CrabSync-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync) |
-| [**CrabMods**](crabmods/README.md) | New items: **Arsenal** (Epic weapon mod), **Hoarder** (Legendary perk), and **Heavy Shot** for every weapon. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
+| [**CrabMods**](crabmods/README.md) | 19 new items: damage perks and relics (Hoarder, Minimalist, Underdog, Last Crab Standing, ...), Specialist relics that make one kind of loot 3× as likely, Double or Nothing, Recharge, and Heavy Shot for every weapon. In multiplayer the host's settings are used by everyone. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
+| [**CrabMods Manager**](manager/README.md) | Installs, updates, switches on/off and removes the mods; edits their settings and shares them as codes. Windows, or Proton/wine on Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
 
-The two work together or on their own. Each mod's page has its settings, details and known issues.
+The two mods work together or on their own. Each one's page has its settings, details and known issues.
 
 ## Install
+
+The easy way: run the [CrabMods Manager](manager/README.md), press **Install** on each mod you want, and on Linux / Steam Deck set the launch option from step 5 below.
+
+By hand:
 
 1. Download the zip for the mod you want from [Releases](https://github.com/Dudiebug/CrabMods/releases).
 2. Open the game folder: in Steam, right-click **Crab Champions** → **Manage** → **Browse local files**.
@@ -36,18 +41,19 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 ./build.sh test package
 ```
 
-- `build/` gets `xinput1_3.dll` (the loader), `CrabSync.dll` and `CrabMods.dll`.
-- `test` runs CrabSync's ledger tests (with `wine` on Linux; set `WINE=` to choose one).
+- `build/` gets `xinput1_3.dll` (the loader), `CrabSync.dll`, `CrabMods.dll` and `CrabModsManager.exe`.
+- `test` runs CrabSync's ledger tests and the manager's tests (with `wine` on Linux; set `WINE=` to choose one).
 - `package` makes `build/CrabSync-<version>.zip` and `build/CrabMods-<version>.zip`.
 - `install` copies the DLLs into a Steam install (set `CRAB_GAME` to the `Crab Champions` folder if it lives elsewhere).
 
 | Path | |
 |---|---|
 | `crabsync/` | CrabSync: the team ledger, game inventory and health code, hooks. |
-| `crabmods/` | CrabMods: runtime-made items and the damage bonus. |
+| `crabmods/` | CrabMods: the hooks (`main.cpp`) and one file per item (`items/`). |
+| `manager/` | CrabMods Manager. |
 | `common/crab/` | Shared by both: game addresses, minimal Unreal Engine types, logging, hooking. |
 | `loader/` | The `xinput1_3.dll` mod loader. |
-| `tests/` | CrabSync ledger tests. |
+| `tests/` | CrabSync ledger tests and manager tests. |
 | `re/` | Reverse-engineering notes, SDK and scripts. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
 
