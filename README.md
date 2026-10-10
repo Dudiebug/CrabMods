@@ -47,7 +47,7 @@ The damage bonus is applied where the game totals a player's damage buffs. Your 
 
 ## Known limitations
 
-- It uses Streak Shot's icon.
+- It uses the game's plain bullet icon for its rarity (the same one other Epic mods without their own art use).
 - Every player needs it. A player without it sees an empty slot where Arsenal should be.
 - If the game updates, Arsenal turns itself off (see `Arsenal.log`) until a new release is out.
 

@@ -49,6 +49,7 @@ constexpr int WeaponMod_Level = 0x08;
 constexpr int DA_bRequiresUnlock = 0x30;
 constexpr int DA_Name = 0x38;         // FString
 constexpr int DA_Description = 0x48;  // FString
+constexpr int DA_Icon = 0x58;         // UTexture2D*; the rarity's background colour is part of the image
 constexpr int DA_Rarity = 0x62;       // ECrabRarity: 1 Common, 2 Epic, 3 Legendary
 constexpr int DA_LevelDescription = 0xB8;  // FString; "PrimaryBuff" is replaced with the buff
 constexpr int DA_BaseBuff = 0xC8;

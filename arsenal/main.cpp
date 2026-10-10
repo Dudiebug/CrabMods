@@ -79,6 +79,21 @@ void* FindTemplate(void* lm) {
     return fallback;
 }
 
+// The game's plain bullet icon for a rarity (T_Icon_WeaponMod_Rare/_Epic/_Legendary), taken from a weapon
+// mod that uses it. Mods without their own art use these, and the background colour is baked in.
+void* RarityIcon(void* lm, uint8_t rarity) {
+    static const char* names[] = {"", "T_Icon_WeaponMod_Rare", "T_Icon_WeaponMod_Epic", "T_Icon_WeaponMod_Legendary"};
+    if (rarity < 1 || rarity > 3) return nullptr;
+    void* spawnables = At<void*>(lm, off::LM_SpawnablesDA);
+    if (!spawnables) return nullptr;
+    auto& mods = At<TArray<void*>>(spawnables, off::Spawnables_WeaponMods);
+    for (int i = 0; i < mods.Num; i++) {
+        void* icon = mods.Data[i] ? At<void*>(mods.Data[i], off::DA_Icon) : nullptr;
+        if (icon && ObjectName(icon) == names[rarity]) return icon;
+    }
+    return nullptr;
+}
+
 void* CreateArsenal(void* templ) {
     void* cls = StaticClass(va::UCrabWeaponModDA_StaticClass);
     void* package = At<void*>(cls, off::Object_Outer);  // /Script/CrabChampions
@@ -114,6 +129,8 @@ void HkBeginPlay(void* lm) {
         g_da = CreateArsenal(templ);
         CRAB_LOG("created %s from %s: %p", ObjectName(g_da).c_str(), ObjectName(templ).c_str(), g_da);
         if (!g_da) return;
+        if (void* icon = RarityIcon(lm, g_cfg.rarity)) At<void*>(g_da, off::DA_Icon) = icon;
+        CRAB_LOG("icon %s", ObjectName(At<void*>(g_da, off::DA_Icon)).c_str());
     }
     auto& pool = At<TArray<void*>>(lm, off::LM_AllUnlockedPickups);
     if (!Contains(pool, g_da)) {
