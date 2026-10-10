@@ -84,6 +84,9 @@ public:
 
     const Settings& settings() const { return s_; }
     void setSettings(const Settings& s) { s_ = s; }
+    // In the lobby the pool only shows its size: everyone is kept at full (bigger) health, nothing
+    // that happens there counts as damage, and nobody is killed.
+    void setLobby(bool lobby) { lobby_ = lobby; }
 
     bool hasTeam() const { return hasTeam_; }
     const Inventory& team() const { return team_; }
@@ -132,6 +135,7 @@ private:
     Inventory team_;
     void updateTeamHealth();
 
+    bool lobby_ = false;
     bool healthValid_ = false;  // the pool is meaningful once someone alive has been seen
     // The pool is stored as damage taken, so it grows when max health grows (a player joins, a max
     // health pickup): team health = max health - damage_.

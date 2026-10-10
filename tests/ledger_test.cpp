@@ -381,6 +381,19 @@ static void TestHealthStaleSeedDoesNotKill() {
     CHECK(s.players[1].life == Life::Alive);
 }
 
+static void TestHealthLobbyFullAndSafe() {
+    std::puts("health: in the lobby everyone is at full (pool-sized) health and nothing is shared or fatal");
+    Sim s;
+    s.ledger.setLobby(true);
+    Spawn(s.players[1], 101, 314, 613);  // the team starts from the run's last, badly hurt character
+    Spawn(s.players[2], 102, 100, 350);
+    s.Poll();
+    Spawn(s.players[1], 201, 100, 350);  // lobby character: max below the old damage
+    Hit(s.players[2], 40);
+    for (int i = 0; i < 3; i++) s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.life == Life::Alive && v.health == 350.f);
+}
+
 static void TestHealthNoFalseWipe() {
     std::puts("health: loading, respawned or uninitialised characters never drain the pool");
     Sim s;
@@ -447,6 +460,7 @@ int main() {
     TestHealthPoolEmptyKillsEveryone();
     TestHealthEmptyPoolKillsOnce();
     TestHealthStaleSeedDoesNotKill();
+    TestHealthLobbyFullAndSafe();
     TestHealthNoFalseWipe();
     TestHealthWaitsForSomeoneAlive();
     TestHealthPoolGrowsWithPlayers();

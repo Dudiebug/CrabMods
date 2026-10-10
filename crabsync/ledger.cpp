@@ -167,7 +167,7 @@ bool Ledger::absorb(PlayerKey k, const Inventory& now, std::vector<Change>* chan
             }
         }
     }
-    if (s_.health) {
+    if (s_.health && !lobby_) {
         float was = damage_, max = teamMax_;
         bool valid = healthValid_;
         absorbHealth(before, now, changes);
@@ -263,7 +263,9 @@ Inventory Ledger::target(const Inventory& cur) const {
         if (s_.equip[e] && team_.equip[e]) t.equip[e] = team_.equip[e];
     if (s_.slots) t.slots = team_.slots;
     if (s_.crystals) t.crystals = team_.crystals;
-    if (s_.health && healthValid_ && cur.life == Life::Alive) {
+    if (s_.health && lobby_ && cur.life == Life::Alive) {
+        t.health = cur.maxHealth;
+    } else if (s_.health && healthValid_ && cur.life == Life::Alive) {
         if (std::find(doomed_.begin(), doomed_.end(), cur.body) != doomed_.end()) {
             t.life = Life::Dead;  // the pool emptied: everyone alive at that moment dies
             t.health = 0.f;

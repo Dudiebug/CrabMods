@@ -121,7 +121,7 @@ void Sync(void* gs) {
     g_ledger.retain(keys);
 
     // Each player after the first adds healthPerPlayer to everyone's max, so the pool grows with the team.
-    float extra = g_ledger.settings().health ? g_cfg.healthPerPlayer * float(players.size() - 1) : 0.f;
+    float extra = g_cfg.sync.health ? g_cfg.healthPerPlayer * float(players.size() - 1) : 0.f;
     bool extraChanged = extra != g_extraHealth;
     if (extraChanged)
         CRAB_LOG("%zu player(s): shared health pool max is everyone's own max + %.0f", players.size(), extra);
@@ -281,11 +281,10 @@ void OnTick(void* engine, float dt) {
         if (g.runStarting && island != uint8_t(IslandType::None)) g.sinceLoad = 0.f;
         g.lastIsland = island;
     }
-    // Health is not shared in the lobby: nothing there hurts, and a pool carried over from the run's last
-    // fight would be applied to the fresh lobby characters.
-    Settings st = g_cfg.sync;
-    if (island == uint8_t(IslandType::Lobby)) st.health = false;
-    g_ledger.setSettings(st);
+    // The lobby shows the pool's size (everyone's max includes healthPerPlayer) at full health, but no
+    // damage is shared there: a pool carried over from the run's last fight must not reach the fresh
+    // lobby characters.
+    g_ledger.setLobby(island == uint8_t(IslandType::Lobby));
 
     const char* pause = nullptr;
     if (g.sinceLoad < g_cfg.settleSeconds) {
