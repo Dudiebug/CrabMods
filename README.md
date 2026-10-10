@@ -1,85 +1,59 @@
 # CrabMods
 
-**New items for Crab Champions.**
+Native mods for **Crab Champions**, and the reverse-engineering notes and SDK they are built on.
 
-| Item | Type | Effect |
-|---|---|---|
-| **Arsenal** | Epic weapon mod | Damage increased by **3%** for each other weapon mod you have. |
-| **Hoarder** | Legendary perk | Damage increased by **3%** for each weapon mod **and** each perk level you have. Arsenal and Collector in one. |
-| **Heavy Shot** | the game's own Common weapon mod | Now drops for **every weapon**. The base game only offers it with Bounce weapons. |
+| Mod | What it does | Who installs it | Download |
+|---|---|---|---|
+| [**CrabSync**](crabsync/README.md) | One team, one inventory, one health bar: every pickup, crystal and hit is shared by the whole lobby. | The host only | [`CrabSync-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync) |
+| [**CrabMods**](crabmods/README.md) | New items: **Arsenal** (Epic weapon mod), **Hoarder** (Legendary perk), and **Heavy Shot** for every weapon. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
 
-- Arsenal and Hoarder drop from chests and rewards of their rarity, like any other item.
-- Extra copies stack: two Arsenals give +6% per mod, and two Hoarder levels give +6% per mod and per perk level.
-- Arsenal, Hoarder and Collector all add up. With Arsenal, Collector and Hoarder you get every bonus at once.
-- The bonuses are added like the game's own damage perks, so they stack with them normally.
-- Heavy Shot is unchanged (+50% damage, heavier shots that drop). It is only allowed to show up more often.
-
-> **Status: early (0.2.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
+The two work together or on their own. Each mod's page has its settings, details and known issues.
 
 ## Install
 
-**Every player in the lobby needs CrabMods**, the host and every friend who joins.
-
-1. Download `CrabMods-x.y.z.zip` from [Releases](https://github.com/Dudiebug/CrabMods/releases/latest).
+1. Download the zip for the mod you want from [Releases](https://github.com/Dudiebug/CrabMods/releases).
 2. Open the game folder: in Steam, right-click **Crab Champions** → **Manage** → **Browse local files**.
 3. Go into `CrabChampions\Binaries\Win64` (the folder with `CrabChampions-Win64-Shipping.exe`).
-4. Copy `xinput1_3.dll` and `CrabMods.dll` there. If you already use [CrabSync](https://github.com/Dudiebug/CrabSync), keep its `xinput1_3.dll` (it is the same mod loader).
-5. **Had Arsenal before?** Delete `Arsenal.dll`. CrabMods includes Arsenal, and your `Arsenal.ini` settings are copied into `CrabMods.ini` on first launch.
-6. **Linux / Steam Deck (Proton) only:** set the game's Launch Options to:
+4. Extract the zip there. Both zips contain the same `xinput1_3.dll`, so overwriting it is fine.
+5. **Linux / Steam Deck (Proton) only:** in Steam, right-click the game → **Properties** → **Launch Options**, and paste:
    ```
    WINEDLLOVERRIDES="xinput1_3=n,b" %command%
    ```
 
-`CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch.
+Each mod writes its own `.ini` (settings) and `.log` next to its DLL on first launch.
 
-To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xinput1_3.dll` if no other mod uses it).
+`xinput1_3.dll` is a small mod loader. The game loads it as its controller DLL; it passes controller input through to the real Windows DLL and loads every other `.dll` in the `Win64` folder.
 
-## Settings
-
-`CrabMods.ini`. Everyone in the lobby should use the same values.
-
-| Section | Setting | Default | |
-|---|---|---|---|
-| `[arsenal]` | `enabled` | `true` | |
-| | `damagePerModPercent` | `3` | Bonus per other weapon mod, for each Arsenal you hold. |
-| | `rarity` | `epic` | `common`, `epic` or `legendary`. |
-| | `countStacks` | `false` | `true` counts a x3 stack as three mods (for Arsenal and Hoarder). |
-| `[hoarder]` | `enabled` | `true` | |
-| | `damagePercent` | `3` | Bonus per weapon mod and per perk level, for each Hoarder level. |
-| | `rarity` | `legendary` | `common`, `epic` or `legendary`. |
-| `[heavyShot]` | `anyWeapon` | `true` | Let Heavy Shot drop for every weapon. Only the host's setting matters. |
-
-## How it works
-
-Crab Champions has no Arsenal or Hoarder asset, so the mod makes them when a level loads:
-- Arsenal is a copy of Streak Shot's data asset; Hoarder is a copy of Collector's.
-- Each copy gets a new name, text, rarity and an unused type, and is added to the list that chests roll from.
-- The copies have fixed names, so the game sends them between players by name. That is why every player needs the mod: without it, their game cannot find the item.
-
-Both damage bonuses are applied where the game totals a player's damage buffs, beside the game's own damage perks:
-- Arsenal: your Arsenal level × your other weapon mods × 3%.
-- Hoarder: your Hoarder level × (your weapon mods + your perk levels) × 3%. It counts itself, as Collector does.
-
-Heavy Shot's asset says "only offer me with a Bounce weapon". The mod clears that flag in memory, and the game's own Heavy Shot code already works on every projectile.
-
-## Known limitations
-
-- Arsenal and Hoarder use the game's plain icons for their rarity (the same ones other items without their own art use).
-- Every player needs CrabMods. A player without it sees an empty slot where Arsenal or Hoarder should be.
-- Heavy Shot still needs to be unlocked in your save before it can drop.
-- On weapons whose shots don't fly as projectiles, Heavy Shot only adds its damage.
-- If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
+> [!NOTE]
+> The mods are built for one build of the game. After a game update they detect the change, write `unsupported game build` to their log and stay off, so the game still runs normally. Watch this repo for an update.
 
 ## Building
 
-Needs [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (ucrt). On Linux:
+Requires [llvm-mingw](https://github.com/mstorsjo/llvm-mingw) (any recent ucrt release) on Linux, macOS or Windows (with bash).
 
 ```bash
-./build.sh            # build/xinput1_3.dll and build/CrabMods.dll
-./build.sh install    # also copy them into the Steam game folder (or set CRAB_GAME), removing an old Arsenal.dll
-./build.sh package    # build/CrabMods-<version>.zip
+export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
+./build.sh test package
 ```
+
+- `build/` gets `xinput1_3.dll` (the loader), `CrabSync.dll` and `CrabMods.dll`.
+- `test` runs CrabSync's ledger tests (with `wine` on Linux; set `WINE=` to choose one).
+- `package` makes `build/CrabSync-<version>.zip` and `build/CrabMods-<version>.zip`.
+- `install` copies the DLLs into a Steam install (set `CRAB_GAME` to the `Crab Champions` folder if it lives elsewhere).
+
+| Path | |
+|---|---|
+| `crabsync/` | CrabSync: the team ledger, game inventory and health code, hooks. |
+| `crabmods/` | CrabMods: runtime-made items and the damage bonus. |
+| `common/crab/` | Shared by both: game addresses, minimal Unreal Engine types, logging, hooking. |
+| `loader/` | The `xinput1_3.dll` mod loader. |
+| `tests/` | CrabSync ledger tests. |
+| `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
+
+Every address in `common/crab/game.hpp` comes from static analysis of the game binary. The mods read and call the game's own code; they do not modify any game files.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Bundles [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause).
+[MIT](LICENSE). MinHook is © Tsuda Kageyu and contributors, under its own [BSD 2-Clause license](third_party/minhook/LICENSE.txt).
+
+These are fan-made mods. They are not affiliated with or endorsed by the developers or publishers of Crab Champions.

@@ -56,7 +56,7 @@ void* CreateArsenal(void* lm) {
     At<bool>(da, off::DA_bHyperbolicBuff) = false;
     At<bool>(da, off::DA_bLimited) = false;
     At<bool>(da, off::DA_bGetBuffAsMultiplier) = true;
-    At<uint8_t>(da, off::DA_WeaponModType) = kArsenalType;
+    At<uint8_t>(da, off::DA_ItemType) = kArsenalType;
     if (void* icon = GenericIcon(mods, "T_Icon_WeaponMod_", g_cfg.arsenal.rarity)) At<void*>(da, off::DA_Icon) = icon;
     CRAB_LOG("created %s from %s, icon %s", ObjectName(da).c_str(), ObjectName(templ).c_str(),
              ObjectName(At<void*>(da, off::DA_Icon)).c_str());
@@ -79,7 +79,7 @@ void* CreateHoarder(void* lm) {
     At<bool>(da, off::DA_bHyperbolicBuff) = false;
     At<bool>(da, off::DA_bLimited) = false;
     At<bool>(da, off::DA_bGetBuffAsMultiplier) = true;
-    At<uint8_t>(da, off::DA_PerkType) = kHoarderType;
+    At<uint8_t>(da, off::DA_ItemType) = kHoarderType;
     if (void* icon = GenericIcon(perks, "T_Icon_Perk_", g_cfg.hoarder.rarity)) At<void*>(da, off::DA_Icon) = icon;
     CRAB_LOG("created %s from %s, icon %s", ObjectName(da).c_str(), ObjectName(templ).c_str(),
              ObjectName(At<void*>(da, off::DA_Icon)).c_str());

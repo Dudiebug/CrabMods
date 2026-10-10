@@ -47,7 +47,7 @@ inline TArray<void*>* Spawnables(void* lm, int listOffset) {
 inline void* FindByType(TArray<void*>* list, uint8_t type) {
     if (!list) return nullptr;
     for (int i = 0; i < list->Num; i++)
-        if (void* da = list->Data[i]; da && At<uint8_t>(da, off::DA_WeaponModType) == type) return da;
+        if (void* da = list->Data[i]; da && At<uint8_t>(da, off::DA_ItemType) == type) return da;
     return nullptr;
 }
 
@@ -85,8 +85,8 @@ void ForEachItem(void* owner, int arrayOffset, F&& f) {
     auto& a = At<TArray<uint8_t>>(owner, arrayOffset);
     if (!a.Data) return;
     for (int i = 0; i < a.Num; i++) {
-        uint8_t* e = a.Data + i * off::WeaponMod_Size;
-        if (void* da = *reinterpret_cast<void**>(e)) f(da, int(e[off::WeaponMod_Level]));
+        uint8_t* e = a.Data + i * off::Item_Size;
+        if (void* da = *reinterpret_cast<void**>(e)) f(da, int(e[off::Item_Level]));
     }
 }
 
