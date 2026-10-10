@@ -139,6 +139,26 @@ Heavy Shot (`ECrabWeaponModType` 30): Common, BaseBuff 50, BaseDebuff 15, `Picku
 
 Killing a character through `TakeDamage` with enough damage plays out exactly like a normal death, including game over when everyone is down.
 
+### Max health
+
+`UpdateMaxHealth` computes `max(0.01, (1 - buff 0x6d - buff 0x76) * (PS+0x39C MaxHealthMultiplier + perk buffs 6, 0x68-0x6c)) * (PS+0x398 BaseMaxHealth + perk 1 buff + relic 0x3b buff)`. It clamps the result to at least 1 and calls `SetMaxHealth` on an `ACrabPlayerC` pawn (no other pawn type). `0x140d22720` returns the base part, `BaseMaxHealth + perk 1 + relic 0x3b`. Percentage costs are taken of that.
+
+Everything per player lives in two fields, changed only by these (authority only; each adds `Amount`, then calls `UpdateMaxHealth`):
+
+| Function | Address | Callers |
+|---|---|---|
+| `AddBaseMaxHealth(ps, Amount)` | `0x140d20a00` | chest pay (call `0x140cafb82`); totem interact `0x140cb5860` (Health: +base or -50%, Loot -8%, Gold -33%); damage area `0x140cc1ad0` (`DamageAreaType` MaxHealth, `+0x288`); hit handler `0x140d17be0` (difficulty Eternal Punishment, modifier 13: -0.5% per hit) |
+| `AddBaseMaxHealthFromPerk(ps, Amount, PerkType)` | `0x140d20b20` | the same, plus the perk's `AccumulatedBuff`. Totem Enhancement / Valued Customer; GM damage handler `0x140ce5780` (Personal Space, Bullseye: the killer); `0x140ce9650` (Fortitude, call `0x140ce9fc3`, **in a loop over every player**); hit handler (Damage Seeker); `0x140d3cf00` (Valued Customer) |
+| `AddMaxHealthMultiplier(ps, Amount)` | `0x140d20e10` | only in loops over every player: `0x140ce9650`, `0x140cea670` (difficulty Relaxed, modifier 0: +1.0 at the run start) |
+
+`ACrabChest` pay-and-open `0x140caf9f0(chest, ACrabC* opener)` returns at once if `bIsChestOpened (+0x300)` is set. Otherwise it charges `Cost (+0x2B4)` in `CurrencyType (+0x2B0)`:
+- Crystal 0, Key 1.
+- Health 2: `Cost% x` the opener's max, as Unblockable damage (type 0xC) through `0x140d2dca0`.
+- MaxHealth 3: `AddBaseMaxHealth(-Cost% x base)`.
+
+It then rolls the loot (`0x140caf1c0`).
+
+
 ## Projectiles and Heavy Shot
 
 - Every player weapon fires `ACrabProjectile`s: each `UCrabWeaponDA` has a projectile DA at `+0xC0`.
@@ -187,6 +207,9 @@ The fields are not replicated: the owning player's machine counts them down. Low
 ## Downed players
 
 A downed (eliminated, waiting for revive) player's `PlayerState+0x280` pawn is an `ACrabSpectatorC` (`StaticClass 0x140d83600`) until they are revived. An `ACrabC` pawn with `+0x668` bit 0 (`bIsEliminated`) set also counts as down. Both replicate.
+
+The spectator is spawned and possessed only by `0x140d0e720`, which is called only by the GM damage handler `0x140ce5780` when `TakeDamage` reports an elimination. That happens in the same call as the killing hit, so a poll never sees the dead `ACrabC`, only the spectator. The other uses of its class (`0x140d0b5c0`, `0x140d0d260`) are `IsA` checks on a controller's pawn.
+
 
 ## Sending data to every player
 

@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.1";
+constexpr const char kVersion[] = "1.0.2";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -49,10 +49,20 @@ using TickFn = void (*)(void*, float, bool);
 using RestoreFn = void (*)(void*, void*);
 using UpdateMaxHealthFn = void (*)(void*);
 using SetMaxHealthFn = void (*)(void*, float);
+using AddBaseMaxHealthFn = void (*)(void*, float);
+using AddBaseMaxHealthFromPerkFn = void (*)(void*, float, uint8_t);
+using ChestPayFn = void (*)(void*, void*);
 TickFn oTick = nullptr;
 RestoreFn oRestore = nullptr;
 UpdateMaxHealthFn oUpdateMaxHealth = nullptr;
 SetMaxHealthFn oSetMaxHealth = nullptr;
+AddBaseMaxHealthFn oAddBaseMaxHealth = nullptr;
+AddBaseMaxHealthFromPerkFn oAddBaseMaxHealthFromPerk = nullptr;
+ChestPayFn oChestPay = nullptr;
+
+uint64_t g_frame = 0;  // engine ticks, to spot one team event reaching every player in the same frame
+uint64_t g_fortitudeFrame = ~0ull;
+float g_chestBaseMax = 0.f;  // max health taken by the chest being paid (set by the AddBaseMaxHealth hook)
 
 std::string PlayerName(void* ps) {
     std::string n = FStringToUtf8(At<TArray<wchar_t>>(ps, off::PS_PlayerName));
@@ -77,7 +87,8 @@ bool KeyPressed(int vk) {
 
 void DumpInventory(const char* who, const Inventory& inv) {
     static const char* life[] = {"no character", "alive", "dead"};
-    CRAB_LOG("  %s: health=%.1f/%.1f (%s)", who, inv.health, inv.maxHealth, life[int(inv.life)]);
+    CRAB_LOG("  %s: health=%.1f/%.1f (%s) base max=%.1f", who, inv.health, inv.maxHealth, life[int(inv.life)],
+             inv.baseMax);
     CRAB_LOG("  %s: weapon=%s ability=%s melee=%s crystals=%u slots=%d/%d/%d/%d", who,
              ItemName(inv.equip[Weapon]).c_str(), ItemName(inv.equip[Ability]).c_str(),
              ItemName(inv.equip[Melee]).c_str(), inv.crystals, inv.slots[0], inv.slots[1], inv.slots[2], inv.slots[3]);
@@ -97,6 +108,11 @@ std::string Mismatch(const Inventory& cur, const Inventory& tgt) {
     if (cur.crystals != tgt.crystals) add("crystals " + std::to_string(cur.crystals) + " -> " + std::to_string(tgt.crystals));
     for (int c = 0; c < NumCats; c++)
         if (cur.items[c] != tgt.items[c]) add(std::string(CatName(c)) + "s");
+    if (cur.baseMax != tgt.baseMax) {
+        char buf[64];
+        snprintf(buf, sizeof buf, "base max %.1f -> %.1f", cur.baseMax, tgt.baseMax);
+        add(buf);
+    }
     if (cur.life != tgt.life || cur.health != tgt.health) {
         char buf[96];
         snprintf(buf, sizeof buf, "health %.0f/%.0f -> %.0f%s", cur.health, cur.maxHealth, tgt.health,
@@ -132,8 +148,9 @@ void Sync(void* gs) {
     for (size_t i = 0; i < players.size(); i++) {
         ReadInventory(players[i], cur[i]);
         // A new character takes its max from before; recompute it (with the extra) before it is used.
+        // (A spectator has no health: maxHealth stays 0.)
         auto it = g.bodies.find(keys[i]);
-        if (cur[i].life != Life::None && (extraChanged || it == g.bodies.end() || it->second != cur[i].body)) {
+        if (cur[i].maxHealth > 0.f && (extraChanged || it == g.bodies.end() || it->second != cur[i].body)) {
             Fn<void (*)(void*)>(va::ACrabPS_UpdateMaxHealth)(players[i]);
             ReadInventory(players[i], cur[i]);
         }
@@ -325,6 +342,7 @@ void OnTick(void* engine, float dt) {
 }
 
 void HkTick(void* engine, float dt, bool idle) {
+    g_frame++;
     oTick(engine, dt, idle);
     OnTick(engine, dt);
 }
@@ -351,6 +369,63 @@ void HkSetMaxHealth(void* character, float max) {
     oSetMaxHealth(character, max);
 }
 
+// A player's base max health changed by `d` (on the host). Everything but a chest's cost is the team's.
+void OnBaseMaxHealth(void* ps, float d, uintptr_t ret) {
+    if (d == 0.f) return;
+    if (ret == Addr(va::Ret_ChestMaxHealthCost)) {
+        g_chestBaseMax += d;  // HkChestPay decides what the team pays
+        return;
+    }
+    // Fortitude: the game gives it to every player in one loop; the team gets it once.
+    if (ret == Addr(va::Ret_FortitudeIsland)) {
+        if (g_fortitudeFrame == g_frame) return;
+        g_fortitudeFrame = g_frame;
+    }
+    if (!g_ledger.hasTeam()) return;
+    g_ledger.addBaseMax(d);
+    CRAB_LOG("%s: max health %+.1f, shared (team base max %.1f)", PlayerName(ps).c_str(), d, g_ledger.team().baseMax);
+}
+
+void HkAddBaseMaxHealth(void* ps, float amount) {
+    float before = At<float>(ps, off::PS_BaseMaxHealth);
+    oAddBaseMaxHealth(ps, amount);
+    OnBaseMaxHealth(ps, At<float>(ps, off::PS_BaseMaxHealth) - before, reinterpret_cast<uintptr_t>(__builtin_return_address(0)));
+}
+
+void HkAddBaseMaxHealthFromPerk(void* ps, float amount, uint8_t perk) {
+    float before = At<float>(ps, off::PS_BaseMaxHealth);
+    oAddBaseMaxHealthFromPerk(ps, amount, perk);
+    OnBaseMaxHealth(ps, At<float>(ps, off::PS_BaseMaxHealth) - before, reinterpret_cast<uintptr_t>(__builtin_return_address(0)));
+}
+
+// A chest paid for with health or max health (spiked and greed chests): the team pays the share set by
+// chestHealthCost instead of the opener's whole cost.
+void HkChestPay(void* chest, void* opener) {
+    static void* cClass = StaticClass(va::ACrabC_StaticClass);
+    uint8_t currency = At<uint8_t>(chest, off::Chest_CurrencyType);
+    void* ps = IsA(opener, cClass) ? At<void*>(opener, off::Pawn_PlayerState) : nullptr;
+    void* hc = IsA(opener, cClass) ? At<void*>(opener, off::C_HC) : nullptr;
+    if (!ps || !hc || At<uint8_t>(chest, off::Chest_bIsChestOpened) || At<int32_t>(chest, off::Chest_Cost) <= 0 ||
+        (currency != 2 && currency != 3) || At<uint8_t>(chest, off::Actor_Role) != ROLE_Authority) {
+        oChestPay(chest, opener);
+        return;
+    }
+    float health = At<float>(hc, off::HC_CurrentHealth);
+    g_chestBaseMax = 0.f;
+    oChestPay(chest, opener);
+    float taken = std::max(0.f, health - At<float>(hc, off::HC_CurrentHealth));
+    float baseMax = g_chestBaseMax;
+    g_chestBaseMax = 0.f;
+    if (!g_ledger.hasTeam() || (taken == 0.f && baseMax == 0.f)) return;
+    g_ledger.chestCost(reinterpret_cast<PlayerKey>(ps), baseMax, currency == 2 ? taken : 0.f);
+    if (currency == 2)
+        CRAB_LOG("%s: opened a chest for %.0f health; the team pays %.0f", PlayerName(ps).c_str(), taken,
+                 g_ledger.chestShare(taken));
+    else
+        CRAB_LOG("%s: opened a chest for %.1f max health; the team pays %.1f (team base max %.1f)",
+                 PlayerName(ps).c_str(), -baseMax, -g_ledger.chestShare(baseMax), g_ledger.team().baseMax);
+}
+
 DWORD WINAPI Init(LPVOID) {
     std::wstring dir = ModuleDir();
     Log::Get().Open(dir + L"CrabSync.log");
@@ -372,6 +447,11 @@ DWORD WINAPI Init(LPVOID) {
     if (g_cfg.sync.health) {
         Hook(va::ACrabPS_UpdateMaxHealth, &HkUpdateMaxHealth, &oUpdateMaxHealth, "ACrabPS::UpdateMaxHealth");
         Hook(va::ACrabC_SetMaxHealth, &HkSetMaxHealth, &oSetMaxHealth, "ACrabC::SetMaxHealth");
+        Hook(va::ACrabPS_AddBaseMaxHealth, &HkAddBaseMaxHealth, &oAddBaseMaxHealth, "ACrabPS::AddBaseMaxHealth");
+        Hook(va::ACrabPS_AddBaseMaxHealthFromPerk, &HkAddBaseMaxHealthFromPerk, &oAddBaseMaxHealthFromPerk,
+             "ACrabPS::AddBaseMaxHealthFromPerk");
+        Hook(va::ACrabChest_Pay, &HkChestPay, &oChestPay, "ACrabChest::Pay");
+
     }
     CRAB_LOG("CrabSync %s loaded", kVersion);
     return 0;

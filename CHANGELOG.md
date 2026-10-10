@@ -55,7 +55,15 @@ First release.
 
 ## CrabSync
 
+### 1.0.2
+
+- Fixed: **deaths were not shared.** The game swaps a dead player's character for a spectator in the same frame, so CrabSync never saw the death. Now a player who dies empties the shared pool and everyone dies with them.
+- Fixed: **max health was per player**, so players ended up with different max health and the pool was measured against the highest. Max health is now shared: losing or gaining it (Eternal Punishment hits, totems, damage areas, perks such as Fortitude, Personal Space, Bullseye, Damage Seeker and Valued Customer) changes everyone's, and everyone has the same max and the same health.
+- Chests that cost health or max health (spiked and greed chests) only charge the team the cost divided by the number of players. The new `chestHealthCost` setting can be `split` (default), `full` or `free`.
+- A lower max cuts health down to it instead of taking the difference off. Losing 5 max health at 100/1000 now leaves 100/995, not 95/995. This applies when a player leaves, too.
+
 ### 1.0.1
+
 
 - Fixed: returning to the lobby after a run could kill you over and over. The health pool carried the run's damage into the lobby, where your max health is lower, so the pool counted as empty.
 - In the lobby the pool only shows its size: everyone's max includes the extra health for each player, everyone is kept at full health, and no damage is shared.

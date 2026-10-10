@@ -66,6 +66,28 @@ constexpr uintptr_t UCrabHC_TakeDamage = 0x140c9afe0;        // void(UCrabHC*, F
 constexpr uintptr_t UCrabHC_OnRep_HealthInfo = 0x140c9b4a0;  // void(UCrabHC*): broadcasts health changed, Previous = Current
 constexpr uintptr_t ACrabC_SetMaxHealth = 0x140cbd780;       // void(ACrabC*, float): sets HC max, clamps health down to it
 
+// Max health. UpdateMaxHealth computes it as
+//   max(0.01, MaxHealthMultiplier + perk buffs) * (BaseMaxHealth + perk/relic buffs), at least 1.
+// BaseMaxHealth is per player, and these are what change it (each adds Amount, then calls UpdateMaxHealth;
+// authority only):
+constexpr uintptr_t ACrabPS_AddBaseMaxHealth = 0x140d20a00;          // void(ACrabPS*, float Amount)
+constexpr uintptr_t ACrabPS_AddBaseMaxHealthFromPerk = 0x140d20b20;  // void(ACrabPS*, float Amount, uint8 PerkType)
+// Their callers, by return address (call + 5):
+//   chest cost (MaxHealth currency):  AddBaseMaxHealth from ACrabChest pay, below
+//   totems (Health x2 or /2, Loot -8%, Gold -33%), damage areas, Eternal Punishment (-0.5% per hit) and
+//   Damage Seeker on the hit player, Personal Space / Bullseye on a kill, Valued Customer: one player each
+//   Fortitude, at each new island: the game loops over every player, so it is one team event
+constexpr uintptr_t Ret_ChestMaxHealthCost = 0x140cafb87;
+constexpr uintptr_t Ret_FortitudeIsland = 0x140ce9fc8;
+// MaxHealthMultiplier (PS+0x39C) is only changed for every player at once (difficulty Relaxed, at the
+// start of a run), so it never differs between players.
+
+// void(ACrabChest*, ACrabC* Opener): pays the chest's Cost in its CurrencyType from the opener (crystals,
+// keys, Cost% of max as Unblockable damage, or Cost% of base max health) and rolls its loot. Returns at
+// once if the chest is already open.
+constexpr uintptr_t ACrabChest_Pay = 0x140caf9f0;
+
+
 // Ability cooldown (ACrabPlayerC fields, not replicated: counted down by the owner, and maybe the host too)
 // void(ACrabPlayerC*): a 0.25 s timer. AbilityCooldown -= 0.25 (to 0); on reaching 0 one charge comes back and,
 // if charges are still short, the next cooldown starts. Also counts down the melee cooldown (+0xA28).
@@ -124,7 +146,9 @@ constexpr int PS_Pawn = 0x280;
 constexpr int PS_PlayerName = 0x300;  // FString
 constexpr int PS_Eliminations = 0x358;  // int: enemies this player has killed (replicated)
 constexpr int PS_PSPickups = 0x340;  // TArray<UCrabPickupDA*>: every pickup held, what PickupTag checks look at
+constexpr int PS_BaseMaxHealth = 0x398;  // float
 constexpr int PS_DamageMultiplier = 0x3A0;
+
 constexpr int PS_WeaponDA = 0x3C0;
 constexpr int PS_AbilityDA = 0x3C8;
 constexpr int PS_MeleeDA = 0x3D0;
@@ -144,6 +168,11 @@ constexpr int Item_Size = 0x28;
 constexpr int Item_Level = 0x08;
 // APawn
 constexpr int Pawn_PlayerState = 0x240;
+// ACrabChest
+constexpr int Chest_CurrencyType = 0x2B0;  // ECrabCurrencyType: Crystal 0, Key 1, Health 2, MaxHealth 3
+constexpr int Chest_Cost = 0x2B4;          // int
+constexpr int Chest_bIsChestOpened = 0x300;
+
 // ACrabC (any character)
 constexpr int C_HC = 0x4C0;             // UCrabHC*
 constexpr int C_bIsEliminated = 0x668;  // bit 0

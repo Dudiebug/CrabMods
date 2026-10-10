@@ -131,16 +131,22 @@ void ReadInventory(void* ps, Inventory& out) {
     for (int e = 0; e < NumEquip; e++) out.equip[e] = At<ItemId>(ps, kEquipOff[e]);
     for (int s = 0; s < NumSlotKinds; s++) out.slots[s] = At<uint8_t>(ps, kSlotOff[s]);
     out.crystals = At<uint32_t>(ps, off::PS_Crystals);
+    out.baseMax = At<float>(ps, off::PS_BaseMaxHealth);
     out.life = Life::None;
     out.body = 0;
     out.health = out.maxHealth = 0.f;
     void* pawn = nullptr;
+    static void* spectatorCls = StaticClass(va::ACrabSpectatorC_StaticClass);
     if (void* hc = HealthComp(ps, &pawn)) {
         bool dead = At<uint8_t>(hc, off::HC_bDead) || (At<uint8_t>(pawn, off::C_bIsEliminated) & 1);
         out.life = dead ? Life::Dead : Life::Alive;
         out.body = reinterpret_cast<uintptr_t>(pawn);
         out.health = dead ? 0.f : At<float>(hc, off::HC_CurrentHealth);
         out.maxHealth = At<float>(hc, off::HC_CurrentMaxHealth);
+    } else if (void* p = At<void*>(ps, off::PS_Pawn); IsA(p, spectatorCls)) {
+        // Only an elimination makes one: the game spawns it in the frame the player dies.
+        out.life = Life::Dead;
+        out.body = reinterpret_cast<uintptr_t>(p);
     }
     for (int c = 0; c < NumCats; c++) {
         auto& a = Items(ps, c);
@@ -192,6 +198,12 @@ bool ApplyTarget(void* ps, const Inventory& cur, const Inventory& tgt, bool anno
         }
     }
 
+    bool maxDirty = false;
+    if (tgt.baseMax != cur.baseMax) {
+        At<float>(ps, off::PS_BaseMaxHealth) = tgt.baseMax;
+        maxDirty = true;
+    }
+
     for (int c = 0; c < NumCats; c++) {
         if (tgt.items[c] == cur.items[c]) continue;
         for (auto& have : cur.items[c]) {
@@ -239,10 +251,9 @@ bool ApplyTarget(void* ps, const Inventory& cur, const Inventory& tgt, bool anno
         }
     }
 
-    if (dirty) {
-        Fn<void (*)(void*)>(va::FMulticastDelegate_Broadcast0)(static_cast<char*>(ps) + off::PS_OnInventoryChanged);
-        Fn<void (*)(void*)>(va::ACrabPS_UpdateMaxHealth)(ps);
-    }
+    if (dirty) Fn<void (*)(void*)>(va::FMulticastDelegate_Broadcast0)(static_cast<char*>(ps) + off::PS_OnInventoryChanged);
+    if (dirty || maxDirty) Fn<void (*)(void*)>(va::ACrabPS_UpdateMaxHealth)(ps);
+
 
     // Health last, against the same character it was read from (max health may just have changed).
     void* pawn = nullptr;

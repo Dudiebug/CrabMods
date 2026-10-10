@@ -27,6 +27,27 @@ void Ledger::reset() {
     base_.clear();
     poolEmpty_ = false;
     doomed_.clear();
+    syncMax_ = false;
+    refund_.clear();
+}
+
+float Ledger::chestShare(float cost) const {
+    switch (s_.chestCost) {
+    case ChestCost::Full: return cost;
+    case ChestCost::Free: return 0.f;
+    default: return cost / float(players_ ? players_ : 1);
+    }
+}
+
+void Ledger::addBaseMax(float amount) {
+    if (maxSynced()) team_.baseMax += amount;
+}
+
+void Ledger::chestCost(PlayerKey k, float baseMax, float health) {
+    if (!maxSynced()) return;
+    // The opener's own base is overwritten with the team's on the next poll, so only the share counts.
+    team_.baseMax += chestShare(baseMax);
+    if (health > 0.f) refund_[k] += health - chestShare(health);
 }
 
 void Ledger::updateTeamHealth() {
@@ -47,6 +68,11 @@ void Ledger::seed(const std::vector<const Inventory*>& players) {
     healthValid_ = false;
     damage_ = teamMax_ = 0.f;
     team_ = {};
+    refund_.clear();
+    // Everyone starts a run with the same base max; the highest covers anyone read mid-reset.
+    syncMax_ = !players.empty();
+    for (size_t i = 0; i < players.size(); i++)
+        if (i == 0 || players[i]->baseMax > team_.baseMax) team_.baseMax = players[i]->baseMax;
     // Equipment is not seeded: everyone keeps their own starting gear until someone swaps.
     for (auto* p : players) {
         if (p->life == Life::Alive) {
@@ -116,7 +142,7 @@ void Ledger::absorbItem(int c, const Item* before, const Item* now, std::vector<
     if (t->level == 0) team.erase(team.begin() + (t - team.data()));
 }
 
-void Ledger::absorbHealth(const Inventory& before, const Inventory& now, std::vector<Change>* changes) {
+void Ledger::absorbHealth(PlayerKey k, const Inventory& before, const Inventory& now, std::vector<Change>* changes) {
     if (now.life == Life::None) return;
     if (now.life == Life::Alive) teamMax_ = std::max(teamMax_, now.maxHealth);
     if (!healthValid_) {
@@ -126,19 +152,36 @@ void Ledger::absorbHealth(const Inventory& before, const Inventory& now, std::ve
         }
         return;
     }
+    if (before.life != Life::Alive) return;
+    if (now.life == Life::Dead) {
+        // Everyone shares one pool, so a death means it is empty: the rest die with them. This is also how
+        // a death is seen at all: the game swaps the character for a spectator in the frame it dies, so
+        // the killing hit is never read.
+        if (damage_ < teamMax_) damage_ = teamMax_;
+        refund_.erase(k);
+        updateTeamHealth();
+        if (changes) changes->push_back({"died: the team pool is empty"});
+        return;
+    }
     // Only a change on the same living character counts: a respawn, a revive or a character that just
     // appeared is a new starting point, not damage or healing.
-    if (before.life != Life::Alive || before.body != now.body) return;
+    if (before.body != now.body) return;
     // A lowered max health cuts health down to it; that is not damage.
     float was = std::min(before.health, now.maxHealth);
-    float d = (now.life == Life::Alive ? now.health : 0.f) - was;
+    float d = now.health - was;
+    if (auto r = refund_.find(k); r != refund_.end() && d < 0.f) {
+        // A chest's cost: the team only pays its share.
+        float back = std::min(r->second, -d);
+        d += back;
+        if ((r->second -= back) <= 0.f) refund_.erase(r);
+    }
     if (d == 0.f) return;
     damage_ = std::max(0.f, damage_ - d);
     updateTeamHealth();
-    if (changes && (d <= -1.f || d >= 1.f || now.life == Life::Dead)) {
+    if (changes && (d <= -1.f || d >= 1.f)) {
         char buf[96];
-        snprintf(buf, sizeof buf, "%s %.0f health (team pool now %.0f/%.0f)%s", d > 0 ? "healed" : "took",
-                 d > 0 ? d : -d, team_.health, team_.maxHealth, now.life == Life::Dead ? ", and died" : "");
+        snprintf(buf, sizeof buf, "%s %.0f health (team pool now %.0f/%.0f)", d > 0 ? "healed" : "took",
+                 d > 0 ? d : -d, team_.health, team_.maxHealth);
         changes->push_back({buf});
     }
 }
@@ -170,7 +213,7 @@ bool Ledger::absorb(PlayerKey k, const Inventory& now, std::vector<Change>* chan
     if (s_.health && !lobby_) {
         float was = damage_, max = teamMax_;
         bool valid = healthValid_;
-        absorbHealth(before, now, changes);
+        absorbHealth(k, before, now, changes);
         updateTeamHealth();
         changed |= was != damage_ || max != teamMax_ || valid != healthValid_;
     }
@@ -198,10 +241,16 @@ bool Ledger::absorb(PlayerKey k, const Inventory& now, std::vector<Change>* chan
 void Ledger::absorbAll(const std::vector<PlayerKey>& keys, const std::vector<Inventory>& now,
                        std::vector<std::vector<Change>>* changes, const std::vector<bool>* hold) {
     if (changes) changes->assign(keys.size(), {});
+    players_ = keys.size();
     // Recomputed each poll so a player leaving lowers it.
+    float prevMax = teamMax_;
     teamMax_ = 0.f;
     for (auto& n : now)
         if (n.life == Life::Alive) teamMax_ = std::max(teamMax_, n.maxHealth);
+    // A lower max cuts health down to it, as the game does, instead of taking the difference off it:
+    // losing 5 max health at 100/1000 leaves 100/995, not 95/995. A higher max adds to health.
+    if (s_.health && !lobby_ && healthValid_ && prevMax > 0.f && teamMax_ > 0.f && teamMax_ < prevMax)
+        damage_ = std::max(0.f, damage_ - (prevMax - teamMax_));
     updateTeamHealth();
     if (!hasTeam_) return;
 
@@ -263,6 +312,8 @@ Inventory Ledger::target(const Inventory& cur) const {
         if (s_.equip[e] && team_.equip[e]) t.equip[e] = team_.equip[e];
     if (s_.slots) t.slots = team_.slots;
     if (s_.crystals) t.crystals = team_.crystals;
+    if (maxSynced()) t.baseMax = team_.baseMax;
+
     if (s_.health && lobby_ && cur.life == Life::Alive) {
         t.health = cur.maxHealth;
     } else if (s_.health && healthValid_ && cur.life == Life::Alive) {
@@ -270,9 +321,10 @@ Inventory Ledger::target(const Inventory& cur) const {
             t.life = Life::Dead;  // the pool emptied: everyone alive at that moment dies
             t.health = 0.f;
         } else {
-            // Everyone normally has the same max; one that is briefly lower (a character that just
-            // spawned) is kept alive rather than killed.
-            t.health = std::clamp(cur.maxHealth - damage_, std::min(1.f, cur.maxHealth), cur.maxHealth);
+            // Everyone has the same max once it is synced. One that is briefly lower (a character that just
+            // spawned, or a max change not yet applied to everyone) is filled up to it, and kept alive.
+            t.health = std::clamp(team_.health, std::min(1.f, cur.maxHealth), cur.maxHealth);
+
         }
     }
     for (int c = 0; c < NumCats; c++) {

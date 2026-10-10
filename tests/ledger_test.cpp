@@ -22,6 +22,7 @@ constexpr ItemId Pistol = 0x9000, Shotgun = 0x9010;
 struct Sim {
     Ledger ledger;
     std::map<PlayerKey, Inventory> players;
+    bool modelMax = false;  // max health = base max, as UpdateMaxHealth computes it after a base write
 
     explicit Sim(Settings s = {}) : ledger(s) {}
 
@@ -41,6 +42,12 @@ struct Sim {
         ledger.absorbAll(keys, now);
         for (auto& [k, v] : players) {
             v = ledger.target(v);
+            // ApplyTarget writes the base, UpdateMaxHealth sets the max (cutting health down to it), then
+            // health is set, capped to the new max.
+            if (modelMax && v.life == Life::Alive) {
+                v.maxHealth = v.baseMax;
+                v.health = std::min(v.health, v.maxHealth);
+            }
             ledger.setBaseline(k, v);
         }
     }
@@ -317,6 +324,21 @@ static void Spawn(Inventory& inv, uintptr_t body, float hp, float max = 100.f) {
     inv.body = body;
     inv.health = hp;
     inv.maxHealth = max;
+    inv.baseMax = max;
+}
+
+// Mirrors the game changing one player's base max (and so their max, cutting health down to it).
+static void AddBase(Inventory& inv, float d) {
+    inv.baseMax += d;
+    inv.maxHealth = inv.baseMax;
+    inv.health = std::min(inv.health, inv.maxHealth);
+}
+
+// Mirrors the game swapping a dead player's character for a spectator in the frame they die.
+static void Spectate(Inventory& inv, uintptr_t spectator) {
+    inv.life = Life::Dead;
+    inv.body = spectator;
+    inv.health = inv.maxHealth = 0.f;
 }
 
 // Mirrors the game killing a character: health 0, dead.
@@ -439,7 +461,112 @@ static void TestHealthPoolGrowsWithPlayers() {
     s.players[1].maxHealth = 250;
     s.players[1].health = 250;
     s.Poll();
-    CHECK(s.players[1].life == Life::Alive && s.players[1].health == 150.f);
+    CHECK(s.players[1].life == Life::Alive && s.players[1].health == 250.f);  // 400 cut down to 250
+}
+
+static void TestDeathAsSpectatorKillsEveryone() {
+    std::puts("health: a player whose character became a spectator died, and everyone dies with them");
+    Sim s;
+    Spawn(s.players[1], 101, 100);
+    Spawn(s.players[2], 102, 100);
+    Spawn(s.players[3], 103, 100);
+    s.Poll();
+    Hit(s.players[1], 30);
+    s.Poll();
+    // The killing hit is never seen: in the next read player 2 is already a spectator.
+    Spectate(s.players[2], 902);
+    s.Poll();
+    CHECK(s.players[1].life == Life::Dead && s.players[3].life == Life::Dead);
+    s.Poll();  // the dead stay dead and nothing else happens
+    CHECK(s.players[1].life == Life::Dead && s.players[3].life == Life::Dead);
+}
+
+static void TestMaxHealthShared() {
+    std::puts("max health: one player's loss (Eternal Punishment) or gain is everyone's, and health follows the game's rules");
+    Sim s;
+    s.modelMax = true;
+    Spawn(s.players[1], 101, 100, 200);
+    Spawn(s.players[2], 102, 100, 200);
+    s.Poll();
+    // Player 1 is hit for 10 and loses 1 max health.
+    Hit(s.players[1], 10);
+    AddBase(s.players[1], -1.f);
+    s.ledger.addBaseMax(-1.f);
+    s.Poll();
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.baseMax == 199.f && v.maxHealth == 199.f && v.health == 90.f);
+    // A totem doubles player 2's base: everyone's doubles, and the new max adds health.
+    AddBase(s.players[2], 199.f);
+    s.ledger.addBaseMax(199.f);
+    s.Poll();
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.maxHealth == 398.f && v.health == 289.f);
+    // A loss at full health only cuts health down to the new max.
+    s.players[1].health = 398.f;
+    s.Poll();
+    AddBase(s.players[1], -98.f);
+    s.ledger.addBaseMax(-98.f);
+    s.Poll();
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.maxHealth == 300.f && v.health == 300.f);
+}
+
+static void TestChestCostSplit() {
+    std::puts("max health: a chest's cost is split between the players (chestHealthCost = split)");
+    Sim s;
+    s.modelMax = true;
+    for (PlayerKey k = 1; k <= 4; k++) Spawn(s.players[k], 100 + k, 400, 400);
+    s.Poll();
+    // Player 1 opens a greed chest: 20% of their base max.
+    AddBase(s.players[1], -80.f);
+    s.ledger.chestCost(1, -80.f, 0.f);
+    s.Poll();
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.maxHealth == 380.f && v.health == 380.f);
+    // Player 2 opens a spiked chest: 40 health.
+    Hit(s.players[2], 40);
+    s.ledger.chestCost(2, 0.f, 40.f);
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.health == 370.f);
+    // Ordinary damage afterwards is not refunded.
+    Hit(s.players[2], 40);
+    s.Poll();
+    for (auto& [k, v] : s.players) CHECK(v.health == 330.f);
+}
+
+static void TestChestCostFullAndFree() {
+    std::puts("max health: chestHealthCost = full charges the whole cost, free charges nothing");
+    for (ChestCost mode : {ChestCost::Full, ChestCost::Free}) {
+        Settings st;
+        st.chestCost = mode;
+        Sim s(st);
+        s.modelMax = true;
+        Spawn(s.players[1], 101, 400, 400);
+        Spawn(s.players[2], 102, 400, 400);
+        s.Poll();
+        AddBase(s.players[1], -80.f);
+        s.ledger.chestCost(1, -80.f, 0.f);
+        Hit(s.players[2], 40);
+        s.ledger.chestCost(2, 0.f, 40.f);
+        s.Poll();
+        s.Poll();
+        float max = mode == ChestCost::Full ? 320.f : 400.f, hp = mode == ChestCost::Full ? 320.f : 400.f;
+        for (auto& [k, v] : s.players) CHECK(v.maxHealth == max && v.health == hp);
+    }
+}
+
+static void TestMaxHealthNotSharedInLobby() {
+    std::puts("max health: the lobby keeps everyone's own");
+    Sim s;
+    s.modelMax = true;
+    s.ledger.setLobby(true);
+    Spawn(s.players[1], 101, 100, 100);
+    Spawn(s.players[2], 102, 100, 100);
+    s.Poll();
+    AddBase(s.players[1], -10.f);
+    s.ledger.addBaseMax(-10.f);
+    s.Poll();
+    CHECK(s.players[1].maxHealth == 90.f && s.players[2].maxHealth == 100.f);
 }
 
 static void TestHealthDisabledStaysLocal() {
@@ -465,6 +592,12 @@ int main() {
     TestHealthWaitsForSomeoneAlive();
     TestHealthPoolGrowsWithPlayers();
     TestHealthDisabledStaysLocal();
+    TestDeathAsSpectatorKillsEveryone();
+    TestMaxHealthShared();
+    TestChestCostSplit();
+    TestChestCostFullAndFree();
+    TestMaxHealthNotSharedInLobby();
+
     TestGameWideChangeCountedOnce();
     TestHeldPlayerSharedEventCountedOnce();
     TestPickupPropagates();

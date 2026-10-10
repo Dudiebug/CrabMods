@@ -39,10 +39,18 @@ syncSlots = true
 syncCrystals = true
 
 # One shared health pool: damage to anyone hurts everyone, healing heals everyone, and when it
-# reaches 0 everyone dies. Armor plates stay per-player.
+# reaches 0 (or anyone dies) everyone dies. Armor plates stay per-player.
+# Max health is shared too: losing or gaining max health (Eternal Punishment, totems, perks) changes
+# everyone's.
 syncHealth = true
 # Max health added to the pool for each player after the first (2 players = your max + 250).
 healthPerPlayer = 250
+# Chests that cost health or max health (spiked and greed chests):
+#   split = the team pays the cost divided by the number of players (4 players opening one each
+#           costs what one chest costs alone)
+#   full  = the team pays every chest's whole cost
+#   free  = they cost the team nothing
+chestHealthCost = split
 
 # Teammate pickups show the pickup popup and trigger perk side effects, like a real pickup.
 announcePickups = true
@@ -89,6 +97,9 @@ inline Config LoadConfig(const std::wstring& path, bool* created = nullptr) {
         else if (k == "syncAccumulatedBuffs") c.sync.buffs = ParseBool(v);
         else if (k == "syncHealth") c.sync.health = ParseBool(v);
         else if (k == "healthPerPlayer") c.healthPerPlayer = std::stof(v);
+        else if (k == "chestHealthCost")
+            c.sync.chestCost = v == "full" ? ChestCost::Full : v == "free" ? ChestCost::Free : ChestCost::Split;
+
         else if (k == "announcePickups") c.announce = ParseBool(v);
         else if (k == "settleSeconds") c.settleSeconds = std::stof(v);
         else if (k == "pollSeconds") c.pollSeconds = std::stof(v);

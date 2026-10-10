@@ -17,9 +17,12 @@ Only the host installs it. Your friends join like normal, with nothing to instal
 | **Crystals** | One shared wallet. Anyone can earn it, anyone can spend it. |
 | **Inventory slots** | Buying a slot unlocks it for the whole team. |
 | **Enhancements and buffs** | Upgrading an item upgrades it for everyone. |
-| **Health** | One shared pool. Damage to anyone hurts everyone, healing heals everyone, and **when the pool hits 0, everybody dies.** |
+| **Health** | One shared pool. Damage to anyone hurts everyone, healing heals everyone, and **when the pool hits 0, or anyone dies, everybody dies.** |
+| **Max health** | One shared max. When anyone loses or gains max health, everyone does: Eternal Punishment hits, totems, damage areas, perks. Chests that cost health or max health are the exception (below). |
 
 The health pool grows with the team: its max is your normal max health **plus 250 for each extra player**. Two players start at 500, three at 750, four at 1000. Max-health pickups stack on top. Armor plates stay per-player.
+
+**Spiked and greed chests** (the ones that cost health or max health) would add up fast with a shared pool: four players opening one each would cost the team four chests' worth. So by default the team pays **the cost divided by the number of players**. Four players opening one chest each cost the same as one player opening one alone. Set `chestHealthCost` to `full` to pay every chest in full, or `free` to make them cost nothing.
 
 Every part can be switched off in `CrabSync.ini`.
 
@@ -52,8 +55,9 @@ Every part can be switched off in `CrabSync.ini`.
 | `syncEnhancements`, `syncAccumulatedBuffs` | `true` | Share item upgrades and stacking buffs. |
 | `syncSlots` | `true` | Share unlocked inventory slots. |
 | `syncCrystals` | `true` | One shared crystal wallet. |
-| `syncHealth` | `true` | One shared health pool. |
+| `syncHealth` | `true` | One shared health pool and one shared max health. |
 | `healthPerPlayer` | `250` | Max health added to the pool for each player after the first. |
+| `chestHealthCost` | `split` | What spiked and greed chests cost the team: `split` (the cost divided by the number of players), `full` or `free`. |
 | `announcePickups` | `true` | Teammates' pickups show the pickup popup and trigger perk effects, like a real pickup. |
 | `settleSeconds` | `3` | How long to wait after a map loads or a run starts before syncing. |
 | `pollSeconds` | `0.1` | How often the host checks for changes. |
@@ -91,7 +95,10 @@ Crab Champions is host-authoritative: the host's game owns every player's invent
 
 About ten times a second it compares each player to their snapshot. The difference is what that player just did (a pickup, a purchase, a hit), so it adds that to the team once. A player who is still mid-change is left alone until their inventory holds still for one check, and items going to a player are handed out one at a time, so pickups that land together are never processed half-way. Then it drives every player to the team inventory using the game's own functions, and takes fresh snapshots so its own writes are never counted as new pickups. A change the game makes to everyone at the same moment (paying out crystals, resetting slots at the start of a run) is recognised and counted once.
 
-Health uses the same idea: the pool is stored as damage taken, so it grows when the max grows. When it runs out, every character is killed through the game's own damage path, so game over plays out exactly like a normal wipe.
+Health uses the same idea: the pool is stored as damage taken, so it grows when the max grows. A lower max cuts health down to it, the way the game does. When the pool runs out, every character is killed through the game's own damage path, so game over plays out exactly like a normal wipe. A player who dies anyway (the game swaps their character for a spectator in that same frame) empties the pool too.
+
+Max health is worked out by the game from items, which are already shared, and a **base max health** that the game keeps for each player. CrabSync hooks the two game functions that change the base, so it sees each change as it happens. It adds that change to the team's base and writes the result to everyone. A chest's cost is recognised by where the call comes from, and the team pays its share instead. Fortitude, which the game gives to every player at once on each island, is counted once.
+
 
 Everything was built from static analysis of the game binary. CrabSync reads and calls the game's own code; it does not modify any game files.
 
