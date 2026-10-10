@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds the loader (xinput1_3.dll) and Arsenal.dll with llvm-mingw.
+# Builds the loader (xinput1_3.dll) and CrabMods.dll with llvm-mingw.
 # Usage: ./build.sh [package] [install]
-#   package  build/Arsenal-<version>.zip, the release download
+#   package  build/CrabMods-<version>.zip, the release download
 #   install  copy the DLLs into the game (set CRAB_GAME to the game folder if it is not the Steam default)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -29,26 +29,28 @@ done
 "$CXX" "${CXXFLAGS[@]}" loader/xinput_proxy.cpp loader/xinput1_3.def "${LDFLAGS[@]}" -o "$OUT/xinput1_3.dll"
 
 # Writes its own ini (with defaults) and log next to itself on first launch.
-"$CXX" "${CXXFLAGS[@]}" arsenal/main.cpp "${MH_OBJS[@]}" "${LDFLAGS[@]}" -o "$OUT/Arsenal.dll"
-echo "built: $OUT/xinput1_3.dll $OUT/Arsenal.dll"
+"$CXX" "${CXXFLAGS[@]}" src/main.cpp "${MH_OBJS[@]}" "${LDFLAGS[@]}" -o "$OUT/CrabMods.dll"
+echo "built: $OUT/xinput1_3.dll $OUT/CrabMods.dll"
 
 for arg in "$@"; do
     case "$arg" in
     package)
-        VER=$(sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' arsenal/main.cpp)
-        PKG="$OUT/Arsenal-$VER"
+        VER=$(sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' src/main.cpp)
+        PKG="$OUT/CrabMods-$VER"
         rm -rf "$PKG" "$PKG.zip"
         mkdir -p "$PKG"
-        cp "$OUT/xinput1_3.dll" "$OUT/Arsenal.dll" packaging/README.txt LICENSE "$PKG/"
+        cp "$OUT/xinput1_3.dll" "$OUT/CrabMods.dll" packaging/README.txt LICENSE "$PKG/"
         cp third_party/minhook/LICENSE.txt "$PKG/MinHook-LICENSE.txt"
-        (cd "$PKG" && zip -q -X "../Arsenal-$VER.zip" *)
+        (cd "$PKG" && zip -q -X "../CrabMods-$VER.zip" *)
         echo "packaged: $PKG.zip"
         ;;
     install)
         GAME="${CRAB_GAME:-$HOME/.local/share/Steam/steamapps/common/Crab Champions}/CrabChampions/Binaries/Win64"
         cp "$OUT/xinput1_3.dll" "$GAME/"
-        cp "$OUT/Arsenal.dll" "$GAME/"
-        echo "installed to $GAME (Arsenal.ini and Arsenal.log appear there on first launch)"
+        cp "$OUT/CrabMods.dll" "$GAME/"
+        # CrabMods replaces the old standalone Arsenal.dll (its settings move into CrabMods.ini on first launch).
+        rm -f "$GAME/Arsenal.dll" "$GAME/Arsenal.log"
+        echo "installed to $GAME (CrabMods.ini and CrabMods.log appear there on first launch)"
         ;;
     esac
 done
