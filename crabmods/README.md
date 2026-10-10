@@ -118,6 +118,8 @@ The effects:
 - Heavy Shot still needs to be unlocked in your save before it can drop.
 - On very fast guns (Sniper, Marksman Rifle, Laser Cannons) the bullet reaches its target before it can drop much, so Heavy Shot is mostly its damage there.
 - Recharge only counts kills made while your ability is recharging, so kills while it is ready are not saved up.
+- With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr** and **Last Crab Standing** rarely do anything there. Turn off `syncHealth` in `CrabSync.ini` if you want them.
+- Everyone should run the same CrabMods version: a player on an older one can't see the newer items.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 
 ## Source
