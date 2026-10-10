@@ -115,7 +115,7 @@ for arg in "$@"; do
             echo "Crab Champions is running: close it, then install again" >&2
             exit 1
         fi
-        cp"$OUT/xinput1_3.dll" "$OUT/CrabSync.dll" "$OUT/CrabMods.dll" "$GAME/"
+        cp "$OUT/xinput1_3.dll" "$OUT/CrabSync.dll" "$OUT/CrabMods.dll" "$GAME/"
         # CrabMods replaces the old standalone Arsenal.dll (its settings move into CrabMods.ini on first launch).
         rm -f "$GAME/Arsenal.dll" "$GAME/Arsenal.log"
         echo "installed to $GAME (each mod's ini and log appear there on first launch)"
