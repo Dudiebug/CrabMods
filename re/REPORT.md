@@ -186,6 +186,13 @@ It then rolls the loot (`0x140caf1c0`).
 - Reward weights: Damage, Health, Random 1.25; Critical, Elemental, Speed, Luck, Economy, Skill 0.75; Relic 0.5; Upgrade 0.4; Greed 0.2. Anvil and Spiked come with their own rules.
 - To bias rewards, CrabMods re-picks the pool in `SetInfo` with these weights times its items' factors, skipping pools already given out during that `SpawnPortals`.
 
+## Spiked Chest
+
+- `UCrabSpawnablesDA+0x580` `SpikedChest` is the `TSubclassOf<ACrabChest>` for the Spiked reward (`BP_Chest_Spiked`): LootPool SpikedChest (14), Epic, `CurrencyType` MaxHealth (3), `Cost` 25. Every chest's cost is its own `Cost` (`+0x2B4`, an int, not replicated); nothing in the code changes it after the class defaults (the native constructor sets 0, the blueprint 25). Setting `Cost` on the class default object (`UClass+0x118`, checked by its class pointer and `RF_ClassDefaultObject`) changes every spiked chest spawned afterwards.
+- Paying (`0x140caf9f0`, host) for MaxHealth: `AddBaseMaxHealth(-Cost% × GetBaseMax)`. The chest's own widget (`0x140caf760`) skips the cost label for the Spiked pool.
+- The portal's reward description is built on every machine by `0x140d5ed80` (called from the portal UI update `0x140cb29f0`, run by `SetInfo` and the replicated info). For the Spiked pool it copies a fixed 77-character literal at `0x143256cc0` ("... costs 25% of your base max health to open"), inlined as 78 `wchar_t` (the NUL included). Rewriting the literal in memory, at the same length, changes the text.
+
+
 ## Kills
 
 - `ACrabPS+0x358 Eliminations` (int, replicated with `OnRep`) counts the player's kills. It is incremented by `0x140d26c00`, called from the game mode's damage handler `0x140ce5780` when a hit eliminates an enemy. The unreflected `+0x35C` counts too (it feeds Tasty Orange).

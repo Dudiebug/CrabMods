@@ -4,7 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.3.1
+
+- **Spiked Chest** costs **35%** of your base max health instead of the game's 25%, and the Spiked island's portal says "costs 35% of your base max health". Set it with `costPercent` in the new `[spikedChest]` section (0 to 99; 25 is the game's own). In multiplayer the host's value is used, for the cost and for everyone's portal text.
+
 ### 0.3.0
+
 
 16 new items. All percentages are per level, kept low because levels stack.
 

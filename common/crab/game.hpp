@@ -110,6 +110,11 @@ constexpr uintptr_t ACrabPS_GetPickups = 0x140d253a0;  // TArray<UCrabPickupDA*>
 constexpr uintptr_t ACrabChest_RollLoot = 0x140caf1c0; // void(ACrabChest*, ACrabPS* Opener): LootRoll for the opener
 constexpr uintptr_t ACrabLM_SpawnPortals = 0x140d00210;  // void(ACrabLM*): rolls every portal's reward, then SetInfo
 constexpr uintptr_t ACrabPortal_SetInfo = 0x140cb2cc0;   // void(ACrabPortal*, FCrabPortalInfo*), server only
+// The Spiked island's portal description, a 77-character literal ("... costs 25% of your base max health to
+// open"). The portal UI (0x140d5ed80, on every machine) copies exactly 78 wchar_t of it, NUL included, so a
+// replacement must keep that length.
+constexpr uintptr_t Text_SpikedChestDescription = 0x143256cc0;
+constexpr int kSpikedChestDescriptionLen = 77;
 // UEngine::GetWorldFromContextObject(GEngine, Object, 1 = LogAndReturnNull) -> UWorld*, as LootRoll does it.
 constexpr uintptr_t GEngine = 0x1443fe458;  // UEngine*
 constexpr uintptr_t UEngine_GetWorldFromContextObject = 0x142709ab0;
@@ -125,6 +130,7 @@ constexpr int Object_Flags = 0x08;
 constexpr int Object_Class = 0x10;
 constexpr int Object_Name = 0x18;
 constexpr int Object_Outer = 0x20;
+constexpr int Class_DefaultObject = 0x118;  // UClass::ClassDefaultObject (UE 4.27); checked before use
 constexpr int Actor_Owner = 0xE0;
 constexpr int Actor_Role = 0xF0;  // ENetRole; 3 = ROLE_Authority
 // AGameStateBase / ACrabGS
@@ -140,6 +146,7 @@ constexpr int Spawnables_WeaponMods = 0x108;  // TArray<UCrabWeaponModDA*>
 constexpr int Spawnables_AbilityMods = 0x118;  // TArray<UCrabAbilityModDA*>
 constexpr int Spawnables_Perks = 0x138;       // TArray<UCrabPerkDA*>
 constexpr int Spawnables_Relics = 0x148;      // TArray<UCrabRelicDA*>
+constexpr int Spawnables_SpikedChest = 0x580;  // TSubclassOf<ACrabChest>: BP_Chest_Spiked (Cost 25, MaxHealth)
 // APlayerState / ACrabPS
 constexpr int PS_PlayerId = 0x224;
 constexpr int PS_Pawn = 0x280;
@@ -244,6 +251,8 @@ constexpr uint32_t RF_Public = 0x1;
 constexpr uint32_t RF_Standalone = 0x2;
 constexpr uint32_t RF_MarkAsRootSet = 0x80;
 constexpr uint32_t RF_WasLoaded = 0x80000;  // makes the name stable for networking: replicated by path
+constexpr uint32_t RF_ClassDefaultObject = 0x10;
+
 
 // Item type ids (DA_ItemType)
 constexpr uint8_t WeaponMod_StreakShot = 27;  // ECrabWeaponModType; the enum ends at DiceShot = 94

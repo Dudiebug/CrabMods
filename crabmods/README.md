@@ -2,7 +2,7 @@
 
 **New items for Crab Champions.** 19 items: perks, relics, a weapon mod and an ability mod. Each one drops from chests and rewards like the game's own.
 
-> **Status: early (0.3.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
+> **Status: early (0.3.1), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
 ## Items
 
@@ -35,6 +35,12 @@
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
+
+### Game changes
+
+| Change | Effect |
+|---|---|
+| **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%. The island's portal says "costs 35% of your base max health". |
 
 - Extra copies stack: each level of an item adds its bonus again (two Minimalists give +10% per empty slot).
 - Every damage bonus is added like the game's own damage perks, so they all stack with each other and with the game's items.
@@ -85,6 +91,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
 | `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many choices; otherwise the chest is empty. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
+| `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
 
 All percentages and amounts are per level of the item.
@@ -106,7 +113,9 @@ The effects:
 - **Specialists** change each pickup's spawn weight during every loot roll made for the holder, then put the weights back. Damage and Luck Specialist also re-pick each island's reward with those pools' weights tripled.
 - **Double or Nothing** changes the number of choices the chest has already worked out from every other perk and relic, just before the chest rolls its loot.
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
-- **Heavy Shot**'s asset says "only offer me to a player who holds Bouncing Shot". CrabMods clears that flag in memory. Heavy Shot's effect was never tied to a weapon, so nothing else needs changing:
+- **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
+- **Heavy Shot**'s asset says
+ "only offer me to a player who holds Bouncing Shot". CrabMods clears that flag in memory. Heavy Shot's effect was never tied to a weapon, so nothing else needs changing:
   - The game applies Heavy Shot to every projectile: gravity = (the bullet's own gravity + 2) × (1 + its 15% weight), plus its +50% damage.
   - So even bullets that normally fly dead straight (most guns) start to drop.
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.

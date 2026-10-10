@@ -19,6 +19,9 @@ Items (all bonuses are per level, and stack):
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.
+  Spiked Chest (the game's own): costs 35% of your base max health instead
+    of 25%, and its island's portal says so ([spikedChest] costPercent).
+
 
 EVERY PLAYER in the lobby needs it, the host and every friend. In multiplayer
 everyone uses the host's settings (CrabMods.ini), sent when you join.
