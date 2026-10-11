@@ -31,6 +31,7 @@ Items (all bonuses are per level, and stack):
   Bandolier / Tool Belt / Scabbard / Backpack (Legendary weapon mod / ability
     mod / melee mod / perk): +5 slots in that inventory group per level. The
     inventory menu scrolls when they don't fit.
+  Reliquary (Legendary relic): +5 relic slots on top of the game's 10.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,

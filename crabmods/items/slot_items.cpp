@@ -1,13 +1,16 @@
 // Slot items, one legendary per inventory group: Bandolier (weapon mods), Tool Belt (ability mods), Scabbard
-// (melee mods) and Backpack (perks). Each level gives that group 5 more slots.
+// (melee mods), Backpack (perks) and Reliquary (relics). Each level gives that group 5 more slots.
 //
 // Host: the player's slot count (ACrabPS NumWeaponModSlots, ...) is raised by the bonus. What has been added is
 // kept in the unused byte right after the count, so the bonus is never added twice: a new run or a challenge
 // sets the count from scratch (the byte goes back to 0), and between islands the count comes back from the
 // players' auto save with the bonus in it (the byte is set to what the items give).
 //
-// Every machine: the inventory menu has one slot widget per slot the game knows of (24 / 12 / 12 / 24). Before
-// it lays them out, more are made like the first, and the slots part of the menu is put in a scroll box.
+// Relics have no slot count: the game allows 10, in a pickup's check (can the player take this relic) and in the
+// menu. Every machine: both are raised by the Reliquary's slots, from the replicated inventory.
+//
+// Every machine: the inventory menu has one slot widget per slot the game knows of (24 / 12 / 12 / 24 / 10).
+// Before it lays them out, more are made like the first, and the slots part of the menu is put in a scroll box.
 #include <algorithm>
 #include <vector>
 
@@ -32,7 +35,9 @@ public:
 
     std::string DefaultIni() const override {
         return "# " + std::string(Narrow(spec_.name)) + ", a legendary " + KindName() + ": more " + what_ +
-               " slots.\nenabled = true\n\n# Slots for each level.\nslotsPerLevel = 5\n\n"
+               " slots.\nenabled = true\n\n" +
+               (IsRelic() ? "# Slots it gives (on top of the game's 10).\n" : "# Slots for each level.\n") +
+               "slotsPerLevel = 5\n\n"
                "# Which chests it drops from: common, epic, legendary or greed.\nrarity = legendary\n";
     }
     void Set(const std::string& k, const std::string& v) override {
@@ -51,11 +56,13 @@ public:
         Hook(va::ACrabPS_ResetForNewRun, &HkReset, &oReset, "ACrabPS::ResetForNewRun");
         Hook(va::ACrabPS_ApplyChallengeSlots, &HkChallenge, &oChallenge, "ACrabPS::ApplyChallengeSlots");
         Hook(va::UCrabInventoryUI_Refresh, &HkRefresh, &oRefresh, "UCrabInventoryUI::Refresh");
+        Hook(va::ACrabPS_CanPickupRelic, &HkCanRelic, &oCanRelic, "ACrabPS::CanPickupRelic");
+        Hook(va::UCrabInventoryUI_SetupGrid, &HkSetupGrid, &oSetupGrid, "UCrabInventoryUI::SetupGrid");
     }
 
     // Host: the count follows the items' level.
     void OnTick(void* world) override {
-        if (!da_) return;
+        if (!da_ || IsRelic()) return;
         ForEachPlayer(world, [&](void* ps) {
             if (At<uint8_t>(ps, off::Actor_Role) != ROLE_Authority) return;
             uint8_t& added = Added(ps);
@@ -81,11 +88,13 @@ private:
         case Kind::WeaponMod: return "weapon mod";
         case Kind::AbilityMod: return "ability mod";
         case Kind::MeleeMod: return "melee mod";
+        case Kind::Relic: return "relic";
         default: return "perk";
         }
     }
     static std::string Narrow(const wchar_t* s) { return ui::Narrow(s); }
 
+    bool IsRelic() const { return numSlots_ == kRelics; }
     int Bonus(void* ps) const { return enabled_ ? std::min(perLevel_ * Level(ps), 255) : 0; }
     uint8_t& Added(void* ps) const { return At<uint8_t>(ps, numSlots_ + 1); }
 
@@ -99,12 +108,14 @@ private:
     static void HkRestore(void* ps, void* save) {
         oRestore(ps, save);
         if (ps)
-            for (SlotItem* s : g_slotItems) s->Added(ps) = uint8_t(s->Bonus(ps));
+            for (SlotItem* s : g_slotItems)
+                if (!s->IsRelic()) s->Added(ps) = uint8_t(s->Bonus(ps));
     }
     static void HkReset(void* ps) {
         oReset(ps);
         if (ps)
-            for (SlotItem* s : g_slotItems) s->Added(ps) = 0;
+            for (SlotItem* s : g_slotItems)
+                if (!s->IsRelic()) s->Added(ps) = 0;
     }
     // Only in a challenge run with the 8-slot modifier: the counts it changed start over.
     static void HkChallenge(void* ps) {
@@ -115,6 +126,29 @@ private:
         for (SlotItem* s : g_slotItems)
             for (int g = 0; g < 4; g++)
                 if (s->numSlots_ == kNumSlots[g] && At<uint8_t>(ps, kNumSlots[g]) != before[g]) s->Added(ps) = 0;
+    }
+
+    // --- Every machine: relics ---
+
+    static constexpr int kRelics = 0;  // numSlots_ of the relic item: there's no count to keep
+    static constexpr int kGameRelicSlots = 10;
+
+    static int RelicSlots(void* ps) {
+        int n = kGameRelicSlots;
+        for (SlotItem* s : g_slotItems)
+            if (s->IsRelic()) n += s->Bonus(ps);
+        return std::min(n, 255);
+    }
+
+    using CanRelicFn = bool (*)(void*, uint8_t);
+    static inline CanRelicFn oCanRelic;
+    // Not held (relics don't stack) and a free slot.
+    static bool HkCanRelic(void* ps, uint8_t type) {
+        int slots = ps ? RelicSlots(ps) : kGameRelicSlots;
+        if (slots == kGameRelicSlots) return oCanRelic(ps, type);
+        bool held = false;
+        ForEachItem(ps, off::PS_Relics, [&](void* da, int) { held = held || At<uint8_t>(da, off::DA_ItemType) == type; });
+        return !held && At<TArray<uint8_t>>(ps, off::PS_Relics).Num < slots;
     }
 
     // --- Every machine: the inventory menu ---
@@ -130,15 +164,24 @@ private:
         oRefresh(inv);
     }
 
+    // The relic grid's count is the game's 10: its slots past that would show locked.
+    using SetupGridFn = void (*)(void*, void*, uint32_t);
+    static inline SetupGridFn oSetupGrid;
+    static void HkSetupGrid(void* inv, void* grid, uint32_t count) {
+        if (inv && grid && grid == At<void*>(inv, off::InventoryUI_RelicGrid))
+            if (void* ps = At<void*>(inv, off::InventoryUI_OwningPS)) count = uint32_t(RelicSlots(ps));
+        oSetupGrid(inv, grid, count);
+    }
+
     // Makes slot widgets for slots past the menu's own, laid out in the grid's columns, set up as the menu's
     // init sets up its own (hover, gamepad focus). The game then fills them like the rest.
     static void Grow(void* inv) {
         void* ps = At<void*>(inv, off::InventoryUI_OwningPS);
         if (!ps) return;
         void* pc = nullptr;
-        for (int g = 0; g < 4; g++) {
-            void* grid = At<void*>(inv, off::InventoryUI_Grids[g]);
-            int want = At<uint8_t>(ps, kNumSlots[g]);
+        for (int g = 0; g < 5; g++) {
+            void* grid = At<void*>(inv, g < 4 ? off::InventoryUI_Grids[g] : off::InventoryUI_RelicGrid);
+            int want = g < 4 ? At<uint8_t>(ps, kNumSlots[g]) : RelicSlots(ps);
             int have = grid ? ui::ChildCount(grid) : 0;
             if (want <= have || have == 0) continue;
             void* first = ui::ChildAt(grid, 0);
@@ -201,7 +244,7 @@ private:
         CRAB_LOG("inventory menu: the slots scroll now");
     }
 
-    const int numSlots_;  // off::PS_Num*Slots; the items' array is 8 bytes after it
+    const int numSlots_;  // off::PS_Num*Slots, the items' array 8 bytes after it; kRelics for the relic item
     const char* what_;
     int perLevel_ = 5;
 };
@@ -222,6 +265,10 @@ SlotItem g_backpack("backpack", 178,
                     {Kind::Perk, L"DA_Perk_Backpack", L"Backpack", L"More perk slots", L"+PrimaryBuff perk slots",
                      210, Perk_Collector},
                     off::PS_NumPerkSlots, "perk");
+SlotItem g_reliquary("reliquary", 179,
+                     {Kind::Relic, L"DA_Relic_Reliquary", L"Reliquary", L"More relic slots",
+                      L"+PrimaryBuff relic slots", 211, Relic_RingOfDefense},
+                     0 /* kRelics */, "relic");
 
 }  // namespace
 }  // namespace crabmods

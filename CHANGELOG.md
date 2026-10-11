@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.7.1
+
+- New **Legendary relic, Reliquary**: **+5 relic slots** (`[reliquary] slotsPerLevel`). The game allows 10 relics and won't let you pick up an 11th; with the Reliquary you can carry 15, and the inventory menu shows them all.
+
 ### 0.7.0
 
 - **Key totem menu** now always has **every item**, CrabMods' own included (Bandolier, Hoarder, ...). Locked items say "Locked" on their card and have a **Locked** tab of their own; choosing one unlocks it. CrabMods' items are never written into your save's unlock list, and any that 0.6.0's menu put there (or empty entries) are taken out.

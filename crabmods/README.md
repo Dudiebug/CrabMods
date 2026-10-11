@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 29 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 30 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -57,6 +57,7 @@ One Legendary per inventory group. Each level gives that group **5 more slots**,
 | **Tool Belt** | ability mod | Legendary | +5 ability mod slots per level. |
 | **Scabbard** | melee mod | Legendary | +5 melee mod slots per level. |
 | **Backpack** | perk | Legendary | +5 perk slots per level. |
+| **Reliquary** | relic | Legendary | +5 relic slots (the game allows 10 relics). Relics don't stack, so it's +5 once. |
 
 ### Game changes
 
@@ -135,7 +136,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
-| `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
+| `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 
@@ -171,6 +172,7 @@ The effects:
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
+- **Reliquary**: relics have no slot count; the game allows 10, both when checking whether you can take a relic and in the inventory menu. On every machine, CrabMods raises both by the Reliquary's slots (worked out from the inventory, which everyone sees).
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.
 
 ## Known limitations

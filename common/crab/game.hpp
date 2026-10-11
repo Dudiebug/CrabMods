@@ -266,6 +266,9 @@ constexpr int InventorySlotUI_Init_Slot = 0x478;
 // Inventory slot counts (ACrabPS, host): a new run sets 24 / 12 / 12 / 24, a challenge run sets 8 for all.
 constexpr uintptr_t ACrabPS_ResetForNewRun = 0x140d29e50;   // void(ACrabPS*): items cleared, slot counts reset
 constexpr uintptr_t ACrabPS_ApplyChallengeSlots = 0x140d28d10;  // void(ACrabPS*): slot counts 8 in a challenge
+// Relics have no slot count: the game allows 10 (only a pickup's check and the menu know it).
+constexpr uintptr_t ACrabPS_CanPickupRelic = 0x140d22c30;  // bool(ACrabPS*, uint8 RelicType): not held && Num < 10
+constexpr uintptr_t UCrabInventoryUI_SetupGrid = 0x140d5e170;  // void(UI*, grid, uint8 count): slot i > count locked
 constexpr uintptr_t UCrabMeleeModDA_StaticClass = 0x140d7a240;
 }  // namespace va
 
@@ -485,6 +488,7 @@ constexpr int FontInfo_PointSize = 0x48;
 constexpr int WrapBox_WrapSize = 0x12C;
 constexpr int WrapBox_bExplicitWrapSize = 0x131;
 constexpr int InventoryUI_Grids[4] = {0x400, 0x408, 0x410, 0x418};  // weapon mod, ability mod, melee mod, perk grids
+constexpr int InventoryUI_RelicGrid = 0x420;
 constexpr int InventoryUI_OwningPS = 0x3E0;
 constexpr int InventorySlotUI_Button = 0x2F0;
 constexpr int UniformGridSlot_Row = 0x3C;
