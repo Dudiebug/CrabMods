@@ -55,6 +55,22 @@ Items (all bonuses are per level, and stack):
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 
+Soul Whip (a new weapon, on its own pedestal left of the Crossbow in the lobby):
+  Each crack sends a purple soul bolt that bursts where it lands and tags
+  enemies. While you hold it, your ability becomes raising the dead: kills fill
+  a soul bar, and V / C / X / Z raise the last fodder, medium, hard or elite
+  enemy you killed as an undead that fights for you ([necromancer]).
+  Its own loot, which only drops for whip holders:
+    Long Lash, Soul Siphon, Branding Iron (Common), Death Mark (Epic), Soul
+      Brand (Legendary): weapon mods for the bolt and its tags.
+    Sturdy Bones, Soul Discount (Common), Mass Grave (Epic), Twin Rising
+      (Legendary): ability mods for raising.
+    Grave Claws (Common), Harvester (Legendary): melee mods for souls and free
+      raises.
+    Soul Jar, Hungry Ghosts, Last Rites (Common), Army of the Dead, Plague
+      Bearers (Epic), Grim Harvest (Legendary): perks.
+    Ring of Souls, Ring of the Grave (Epic), Phylactery (Legendary): relics.
+
 
 EVERY PLAYER in the lobby needs it, the host and every friend. In multiplayer
 everyone uses the host's settings (CrabMods.ini), sent when you join.

@@ -154,6 +154,9 @@ constexpr uintptr_t ACrabDestructible_OnHCDamaged = 0x140cc64a0;
 // Going down (host): void(ACrabPC*), inside the killing hit, before the player's character is swapped for a
 // spectator. The PC's pawn (+0x250) is still the downed ACrabPlayerC, with its player state.
 constexpr uintptr_t ACrabPC_SpawnSpectator = 0x140d0e720;
+// void(ACrabPC*, const FString* Message): a ServerSendChatMessage RPC arriving at the host, which hands it to
+// ACrabGM::BroadcastChatMessage (0x140ce56e0) for every player's chat.
+constexpr uintptr_t ACrabPC_ServerSendChatMessage_Impl = 0x140d0d1a0;
 
 // Explosions (host). void(UObject* WorldCtx, TArray<AActor*> Ignore /*by value: the callee frees Data*/,
 // const FVector* Origin, float Radius, const FCrabDamageInfo* Info, bool bRequireLineOfSight, AActor* Filter):
@@ -267,6 +270,7 @@ constexpr uintptr_t USizeBox_StaticClass = 0x141e9bc90;
 constexpr uintptr_t UWrapBox_StaticClass = 0x141eb7500;
 constexpr uintptr_t UHorizontalBox_StaticClass = 0x141e93e10;
 constexpr uintptr_t UTextBlock_StaticClass = 0x141ea1930;
+constexpr uintptr_t UImage_StaticClass = 0x141e93a50;
 constexpr uintptr_t UEditableTextBox_StaticClass = 0x141e8f4c0;
 // UKismetTextLibrary's default object: Conv_StringToText / Conv_TextToString (FText from and to FString).
 constexpr const wchar_t* KismetTextLibraryPath = L"/Script/Engine.Default__KismetTextLibrary";
@@ -311,6 +315,23 @@ constexpr uintptr_t ACrabPS_ApplyChallengeSlots = 0x140d28d10;  // void(ACrabPS*
 constexpr uintptr_t ACrabPS_CanPickupRelic = 0x140d22c30;  // bool(ACrabPS*, uint8 RelicType): not held && Num < 10
 constexpr uintptr_t UCrabInventoryUI_SetupGrid = 0x140d5e170;  // void(UI*, grid, uint8 count): slot i > count locked
 constexpr uintptr_t UCrabMeleeModDA_StaticClass = 0x140d7a240;
+
+// Necromancer (Soul Whip, undead), host unless noted
+// AActor*(ACrabLM*, UClass* EnemyClass, FVector* Loc, FRotator* Rot, bool bCountsForIsland): finds a free spot near
+// Loc, spawns the enemy 250 above it and scales it for this island (0x140ca5ca0). true also counts it towards the
+// island's end (LM+0x514) and binds its death; false leaves it out of both.
+constexpr uintptr_t ACrabLM_SpawnEnemy = 0x140cfe3b0;
+// bool(const FCrabDamageInfo*, ACrabC* Victim): may this hit hurt Victim. Teams are "has a player state" or not, so
+// enemies never hurt enemies.
+constexpr uintptr_t DamageInfo_CanDamage = 0x140d2e6a0;
+// void(ACrabEnemyAIC*): picks the nearest player character as BestEnemyC (when it has none alive), then focuses it.
+constexpr uintptr_t ACrabEnemyAIC_SelectTarget = 0x140ca0570;
+constexpr uintptr_t ACrabEnemyC_SetBestEnemy = 0x140caa5b0;  // void(ACrabEnemyC*, ACrabC*): the replicated +0x800
+constexpr uintptr_t ACrabEnemyAIC_FocusBestEnemy = 0x140ca1bd0;  // void(ACrabEnemyAIC*)
+// void(ACrabPlayerC*, const FVector_NetQuantize*): the ServerAbility RPC arriving at the host.
+constexpr uintptr_t ACrabPlayerC_ServerAbility_Impl = 0x140d1a430;
+// void(UCrabGI*): builds the lobby's weapon, ability and melee lists from SpawnablesDA (once, guarded by GI+0x248).
+constexpr uintptr_t UCrabGI_BuildLoadoutLists = 0x140cda5c0;
 }  // namespace va
 
 namespace off {
@@ -325,6 +346,7 @@ constexpr int Object_Name = 0x18;
 constexpr int Object_Outer = 0x20;
 constexpr int Actor_RootComponent = 0x130;     // USceneComponent*
 constexpr int SceneComponent_Location = 0x1D0;  // FVector, world (ComponentToWorld translation)
+constexpr int Character_Capsule = 0x290;       // UCapsuleComponent*
 constexpr int Class_DefaultObject = 0x118;  // UClass::ClassDefaultObject (UE 4.27); checked before use
 constexpr int Actor_Owner = 0xE0;
 constexpr int Actor_Role = 0xF0;  // ENetRole; 3 = ROLE_Authority
@@ -446,6 +468,8 @@ constexpr int DA_LootPool = 0x61;     // ECrabLootPool
 // 0x140d3417f, 0x140d3439e).
 constexpr int DA_bRequiresMatchingPickupTag = 0x64;
 constexpr int DA_SpawnWeight = 0x68;  // float, relative chance in a loot roll
+constexpr int DA_Tint = 0x6C;         // FLinearColor: the pickup's glow
+constexpr int DA_PrimaryFX = 0x80;    // UNiagaraSystem*: a weapon's pickup shows its model through this
 constexpr int DA_LevelDescription = 0xB8;  // FString; "PrimaryBuff" is replaced with the buff
 constexpr int DA_BaseBuff = 0xC8;
 constexpr int DA_bHyperbolicBuff = 0xCC;
@@ -466,6 +490,7 @@ constexpr int Pawn_Controller = 0x258;
 constexpr int World_GameInstance = 0x180;
 constexpr int GI_SaveGame = 0x228;  // UCrabSG*
 constexpr int SceneComponent_Rotation = 0x1C0;  // FQuat of ComponentToWorld (x, y, z, w)
+constexpr int SceneComponent_Scale = 0x1E0;     // FVector of ComponentToWorld
 constexpr int Pickup_NumTimesPickedUp = 0x300;  // uint8
 // UCrabSpawnablesDA lists and the save's unlocked lists (UCrabSG), in the same order: weapons, abilities,
 // melee weapons, weapon mods, ability mods, melee mods, perks, relics. An item is locked when it is in the
@@ -476,6 +501,10 @@ constexpr int SG_Unlocked[8] = {0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0x100, 0x110, 0x12
 constexpr int Pickup_UI = 0x238;          // ACrabInteractable.InteractUI (UCrabInteractUI*)
 constexpr int Pickup_PickupInfo = 0x290;  // ACrabInteractPickup.PickupInfo
 constexpr int PickupInfo_Size = 0x50;
+constexpr int InteractPickup_PickupInfo = 0x290;     // ACrabInteractPickup: FCrabPickupInfo (Net)
+constexpr int InteractPickup_bDeactivated = 0x301;  // bool: picked up, waiting to come back
+constexpr int StaticMeshActor_Component = 0x220;     // AStaticMeshActor::StaticMeshComponent
+constexpr int StaticMeshComponent_StaticMesh = 0x488;
 constexpr int PickupInfo_DA = 0x00;
 constexpr int PickupInfo_Level = 0x08;
 constexpr int PickupInfo_MaxPickups = 0x28;
@@ -517,6 +546,7 @@ constexpr int Prompt_MessageText = 0x3E0;
 constexpr int Prompt_YesButton = 0x3E8;
 constexpr int Prompt_NoButton = 0x3F0;
 constexpr int PC_HUD = 0x6A0;               // the gameplay UI, hidden while a menu is open
+constexpr int PC_CameraManager = 0x2B8;     // APlayerController::PlayerCameraManager
 constexpr int PC_OpenMenu = 0x718;
 constexpr int DA_InteractUIClass = 0x90;
 constexpr int InteractUI_InteractMessageText = 0x2F8;  // "PICK UP" (its row is the card's bottom border)
@@ -553,6 +583,61 @@ constexpr int InventoryUI_OwningPS = 0x3E0;
 constexpr int InventorySlotUI_Button = 0x2F0;
 constexpr int UniformGridSlot_Row = 0x3C;
 constexpr int UniformGridSlot_Column = 0x40;
+
+// Necromancer
+constexpr int Controller_PlayerState = 0x228;
+constexpr int LM_LocalC = 0x390;  // ACrabPlayerC*: this machine's own character
+constexpr int Spawnables_Weapons = 0xD8;  // TArray<UCrabWeaponDA*>: the lobby's weapons
+constexpr int WeaponDA_Mesh = 0xB0;       // UStaticMesh*
+constexpr int WeaponDA_ProjectileDA = 0xC0;
+constexpr int WeaponDA_CrosshairType = 0x100;
+constexpr int WeaponDA_FireMode = 0x102;
+constexpr int WeaponDA_BaseFireRate = 0x118;
+constexpr int WeaponDA_BaseSpread = 0x120;
+constexpr int WeaponDA_VerticalRecoil = 0x134;
+constexpr int WeaponDA_HorizontalRecoil = 0x138;
+constexpr int WeaponDA_BaseClipSize = 0x148;
+constexpr int WeaponDA_ReloadDuration = 0x150;
+constexpr int WeaponDA_EquipSound = 0x160;  // USoundCue*
+constexpr int WeaponDA_CosmeticFX = 0x168;  // UNiagaraSystem*
+constexpr int WeaponDA_FireMontage = 0x170;
+constexpr int WeaponDA_MuzzleFlashFX = 0x188;
+constexpr int WeaponDA_GunshotSound = 0x190;
+constexpr int WeaponDA_PostFireClearChamberMontage = 0x1B0;
+constexpr int WeaponDA_PostFireClearChamberSound = 0x1B8;
+constexpr int ProjDA_Lifetime = 0x30;
+constexpr int ProjDA_CollisionRadius = 0x34;
+constexpr int ProjDA_Speed = 0x38;
+constexpr int ProjDA_MaxSpeed = 0x3C;
+constexpr int ProjDA_GravityScale = 0x5C;
+constexpr int ProjDA_MaxPiercings = 0x7C;
+constexpr int ProjDA_bExplodeAfterLifetime = 0xA0;  // bool; it also bursts where it hits
+constexpr int ProjDA_ExplosionRadius = 0xA8;
+constexpr int ProjDA_ExplosionDamage = 0xB0;
+constexpr int ProjDA_FX = 0xE8;           // UNiagaraSystem*: the projectile itself
+constexpr int ProjDA_TrailFX = 0xF0;
+constexpr int ProjDA_Sound = 0xF8;        // USoundCue*: while it flies
+constexpr int ProjDA_bRandomizeTint = 0x100;
+constexpr int ProjDA_ExplosionFX = 0x108;
+constexpr int ProjDA_ExplosionSound = 0x110;
+constexpr int Weapon_Mesh = 0x220;            // UStaticMeshComponent*
+constexpr int Weapon_TimesFired = 0x338;      // int32, replicated: counts every shot on every machine
+constexpr int Enemy_MeshDMI = 0x728;          // UMaterialInstanceDynamic*
+constexpr int Enemy_OwningAIC = 0x770;
+constexpr int Enemy_Category = 0x778;         // ECrabEnemyCategory: 1 Easy, 2 Medium, 3 Hard, 4 Elite, 5 Boss
+constexpr int Enemy_EnemyName = 0x780;        // FString
+constexpr int Enemy_BestEnemyC = 0x800;       // ACrabC*, replicated
+constexpr int Enemy_bIgnoredByPlayerTargeting = 0x901;
+constexpr int Enemy_bIsLesserEnemy = 0x902;   // split off another enemy on its death
+constexpr int Enemy_ChanceToSpawnOnEliminated = 0x944;  // float
+constexpr int EnemyAIC_OwnedC = 0x358;
+constexpr int EnemyAIC_BestEnemyC = 0x368;
+constexpr int GameStateUI_ChatInput = 0x358;  // UEditableTextBox*
+constexpr int PC_GameStateUI = 0x690;
+constexpr int GameplayUI_AbilityKeyText = 0x3F0;
+constexpr int GameplayUI_AbilityIcon = 0x400;
+constexpr int GameplayUI_AbilityCooldownText = 0x408;
+constexpr int GameplayUI_AbilityStackText = 0x418;
 }  // namespace off
 
 enum class IslandType : uint8_t { None = 0, Lobby = 1, NewRun = 2, ContinueRun = 3 };  // ECrabIslandType, 0..16

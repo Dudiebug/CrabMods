@@ -16,8 +16,10 @@
 //   weapon fire             where each shot of a player's weapon starts and where it flies
 //   heals                   healing lost to the max health cap
 //   GetBuff lookups         max health and fire rate, as the game recomputes them
-//   UGameEngine::Tick       four times a second
+//   UGameEngine::Tick       every frame, and four times a second
+//   enemy elimination       an enemy dying (host)
 //   PostLogin, ClientMessage the host's settings, sent to every player who joins, and items' messages
+//   ServerSendChatMessage   items' messages from the players to the host
 #include <windows.h>
 
 #include <algorithm>
@@ -33,6 +35,7 @@
 
 #include "config.hpp"
 #include "item.hpp"
+#include "ui.hpp"
 #include "world.hpp"
 
 using namespace crab;
@@ -40,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.9.0";
+constexpr const char kVersion[] = "0.10.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -559,12 +562,25 @@ float g_sinceTick = 0.f;
 
 void HkEngineTick(void* engine, float dt, bool idle) {
     oEngineTick(engine, dt, idle);
+    void* viewport = engine ? At<void*>(engine, off::Engine_GameViewport) : nullptr;
+    void* world = viewport ? At<void*>(viewport, off::Viewport_World) : nullptr;
+    bool game = world && GameStateOf(world);
+    if (game) ForEachEnabled([&](Item* i) { i->OnFrame(world, dt); });
     g_sinceTick += dt;
     if (g_sinceTick < 0.25f) return;
     g_sinceTick = 0.f;
-    void* viewport = engine ? At<void*>(engine, off::Engine_GameViewport) : nullptr;
-    void* world = viewport ? At<void*>(viewport, off::Viewport_World) : nullptr;
-    if (world && GameStateOf(world)) ForEachEnabled([&](Item* i) { i->OnTick(world); });
+    if (game) ForEachEnabled([&](Item* i) { i->OnTick(world); });
+}
+
+// --- Enemy elimination -------------------------------------------------------------------------------------
+
+using EliminatedFn = void (*)(void*);
+EliminatedFn oEliminated;
+
+void HkEliminated(void* enemy) {
+    if (enemy) ForEachEnabled([&](Item* i) { i->OnEnemyEliminating(enemy); });
+    oEliminated(enemy);
+    if (enemy) ForEachEnabled([&](Item* i) { i->OnEnemyEliminated(enemy); });
 }
 
 // --- Host settings -----------------------------------------------------------------------------------------
@@ -639,6 +655,29 @@ void HkClientMessage(void* pc, TArray<wchar_t>* s, uint64_t type, float lifeTime
         ForEachEnabled([&](Item* i) { i->OnBeginPlay(lm); });
 }
 
+// --- Player to host ----------------------------------------------------------------------------------------
+//
+// The other way round there is no console message to borrow, so a player's CrabMods sends its items' messages as
+// a chat message (ServerSendChatMessage, reliable) starting with kItemTag. The host's CrabMods takes those out
+// before they reach the chat. On the host itself the message goes straight to the items.
+
+using ServerChatFn = void (*)(void*, TArray<wchar_t>*);
+ServerChatFn oServerChat;
+
+void HostMessage(void* pc, const wchar_t* text) {
+    std::wstring t(text);
+    for (Item* i : g_items)
+        if (i->Enabled() && i->OnHostMessage(pc, t)) break;
+}
+
+void HkServerChat(void* pc, TArray<wchar_t>* s) {
+    if (s && s->Data && s->Num > int(kItemTagLen) && wcsncmp(s->Data, kItemTag, kItemTagLen) == 0) {
+        HostMessage(pc, s->Data + kItemTagLen);
+        return;
+    }
+    oServerChat(pc, s);
+}
+
 // --- Start -------------------------------------------------------------------------------------------------
 
 DWORD WINAPI Init(LPVOID) {
@@ -682,6 +721,8 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::InvArr_GetBuff, &HkGetBuff, &oGetBuff, "InvArr::GetBuff (max health)");
     Hook(va::ACrabPS_GetWeaponModBuff, &HkWeaponModBuff, &oWeaponModBuff, "ACrabPS::GetWeaponModBuff (fire rate)");
     Hook(va::UGameEngine_Tick, &HkEngineTick, &oEngineTick, "UGameEngine::Tick");
+    Hook(va::ACrabEnemyC_OnEliminated, &HkEliminated, &oEliminated, "ACrabEnemyC elimination");
+    Hook(va::ACrabPC_ServerSendChatMessage_Impl, &HkServerChat, &oServerChat, "ACrabPC::ServerSendChatMessage");
     Hook(va::AGameModeBase_K2_PostLogin, &HkPostLogin, &oPostLogin, "AGameModeBase::K2_PostLogin");
     Hook(va::APlayerController_ClientMessage_Impl, &HkClientMessage, &oClientMessage, "ClientMessage");
     for (Item* i : g_items) i->InstallHooks();
@@ -696,6 +737,14 @@ DWORD WINAPI Init(LPVOID) {
 bool crabmods::HostHasCrabMods(void* pc) { return pc && pc == g_settingsPC; }
 
 void crabmods::SendToPlayer(void* pc, const std::wstring& text) { SendClientMessage(pc, kItemTag + text); }
+
+void crabmods::SendToHost(void* pc, const std::wstring& text) {
+    if (!pc) return;
+    if (At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority) return HostMessage(pc, text.c_str());
+    std::wstring msg = kItemTag + text;
+    TArray<wchar_t> p{msg.data(), int32_t(msg.size() + 1), int32_t(msg.size() + 1)};
+    ui::Call(pc, L"ServerSendChatMessage", &p);
+}
 
 // For CrabMods Manager, which loads the DLL to read it (outside the game, so DllMain does nothing).
 extern "C" __declspec(dllexport) const char* CrabModsCatalog() {

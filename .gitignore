@@ -1,3 +1,11 @@
 /build/
 *.ini
 *.log
+# The necromancer art's working files: the Blender scene (it holds the game's crab for fitting), renders, previews,
+# and the raise icons (renders of the game's enemies). Their baked result is crabmods/assets/necro.pack.
+/art/necromancer/*.blend
+/art/necromancer/*.blend1
+/art/necromancer/renders/
+/art/necromancer/_preview/
+/art/necromancer/ui/icon_tier*.png
+__pycache__/

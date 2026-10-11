@@ -59,7 +59,7 @@ private:
         RiggedTotems& self = *self_;
         uintptr_t ret = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
         void* ps = g_totemUser ? At<void*>(g_totemUser, off::Pawn_PlayerState) : nullptr;
-        bool ours = (ret == va::Ret_TotemRollHealth || ret == va::Ret_TotemRollChance) && self.enabled_ && self.da_ &&
+        bool ours = (ret == Addr(va::Ret_TotemRollHealth) || ret == Addr(va::Ret_TotemRollChance)) && self.enabled_ && self.da_ &&
                     IsA(ps, StaticClass(va::ACrabPS_StaticClass));
         int level = ours ? self.Level(ps) : 0;
         if (!level) return oRoll(percent, mult);

@@ -5,6 +5,7 @@
 // critical kill. The drop's amount is then raised for the killer's Finishing Move levels.
 #include <cmath>
 #include <unordered_map>
+#include <vector>
 
 #include <crab/hook.hpp>
 
@@ -48,7 +49,6 @@ rarity = epic
     }
 
     void InstallHooks() override {
-        Hook(va::ACrabEnemyC_OnEliminated, &HkEliminated, &oEliminated, "ACrabEnemyC elimination");
         Hook(va::ACrabCrystalPickup_Init, &HkCrystalInit, &oCrystalInit, "ACrabCrystalPickup init");
     }
     void OnBeginPlay(void* lm) override {
@@ -66,25 +66,26 @@ protected:
     float PrimaryBuff() const override { return pct_; }
 
 private:
-    using EliminatedFn = void (*)(void*);
     using CrystalInitFn = void (*)(void*, int, int, uint8_t, void*, bool);
-    static inline EliminatedFn oEliminated;
     static inline CrystalInitFn oCrystalInit;
     static inline FinishingMove* self_;
     static inline void* dying_ = nullptr;  // the enemy whose elimination is running
 
-    static void HkEliminated(void* enemy) {
-        void* outer = dying_;
+    // main.cpp's elimination hook: the enemy whose drops the crystal pickups below are for.
+    void OnEnemyEliminating(void* enemy) override {
+        dyingStack_.push_back(dying_);
         dying_ = enemy;
-        oEliminated(enemy);
-        dying_ = outer;
-        self_->lastCrit_.erase(enemy);
+    }
+    void OnEnemyEliminated(void* enemy) override {
+        dying_ = dyingStack_.empty() ? nullptr : dyingStack_.back();
+        if (!dyingStack_.empty()) dyingStack_.pop_back();
+        lastCrit_.erase(enemy);
     }
 
     static void HkCrystalInit(void* pickup, int amount, int bonus, uint8_t tier, void* ps, bool b) {
         FinishingMove& self = *self_;
         uintptr_t ret = reinterpret_cast<uintptr_t>(__builtin_return_address(0));
-        if (ret == va::Ret_CrystalInitEnemy && dying_ && self.enabled_ && self.da_) {
+        if (ret == Addr(va::Ret_CrystalInitEnemy) && dying_ && self.enabled_ && self.da_) {
             auto it = self.lastCrit_.find(dying_);
             void* c = At<void*>(dying_, off::Enemy_EliminatingC);
             void* killer = c ? At<void*>(c, off::Pawn_PlayerState) : nullptr;
@@ -102,7 +103,8 @@ private:
     }
 
     float pct_ = 50.f;
-    std::unordered_map<void*, bool> lastCrit_;  // enemy -> was the last hit on it a critical one
+    std::unordered_map<void*, bool> lastCrit_;
+    std::vector<void*> dyingStack_;  // outer eliminations, when one runs inside another  // enemy -> was the last hit on it a critical one
 };
 
 FinishingMove g_item;

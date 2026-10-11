@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 37 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 57 items and a new weapon (the Soul Whip, with 20 items of its own): perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -53,6 +53,39 @@
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
+
+### Weapon
+
+| Item | Type | Effect |
+|---|---|---|
+| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (0.7x the Sniper's damage on a direct hit). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 5 / 15 / 40 / 100). Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
+
+### Soul Whip loot
+
+These only drop for players **holding the Soul Whip**, and for them from **any chest**. Numbers are per level.
+
+| Item | Type | Rarity | Effect |
+|---|---|---|---|
+| **Long Lash** | weapon mod | Common | Soul bolts fly **15%** farther. |
+| **Soul Siphon** | weapon mod | Common | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
+| **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **25%** farther. |
+| **Death Mark** | weapon mod | Epic | Tagged enemies take **10%** more damage from you. |
+| **Soul Brand** | weapon mod | Legendary | Killing a tagged enemy tags the **2** enemies nearest it. |
+| **Sturdy Bones** | ability mod | Common | Undead you raise have **15%** more health. |
+| **Soul Discount** | ability mod | Common | Raising costs about **8%** fewer souls (levels add up hyperbolically; never below half). |
+| **Mass Grave** | ability mod | Epic | Fodder raises bring **1** more. |
+| **Twin Rising** | ability mod | Legendary | **15%** chance a raise brings twice as many for the same souls (each level rolls again). |
+| **Grave Claws** | melee mod | Common | Melee kills give **100%** more souls. |
+| **Harvester** | melee mod | Legendary | A melee kill on a fodder or medium enemy has a **25%** chance to rise as your undead, for free. |
+| **Soul Jar** | perk | Common | **+10** max souls. |
+| **Hungry Ghosts** | perk | Common | Kills give **10%** more souls. |
+| **Last Rites** | perk | Common | When one of your undead falls in a fight, **15%** of its raise cost comes back. |
+| **Army of the Dead** | perk | Epic | **+4%** damage for each undead you have. |
+| **Plague Bearers** | perk | Epic | Your undead's attacks apply **3 poison**. |
+| **Grim Harvest** | perk | Legendary | Tagged kills give **50%** more souls, on top of the tag's own +50%. |
+| **Ring of Souls** | relic | Epic | **25%** more souls from everything. |
+| **Ring of the Grave** | relic | Epic | Your undead have **25%** more health and damage. |
+| **Phylactery** | relic | Legendary | Once per island, a hit that would down you is cancelled and you're left at half health or more. It spends all your souls, and needs at least **50**. |
 
 ### Inventory slots
 
@@ -152,6 +185,24 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
+| `[necromancer]` | `whipDamage` | `0.7` | Soul Whip damage on a direct hit, as a multiple of the Sniper's. |
+| | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
+| | `burstRadiusMeters`, `burstDamage` | `4`, `20` | The bolt's purple burst: its reach and its damage. |
+| | `tagRadiusMeters`, `tagSeconds` | `6`, `8` | Who a crack tags, and for how long. |
+| | `tagDamagePercent`, `taggedSoulsPercent` | `25`, `50` | More undead damage to tagged enemies; more souls for tagged kills. |
+| | `maxSouls` | `100` | |
+| | `soulsEasy` ... `soulsBoss` | `1`, `3`, `6`, `25`, `60` | Souls a kill gives, by the enemy's rank. |
+| | `costFodder`, `costMedium`, `costHard`, `costElite` | `5`, `15`, `40`, `100` | Souls a raise costs. |
+| | `fodderPack` | `3` | Fodder raised at once. |
+| | `raiseRangeMeters` | `40` | |
+| | `upkeepPercent` | `0.25` | Of an undead's raise cost, each second while enemies are alive. |
+| | `starvePercent` | `4` | Out of souls, each undead loses this percent of its health a second. |
+| | `undeadHealth`, `undeadDamage` | `2`, `1` | Undead health and damage, as a multiple of the enemy's own (your damage bonuses multiply the damage too). |
+| | `eliteHealth`, `eliteDamage` | `0.5`, `0.5` | Raised elites' health and damage, on top of that, as a multiple of a real one's. |
+| | `aggroBias` | `1.5` | Enemies turn on an undead when it is this many times closer than the nearest player. |
+| | `raiseKeyFodder`, `raiseKeyMedium`, `raiseKeyHard`, `raiseKeyElite` | `V`, `C`, `X`, `Z` | **Your own keys**: the host's settings never change them. A letter or digit, `F1`-`F24`, `Mouse3`-`Mouse5`, `Num0`-`Num9`, `Tab`, `Shift`, `Ctrl`, `Alt`, `Space`, `CapsLock`, `Enter`, `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, or the arrows (`Up`, ...). |
+| | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They don't follow the game's volume slider. |
+| `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
 | `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
@@ -160,7 +211,7 @@ All percentages and amounts are per level of the item. `[meleeMods]` and `[keyTo
 
 ### Multiplayer: the host's settings
 
-**In multiplayer everyone plays with the host's settings.** When you join, the host's CrabMods sends its `CrabMods.ini` settings to you, and your game uses them until you leave. Your log says `using the host's settings`, followed by every item's values. When you host again, or play alone, your own settings are back. Your `CrabMods.ini` file is never changed.
+**In multiplayer everyone plays with the host's settings.** When you join, the host's CrabMods sends its `CrabMods.ini` settings to you, and your game uses them until you leave. The Soul Whip's raise keys and sound volume are the exception: those stay your own. Your log says `using the host's settings`, followed by every item's values. When you host again, or play alone, your own settings are back. Your `CrabMods.ini` file is never changed.
 
 To play someone's setup yourself, or host it, use their setup code in the [Manager](../manager/README.md#setup-codes)'s **Share** tab.
 
@@ -196,7 +247,10 @@ The effects:
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
 - **Reliquary**: relics have no slot count; the game allows 10, both when checking whether you can take a relic and in the inventory menu. On every machine, CrabMods raises both by the Reliquary's slots (worked out from the inventory, which everyone sees).
+- **Soul Whip**: a copy of the Sniper's weapon asset (with its own projectile: the Arcane Wand's purple orb, slowed so you can see it, which bursts on a hit or at the whip's reach) given the Lightning Scepter's swing, crosshair and aiming, added to the lobby's weapon list before the game builds it. The whip's damage multiplies the hit where the host totals a player's damage. The machine of the player who cracks it sends where the crack landed to the host, which tags the enemies there. Raise keys are read on your machine (only with the game window in front, no menu open and the chat closed) and sent to the host in the same hidden way, over the game's chat call. The host keeps everyone's souls and the kinds they can raise, spawns the undead through the game's own enemy spawn (outside the island's enemy count, so the island can still end), and tells every player where, so their machines tint them too. Who can hurt whom is one game function, which CrabMods answers for undead (enemies and undead: yes; players and undead: no); who an enemy goes after is another, which CrabMods follows with its own pick. An undead's death drops nothing, and its kills count as its owner's. The ability key does nothing while you hold the whip. Its pedestal is a copy of the Crossbow's stone, placed by every machine one gap left of it each time the lobby loads (and taken away on islands, which load into the lobby's world); the host spawns the pickup on it, which the game sends to everyone. Its looks and sounds come inside `CrabMods.dll`: on start, every machine builds the whip's meshes and the HUD's pictures from them through the engine's own run-time mesh and texture functions. The lash is a chain of mesh pieces drawn on each machine (no physics: a droop, a sway and a trail behind as you move), which cracks whenever the weapon's shot count (sent by the game) goes up: it unrolls out toward where the shot lands, holds, and falls back. The glow is the whip's palette at eight brightnesses, a material each, swapped on the pieces as a wave. The sounds play through a little mixer of CrabMods' own, since the engine can't load a sound at run time.
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.
+
+- **Soul Whip loot**: ordinary new pickups (like the other items) whose loot weight is 0 for anyone not holding the whip, and who can turn up in any of a whip holder's chests. What they do is all inside the whip's own code on the host: souls, raise costs and counts, undead health, damage and poison, tags. Long Lash and Branding Iron set the bolt's reach and burst on the shooter's machine as it fires. Army of the Dead's undead count comes from the host with the souls.
 
 ## Known limitations
 
@@ -211,6 +265,7 @@ The effects:
 - **Slot items** are tested only by reading the game's code, not in play: if the inventory menu looks wrong with extra slots, please open an issue with your `CrabMods.log`.
 - **Hellshooter** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
 - **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
+- **Soul Whip** is tested only by reading the game's code, not in play yet: its pedestal, model, lash, HUD and sounds are all new and unchecked in game. If its art can't be built on your machine, it falls back to the Sniper's look (your log says why). Its sounds don't follow the game's volume settings (`soundVolume` sets them). It isn't kept as your weapon between runs. If something looks wrong, please open an issue with your `CrabMods.log`.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 

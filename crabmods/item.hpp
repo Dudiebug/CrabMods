@@ -103,10 +103,22 @@ public:
     virtual void OnOverheal(void* ps, float amount) {}
     // A message from the host's CrabMods (SendToPlayer), on the player's machine. true: it was for this item.
     virtual bool OnClientMessage(void* pc, const std::wstring& text) { return false; }
+    // A message from a player's CrabMods (SendToHost), on the host. pc: the sender's player controller. true: it
+    // was for this item.
+    virtual bool OnHostMessage(void* pc, const std::wstring& text) { return false; }
+    // An enemy is dying (host, ACrabEnemyC's elimination: it sets up its drops for EliminatingC). Called just
+    // before the game's code, then OnEnemyEliminated just after.
+    virtual void OnEnemyEliminating(void* enemy) {}
+    virtual void OnEnemyEliminated(void* enemy) {}
+    // true: this key of the item's section is the player's own (a keybind), so the host's settings never
+    // replace it.
+    virtual bool LocalSetting(const std::string& key) const { return false; }
     // Once at start, for items with hooks of their own (crab/hook.hpp), whether enabled or not.
     virtual void InstallHooks() {}
     // Four times a second on the game thread, on every machine. world: the game world (a UWorld).
     virtual void OnTick(void* world) {}
+    // Every frame on the game thread, on every machine, after the engine's tick. dt: seconds since the last one.
+    virtual void OnFrame(void* world, float dt) {}
 
 private:
     const char* section_;
@@ -118,6 +130,10 @@ private:
 bool HostHasCrabMods(void* pc);
 // In main.cpp (host): sends text to the player's machine, where CrabMods passes it to OnClientMessage.
 void SendToPlayer(void* pc, const std::wstring& text);
+// In main.cpp (player): sends text to the host through this machine's player controller, where CrabMods passes it
+// to OnHostMessage. It goes as a chat message the host's CrabMods takes out (a host without CrabMods would show it
+// in chat), so keep it short.
+void SendToHost(void* pc, const std::wstring& text);
 
 inline Item* FindItem(const std::string& section) {
     for (Item* i : Items())

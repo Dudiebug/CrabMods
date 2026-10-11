@@ -28,8 +28,9 @@ inline std::vector<Item*> SortedItems() {
 }
 
 // Applies an ini text to the items and returns the sections it has. Keys before any section belong to
-// [arsenal] (the old Arsenal.ini had no sections). Bad values are skipped.
-inline std::set<std::string> ApplyIni(const std::string& text) {
+// [arsenal] (the old Arsenal.ini had no sections). Bad values are skipped, and so are the players' own settings
+// (Item::LocalSetting) when keepLocal is set.
+inline std::set<std::string> ApplyIni(const std::string& text, bool keepLocal = false) {
     std::set<std::string> sections;
     std::istringstream f(text);
     std::string line, section = "arsenal";
@@ -46,8 +47,10 @@ inline std::set<std::string> ApplyIni(const std::string& text) {
         }
         auto eq = line.find('=');
         if (eq == std::string::npos || !item) continue;
+        std::string key = Trim(line.substr(0, eq));
+        if (keepLocal && item->LocalSetting(key)) continue;
         try {
-            item->Set(Trim(line.substr(0, eq)), Trim(line.substr(eq + 1)));
+            item->Set(key, Trim(line.substr(eq + 1)));
         } catch (...) {
         }
     }
@@ -68,13 +71,13 @@ inline std::string CompactIni(const std::string& text) {
     return out;
 }
 
-// Replaces every setting: defaults first, then the given ini (so anything it leaves out is the default, not
-// whatever was set before).
+// Replaces every setting with the host's: defaults first, then the given ini (so anything it leaves out is the
+// default, not whatever was set before). Players' own settings (keybinds) stay as this machine's ini has them.
 inline void ApplyAllSettings(const std::string& text) {
     std::string defaults;
     for (Item* item : SortedItems()) defaults += SectionText(item);
-    ApplyIni(defaults);
-    ApplyIni(text);
+    ApplyIni(defaults, true);
+    ApplyIni(text, true);
 }
 
 struct LoadResult {

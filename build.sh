@@ -60,7 +60,8 @@ EOF
 version_of() { sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' "$1"; }
 version_res loader 1.0.0 "Crab Champions mod loader" xinput1_3.dll
 version_res CrabSync "$(version_of crabsync/main.cpp)" "CrabSync for Crab Champions" CrabSync.dll
-version_res CrabMods "$(version_of crabmods/main.cpp)" "CrabMods for Crab Champions" CrabMods.dll
+version_res CrabMods "$(version_of crabmods/main.cpp)" "CrabMods for Crab Champions" CrabMods.dll \
+    "100 RCDATA \"$PWD/crabmods/assets/necro.pack\""
 # The manager also carries its font (resource 2).
 version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" CrabModsManager.exe \
     "2 RCDATA \"$PWD/manager/fonts/Roboto-Medium.ttf\""
@@ -73,7 +74,7 @@ version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" Crab
 "$CXX" "${CXXFLAGS[@]}" crabsync/main.cpp crabsync/ledger.cpp crabsync/game_inv.cpp "${MH_OBJS[@]}" "$OUT/obj/CrabSync.res.o" \
     "${LDFLAGS[@]}" -o "$OUT/CrabSync.dll"
 "$CXX" "${CXXFLAGS[@]}" crabmods/main.cpp crabmods/items/*.cpp "${MH_OBJS[@]}" "$OUT/obj/CrabMods.res.o" \
-    "${LDFLAGS[@]}" -o "$OUT/CrabMods.dll"
+    "${LDFLAGS[@]}" -lwinmm -o "$OUT/CrabMods.dll"
 
 # The manager: a Windows program (it runs under wine too), drawn with Dear ImGui on Direct3D 11.
 IMGUI=third_party/imgui
@@ -89,6 +90,7 @@ done
 
 "$CXX" "${CXXFLAGS[@]}" tests/ledger_test.cpp crabsync/ledger.cpp -static -o "$OUT/ledger_test.exe"
 "$CXX" "${CXXFLAGS[@]}" tests/manager_test.cpp -static -o "$OUT/manager_test.exe"
+"$CXX" "${CXXFLAGS[@]}" tests/necro_lash_test.cpp -static -o "$OUT/necro_lash_test.exe"
 echo "built: $OUT/xinput1_3.dll $OUT/CrabSync.dll $OUT/CrabMods.dll $OUT/CrabModsManager.exe (+ tests)"
 
 # package_mod <Name> <source dir>: the loader, the mod, its README and the licenses.
@@ -114,6 +116,7 @@ for arg in "$@"; do
         export WINEPREFIX="${WINEPREFIX:-$PWD/$OUT/wineprefix}" WINEDEBUG=-all
         "$WINE" "$OUT/ledger_test.exe"
         "$WINE" "$OUT/manager_test.exe"
+        "$WINE" "$OUT/necro_lash_test.exe"
         ;;
     package)
         package_mod CrabSync crabsync
