@@ -40,7 +40,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.8.2";
+constexpr const char kVersion[] = "0.9.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -697,8 +697,14 @@ bool crabmods::HostHasCrabMods(void* pc) { return pc && pc == g_settingsPC; }
 
 void crabmods::SendToPlayer(void* pc, const std::wstring& text) { SendClientMessage(pc, kItemTag + text); }
 
+// For CrabMods Manager, which loads the DLL to read it (outside the game, so DllMain does nothing).
+extern "C" __declspec(dllexport) const char* CrabModsCatalog() {
+    static const std::string json = crabmods::CatalogJson();
+    return json.c_str();
+}
+
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) {
+    if (reason == DLL_PROCESS_ATTACH && GetModuleHandleW(L"CrabChampions-Win64-Shipping.exe")) {
         DisableThreadLibraryCalls(inst);
         // Hooks go in off the loader lock.
         CloseHandle(CreateThread(nullptr, 0, Init, nullptr, 0, nullptr));

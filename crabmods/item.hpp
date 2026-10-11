@@ -42,6 +42,11 @@ public:
     virtual bool Enabled() const { return true; }
     // The settings as one log line, without the item name ("+4% per empty slot, epic").
     virtual std::string Describe() const = 0;
+    // CrabMods Manager's catalog: the name on the item's card, what kind of item it is, and its default rarity
+    // ("" when it is not a pickup).
+    virtual std::string Title() const { return section_; }
+    virtual const char* CatalogKind() const { return "Tweak"; }
+    virtual const char* CatalogRarity() const { return ""; }
 
     // --- Events (game thread) ---
     // Every level start (ACrabLM::BeginPlay), on every machine.
@@ -221,6 +226,17 @@ public:
         Refresh(lm);
         AddToLoot(lm);
     }
+
+    std::string Title() const override {
+        std::string s;
+        for (const wchar_t* p = spec_.name; *p; p++) s.push_back(char(*p));
+        return s;
+    }
+    const char* CatalogKind() const override {
+        static const char* const kinds[] = {"Weapon mod", "Ability mod", "Perk", "Relic", "Melee mod"};
+        return kinds[int(spec_.kind)];
+    }
+    const char* CatalogRarity() const override { return RarityName(rarity_); }
 
     void* Asset() const { return da_; }
     Kind GetKind() const { return spec_.kind; }

@@ -39,16 +39,20 @@ public:
     SpikedChest() : Item("spikedChest", 140) {}
 
     std::string DefaultIni() const override {
-        return R"(# The Spiked island's Epic chest costs this percent of your base max health to open (the game's own
-# is 25). 0 to 99. The island's portal says the same.
+        return R"(# Spiked Chest Cost: the Spiked island's Epic chest costs a different share of your max health to open, and
+# the island's portal says so. Switched off, it costs the game's own 25%.
+enabled = true
+
+# Percent of your base max health it costs (the game's own is 25). 0 to 99.
 costPercent = 35
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
         if (k == "costPercent") cost_ = std::clamp(int(ParseFloat(v) + 0.5f), 0, 99);
+        else if (k == "enabled") enabled_ = ParseBool(v);
     }
     std::string Describe() const override {
-        return std::to_string(cost_) + "% of base max health" + (cost_ == kGameCost ? " (the game's own)" : "");
+        return std::to_string(Cost()) + "% of base max health" + (Cost() == kGameCost ? " (the game's own)" : "");
     }
 
     void OnBeginPlay(void* lm) override {
@@ -56,7 +60,12 @@ costPercent = 35
         SetPortalText();
     }
 
+    std::string Title() const override { return "Spiked Chest Cost"; }
+
 private:
+    // Switched off it puts the game's own cost back (the host's settings can switch it off mid-game).
+    int Cost() const { return enabled_ ? cost_ : kGameCost; }
+
     void SetCost(void* lm) {
         void* spawnables = At<void*>(lm, off::LM_SpawnablesDA);
         void* cls = spawnables ? At<void*>(spawnables, off::Spawnables_SpikedChest) : nullptr;
@@ -70,23 +79,23 @@ private:
             return;
         }
         int& cost = At<int32_t>(cdo, off::Chest_Cost);
-        if (cost == cost_) return;
-        CRAB_LOG("Spiked Chest costs %d%% of base max health (was %d%%)", cost_, cost);
-        cost = cost_;
+        if (cost == Cost()) return;
+        CRAB_LOG("Spiked Chest costs %d%% of base max health (was %d%%)", Cost(), cost);
+        cost = Cost();
     }
 
     void SetPortalText() {
         bool team = TeamPaysOnce();
-        if (text_ == cost_ && team_ == team) return;
+        if (text_ == Cost() && team_ == team) return;
         wchar_t s[va::kSpikedChestDescriptionLen + 1];
-        if (cost_ == 0)
+        if (Cost() == 0)
             swprintf(s, std::size(s), L"A chest that contains Epic loot and costs nothing to open");
         else if (team)
             swprintf(s, std::size(s), L"Epic loot. All the team's spiked chests together cost %d%% of base max health",
-                     cost_);
+                     Cost());
         else
             swprintf(s, std::size(s), L"A chest that contains Epic loot but costs %d%% of your base max health to open",
-                     cost_);
+                     Cost());
         // Pad with spaces to the literal's length: the game copies exactly that many characters.
         size_t n = wcslen(s);
         for (; n < size_t(va::kSpikedChestDescriptionLen); n++) s[n] = L' ';
@@ -94,7 +103,7 @@ private:
         auto* dst = reinterpret_cast<wchar_t*>(Addr(va::Text_SpikedChestDescription));
         if (text_ == kGameCost && !team_ && wcsncmp(dst, L"A chest that contains Epic loot ", 32) != 0) {
             CRAB_LOG("spikedChest: the portal description isn't where expected; left unchanged");
-            text_ = cost_;
+            text_ = Cost();
             team_ = team;
             return;
         }
@@ -102,10 +111,11 @@ private:
         if (!VirtualProtect(dst, sizeof s, PAGE_READWRITE, &old)) return;
         memcpy(dst, s, sizeof s);
         VirtualProtect(dst, sizeof s, old, &old);
-        text_ = cost_;
+        text_ = Cost();
         team_ = team;
     }
 
+    bool enabled_ = true;
     int cost_ = 35;
     int text_ = kGameCost;  // the cost the portal text says now
     bool team_ = false;     // and whether it says it is for the whole team

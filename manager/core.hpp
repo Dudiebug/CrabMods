@@ -263,28 +263,37 @@ struct Release {
     std::map<std::string, std::string> assets;  // file name -> download URL
 };
 
-// The newest published release of each mod in a GitHub /releases response, keyed by mod name. Drafts and
-// pre-releases are skipped.
+// The newest published release whose tag starts with `prefix` and that has the file `asset` (older releases only
+// had a zip, and can't be installed from). Drafts and pre-releases are skipped.
+inline std::optional<Release> LatestTagged(const Json& root, const std::string& prefix, const std::string& asset) {
+    std::optional<Release> best;
+    if (root.type != Json::Array) return best;
+    for (const Json& r : root.items) {
+        if (r.type != Json::Object || r.Flag("draft") || r.Flag("prerelease")) continue;
+        std::string tag = r.Str("tag_name");
+        if (tag.rfind(prefix, 0) != 0) continue;
+        Release rel{tag, tag.substr(prefix.size()), {}};
+        if (const Json* assets = r.Get("assets"); assets && assets->type == Json::Array)
+            for (const Json& a : assets->items)
+                if (a.type == Json::Object) rel.assets[a.Str("name")] = a.Str("browser_download_url");
+        if (!rel.assets.count(asset)) continue;
+        if (!best || CompareVersions(rel.version, best->version) > 0) best = rel;
+    }
+    return best;
+}
+
+inline constexpr const char kManagerTag[] = "manager-v";
+inline constexpr const char kManagerExe[] = "CrabModsManager.exe";
+
+// The newest release of each mod in a GitHub /releases response, keyed by mod name, and of the manager itself
+// under "Manager".
 inline std::map<std::string, Release> LatestReleases(const std::string& json) {
     std::map<std::string, Release> latest;
     auto root = JsonParser(json).Parse();
-    if (!root || root->type != Json::Array) return latest;
-    for (const Json& r : root->items) {
-        if (r.type != Json::Object || r.Flag("draft") || r.Flag("prerelease")) continue;
-        std::string tag = r.Str("tag_name");
-        for (const ModInfo& m : Mods()) {
-            std::string prefix = m.tagPrefix;
-            if (tag.rfind(prefix, 0) != 0) continue;
-            Release rel{tag, tag.substr(prefix.size()), {}};
-            if (const Json* assets = r.Get("assets"); assets && assets->type == Json::Array)
-                for (const Json& a : assets->items)
-                    if (a.type == Json::Object) rel.assets[a.Str("name")] = a.Str("browser_download_url");
-            // A release without the raw DLL (older ones only had a zip) cannot be installed from.
-            if (!rel.assets.count(m.dll)) continue;
-            auto it = latest.find(m.name);
-            if (it == latest.end() || CompareVersions(rel.version, it->second.version) > 0) latest[m.name] = rel;
-        }
-    }
+    if (!root) return latest;
+    for (const ModInfo& m : Mods())
+        if (auto r = LatestTagged(*root, m.tagPrefix, m.dll)) latest[m.name] = *r;
+    if (auto r = LatestTagged(*root, kManagerTag, kManagerExe)) latest["Manager"] = *r;
     return latest;
 }
 
@@ -399,7 +408,7 @@ inline std::string MergeIni(const std::string& text, const std::string& incoming
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Share codes: "CRAB1-" + base64url(CRC32 + "<ini file name>\n" + compact settings)
+// Old share codes (manager 0.1 and 0.2), still read: "CRAB1-" + base64url(CRC32 + "<ini file name>\n" + compact settings)
 
 inline uint32_t Crc32(const std::string& data) {
     uint32_t c = 0xFFFFFFFF;
@@ -480,6 +489,377 @@ inline std::optional<SharedSettings> ReadShareCode(const std::string& code) {
     auto nl = payload.find('\n');
     if (nl == std::string::npos) return std::nullopt;
     return SharedSettings{payload.substr(0, nl), payload.substr(nl + 1)};
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The catalog: every mod the manager shows as something to install. CrabMods' items come from the DLL itself
+// (its CrabModsCatalog export, JSON), CrabSync is one entry made from its default ini (CrabSyncDefaultIni).
+// A setting's kind, choices and range are read from the comments the mods write above it.
+
+struct Setting {
+    enum Type { Bool, Int, Float, Choice, Text };
+    std::string key, def, help;       // help: the comment above the key ("" when it shares the one above)
+    Type type = Text;
+    std::vector<std::string> choices;  // Choice
+    bool range = false;                // "0 to 99" in the help
+    double lo = 0, hi = 0;
+};
+
+struct CatalogItem {
+    std::string mod;      // "CrabMods" or "CrabSync"
+    std::string section;  // its [section] in CrabMods.ini; "" for CrabSync, whose ini has none
+    std::string name, kind, rarity, about;
+    std::string ini;      // the default settings, as in a new ini (no section header)
+    bool toggle = false;  // it has "enabled", so it can be installed and uninstalled on its own
+    std::vector<Setting> settings;  // all but "enabled"
+};
+
+inline bool IsNumber(const std::string& s, bool* integer = nullptr) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    std::strtod(s.c_str(), &end);
+    if (end != s.c_str() + s.size()) return false;
+    if (integer) *integer = s.find_first_of(".eE") == std::string::npos;
+    return true;
+}
+
+// The words of a list like "common, epic, legendary or greed" in `text` that has `value` in it.
+inline std::vector<std::string> ListAround(const std::string& text, const std::string& value) {
+    // Split into phrases at sentence punctuation, then a phrase that is only "w, w, w or w".
+    std::string phrase;
+    auto check = [&](std::string p) -> std::vector<std::string> {
+        std::vector<std::string> words;
+        for (size_t i; (i = p.find(" or ")) != std::string::npos;) p.replace(i, 4, ",");
+        std::istringstream in(p);
+        for (std::string w; std::getline(in, w, ',');) {
+            w = Trim(w);
+            if (w.empty() || w.find(' ') != std::string::npos) {
+                // "Which chests it drops from: common": only the last word of the first part counts.
+                if (!words.empty() || w.empty()) return {};
+                w = w.substr(w.rfind(' ') + 1);
+            }
+            words.push_back(w);
+        }
+        if (words.size() < 2 || std::find(words.begin(), words.end(), value) == words.end()) return {};
+        return words;
+    };
+    for (char c : text + ".") {
+        if (c == '.' || c == ':' || c == ';' || c == '(' || c == ')' || c == '\n') {
+            if (auto w = check(phrase); !w.empty()) return w;
+            phrase.clear();
+        } else {
+            phrase += c;
+        }
+    }
+    return {};
+}
+
+// A setting's kind from its default value and its comment.
+inline void ClassifySetting(Setting& s, const std::string& groupHelp) {
+    const std::string& help = s.help.empty() ? groupHelp : s.help;
+    bool integer = false;
+    if (s.def == "true" || s.def == "false") {
+        s.type = Setting::Bool;
+    } else if (IsNumber(s.def, &integer)) {
+        s.type = integer ? Setting::Int : Setting::Float;
+        // "0 to 99", "(1 to 8)"
+        for (size_t i = help.find(" to "); i != std::string::npos; i = help.find(" to ", i + 4)) {
+            size_t a = help.rfind(' ', i - 1);
+            a = a == std::string::npos ? 0 : a + 1;
+            size_t b = help.find_first_of(" .,)", i + 4);
+            std::string lo = help.substr(a, i - a), hi = help.substr(i + 4, b == std::string::npos ? b : b - i - 4);
+            if (!lo.empty() && lo[0] == '(') lo.erase(0, 1);
+            if (IsNumber(lo) && IsNumber(hi)) {
+                s.range = true;
+                s.lo = std::strtod(lo.c_str(), nullptr);
+                s.hi = std::strtod(hi.c_str(), nullptr);
+                break;
+            }
+        }
+    } else {
+        // "#   split = ..." lines, one per choice
+        std::vector<std::string> choices;
+        std::istringstream in(help);
+        for (std::string line; std::getline(in, line);) {
+            if (line.size() < 2 || line[0] != ' ') continue;
+            auto eq = line.find(" = ");
+            std::string w = Trim(line.substr(0, eq == std::string::npos ? 0 : eq));
+            if (!w.empty() && w.find(' ') == std::string::npos) choices.push_back(w);
+        }
+        if (std::find(choices.begin(), choices.end(), s.def) == choices.end()) choices = ListAround(help, s.def);
+        if (s.key == "rarity" && choices.empty()) choices = {"common", "epic", "legendary", "greed"};
+        if (!choices.empty()) {
+            s.type = Setting::Choice;
+            s.choices = choices;
+        }
+    }
+}
+
+// Reads a default ini body into `about` (the first comment, without its "Name, a perk: " start), the
+// "enabled" toggle and the settings.
+inline void ParseDefaults(CatalogItem& it, const std::string& ini) {
+    it.ini = ini;
+    std::string comment, groupHelp;
+    bool first = true;
+    std::istringstream in(ini);
+    for (std::string line; std::getline(in, line);) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::string t = Trim(line);
+        if (t.empty()) {
+            if (first && !comment.empty()) {
+                it.about = comment;
+                first = false;
+            }
+            comment.clear();
+            continue;
+        }
+        if (t[0] == '#' || t[0] == ';') {
+            std::string c = line.substr(line.find_first_of("#;") + 1);
+            if (!c.empty() && c[0] == ' ') c.erase(0, 1);
+            comment += (comment.empty() ? "" : "\n") + c;
+            continue;
+        }
+        auto eq = t.find('=');
+        if (eq == std::string::npos) continue;
+        Setting s;
+        s.key = Trim(t.substr(0, eq));
+        s.def = Trim(t.substr(eq + 1));
+        if (auto h = s.def.find_first_of("#;"); h != std::string::npos) s.def = Trim(s.def.substr(0, h));
+        if (first) {
+            it.about = comment;
+            first = false;
+            comment.clear();
+        }
+        if (s.key == "enabled") {
+            it.toggle = true;
+            comment.clear();
+            continue;
+        }
+        s.help = comment;
+        if (!comment.empty()) groupHelp = comment;
+        comment.clear();
+        ClassifySetting(s, groupHelp);
+        it.settings.push_back(s);
+    }
+    if (first) it.about = comment;
+    // "Hoarder, a perk: more damage ..." -> "More damage ...". Line breaks in it were only for the ini.
+    std::string& a = it.about;
+    if (size_t c = a.find(": "); c != std::string::npos && c < 70 && a.find('.') > c) a.erase(0, c + 2);
+    for (char& ch : a)
+        if (ch == '\n') ch = ' ';
+    if (!a.empty() && a[0] >= 'a' && a[0] <= 'z') a[0] = char(a[0] - 'a' + 'A');
+}
+
+struct Catalog {
+    std::string header;  // the start of a new CrabMods.ini
+    std::vector<CatalogItem> items;
+};
+
+inline std::optional<Catalog> ParseCatalog(const std::string& json) {
+    auto root = JsonParser(json).Parse();
+    if (!root || root->type != Json::Object) return std::nullopt;
+    const Json* items = root->Get("items");
+    if (!items || items->type != Json::Array) return std::nullopt;
+    Catalog c;
+    c.header = root->Str("header");
+    for (const Json& j : items->items) {
+        CatalogItem it;
+        it.mod = "CrabMods";
+        it.section = j.Str("section");
+        it.name = j.Str("name");
+        it.kind = j.Str("kind");
+        it.rarity = j.Str("rarity");
+        if (it.section.empty()) continue;
+        ParseDefaults(it, j.Str("ini"));
+        c.items.push_back(std::move(it));
+    }
+    return c;
+}
+
+inline CatalogItem CrabSyncItem(const std::string& defaultIni) {
+    CatalogItem it;
+    it.mod = "CrabSync";
+    it.name = "CrabSync";
+    it.kind = "Multiplayer";
+    ParseDefaults(it, defaultIni);
+    it.toggle = false;  // installed or not: its "enabled" stays a setting of the DLL
+    return it;
+}
+
+// A new CrabMods.ini with every default, as CrabMods itself writes one.
+inline std::string DefaultCrabModsIni(const Catalog& c) {
+    std::string t = c.header;
+    for (const CatalogItem& it : c.items) t += "\n[" + it.section + "]\n" + it.ini;
+    return t;
+}
+
+// The value a setting has in an ini file (its default when the file lacks it).
+inline std::string ValueOf(const IniValues& v, const std::string& section, const Setting& s) {
+    auto sec = v.find(section);
+    if (sec == v.end()) return s.def;
+    auto k = sec->second.find(s.key);
+    return k == sec->second.end() ? s.def : k->second;
+}
+
+inline bool ItemOn(const IniValues& v, const CatalogItem& it) {
+    if (!it.toggle) return true;
+    auto sec = v.find(it.section);
+    if (sec == v.end()) return true;
+    auto k = sec->second.find("enabled");
+    return k == sec->second.end() || k->second == "true" || k->second == "1" || k->second == "yes" || k->second == "on";
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Setup codes: "CRAB2-" + what differs from a full default install + "-" + a 4-digit check.
+//   S             CrabSync is installed
+//   M             CrabMods is installed, with every item...
+//   -martyr       ...but this one
+//   0 / +hoarder  (instead of M, when most are off) only these items
+//   hoarder.damagePercent=5    a setting that isn't the default (S.key for CrabSync; true/false as 1/0)
+// Joined by ";". "CRAB2-S;M-xxxx" is everything installed with the default settings.
+
+struct Setup {
+    bool crabSync = false, crabMods = false;
+    std::map<std::string, bool> on;  // CrabMods item section -> installed
+    std::map<std::string, std::map<std::string, std::string>> values;  // "S" or section -> key -> value
+    int unknown = 0;  // parts of the code this catalog doesn't have (a newer version's items or settings)
+};
+
+inline constexpr const char kSetupPrefix[] = "CRAB2-";
+
+inline std::string CodeEscape(const std::string& v) {
+    static const char hex[] = "0123456789ABCDEF";
+    std::string r;
+    for (unsigned char c : v) {
+        if (c == ';' || c == '%' || c == '=' || c <= ' ' || c >= 0x7F) r += std::string("%") + hex[c >> 4] + hex[c & 15];
+        else r += char(c);
+    }
+    return r;
+}
+inline std::string CodeUnescape(const std::string& v) {
+    std::string r;
+    for (size_t i = 0; i < v.size(); i++) {
+        if (v[i] == '%' && i + 2 < v.size()) {
+            r += char(std::strtol(v.substr(i + 1, 2).c_str(), nullptr, 16));
+            i += 2;
+        } else {
+            r += v[i];
+        }
+    }
+    return r;
+}
+
+inline std::string CodeCheck(const std::string& payload) {
+    char b[8];
+    std::snprintf(b, sizeof b, "%04x", unsigned(Crc32(payload) & 0xFFFF));
+    return b;
+}
+
+inline std::string MakeSetupCode(const Catalog& cat, const CatalogItem* sync, const Setup& s) {
+    std::vector<std::string> parts;
+    if (s.crabSync) parts.push_back("S");
+    auto settingParts = [&](const CatalogItem& it, const std::string& name) {
+        auto v = s.values.find(name);
+        for (const Setting& st : it.settings) {
+            std::string val = st.def;
+            if (v != s.values.end())
+                if (auto k = v->second.find(st.key); k != v->second.end()) val = k->second;
+            if (val == st.def) continue;
+            if (st.type == Setting::Bool) val = val == "true" ? "1" : "0";
+            parts.push_back(name + "." + st.key + "=" + CodeEscape(val));
+        }
+    };
+    if (s.crabSync && sync) settingParts(*sync, "S");
+    if (s.crabMods) {
+        std::vector<std::string> off, onList;
+        for (const CatalogItem& it : cat.items) {
+            if (!it.toggle) continue;
+            auto o = s.on.find(it.section);
+            (o == s.on.end() || o->second ? onList : off).push_back(it.section);
+        }
+        if (off.size() > onList.size()) {
+            parts.push_back("0");
+            for (auto& x : onList) parts.push_back("+" + x);
+        } else {
+            parts.push_back("M");
+            for (auto& x : off) parts.push_back("-" + x);
+        }
+        for (const CatalogItem& it : cat.items) settingParts(it, it.section);
+    }
+    std::string payload;
+    for (auto& p : parts) payload += (payload.empty() ? "" : ";") + p;
+    return kSetupPrefix + payload + "-" + CodeCheck(payload);
+}
+
+// Reads a setup code; nothing when it is damaged or cut short. Spaces and line breaks pasted with it are
+// ignored. Every item and setting the code doesn't mention gets its default.
+inline std::optional<Setup> ReadSetupCode(const Catalog& cat, const CatalogItem* sync, const std::string& text) {
+    std::string c;
+    for (char ch : text)
+        if (ch != ' ' && ch != '\n' && ch != '\r' && ch != '\t') c += ch;
+    size_t plen = std::strlen(kSetupPrefix);
+    if (c.size() < plen + 5 || c.compare(0, plen, kSetupPrefix) != 0) return std::nullopt;
+    size_t dash = c.rfind('-');
+    if (dash < plen || c.size() - dash != 5) return std::nullopt;
+    std::string payload = c.substr(plen, dash - plen);
+    if (CodeCheck(payload) != c.substr(dash + 1)) return std::nullopt;
+    Setup s;
+    bool allOn = true;
+    std::vector<std::pair<std::string, bool>> listed;
+    std::istringstream in(payload);
+    for (std::string p; std::getline(in, p, ';');) {
+        if (p == "S") s.crabSync = true;
+        else if (p == "M") s.crabMods = true, allOn = true;
+        else if (p == "0") s.crabMods = true, allOn = false;
+        else if (p.size() > 1 && (p[0] == '-' || p[0] == '+')) listed.push_back({p.substr(1), p[0] == '+'});
+        else if (auto eq = p.find('='), dot = p.find('.'); eq != std::string::npos && dot < eq) {
+            std::string name = p.substr(0, dot), key = p.substr(dot + 1, eq - dot - 1), val = CodeUnescape(p.substr(eq + 1));
+            const CatalogItem* it = name == "S" ? sync : nullptr;
+            for (const CatalogItem& i : cat.items)
+                if (i.section == name) it = &i;
+            const Setting* st = nullptr;
+            if (it)
+                for (const Setting& x : it->settings)
+                    if (x.key == key) st = &x;
+            if (!st) {
+                s.unknown++;
+                continue;
+            }
+            if (st->type == Setting::Bool) val = val == "1" || val == "true" ? "true" : "false";
+            s.values[name][key] = val;
+        } else {
+            s.unknown++;
+        }
+    }
+    for (const CatalogItem& it : cat.items)
+        if (it.toggle) s.on[it.section] = allOn;
+    for (auto& [section, on] : listed) {
+        if (s.on.count(section)) s.on[section] = on;
+        else s.unknown++;
+    }
+    return s;
+}
+
+// The compact ini of a setup for one mod: every setting (defaults included) and, for CrabMods, every item's
+// "enabled", to merge into the mod's own file.
+inline std::string SetupIni(const Setup& s, const std::vector<const CatalogItem*>& items) {
+    std::string out;
+    for (const CatalogItem* it : items) {
+        std::string name = it->mod == "CrabSync" ? "S" : it->section;
+        if (!it->section.empty()) out += "[" + it->section + "]\n";
+        if (it->toggle) {
+            auto o = s.on.find(it->section);
+            out += std::string("enabled = ") + (o == s.on.end() || o->second ? "true" : "false") + "\n";
+        }
+        auto v = s.values.find(name);
+        for (const Setting& st : it->settings) {
+            std::string val = st.def;
+            if (v != s.values.end())
+                if (auto k = v->second.find(st.key); k != v->second.end()) val = k->second;
+            out += st.key + " = " + val + "\n";
+        }
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------

@@ -12,15 +12,16 @@ public:
     HeavyShot() : Item("heavyShot", 30) {}
 
     std::string DefaultIni() const override {
-        return R"(# The game's own Heavy Shot only drops once you hold Bouncing Shot. true lets it drop for everyone,
-# with any weapon.
-anyWeapon = true
+        return R"(# Heavy Shot for All: the game's own Heavy Shot weapon mod only drops once you hold Bouncing Shot. This lets it
+# drop for everyone, with any weapon.
+enabled = true
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
-        if (k == "anyWeapon") anyWeapon_ = ParseBool(v);
+        if (k == "enabled" || k == "anyWeapon") anyWeapon_ = ParseBool(v);  // anyWeapon: before 0.9.0
     }
     bool Enabled() const override { return anyWeapon_; }
+    std::string Title() const override { return "Heavy Shot for All"; }
     std::string Describe() const override { return anyWeapon_ ? "drops for every weapon" : "unchanged"; }
 
     void OnBeginPlay(void* lm) override {

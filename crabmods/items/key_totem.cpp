@@ -58,6 +58,7 @@ choices = 3
         else if (k == "menu") menu_ = ParseBool(v);
     }
     bool Enabled() const override { return enabled_; }
+    std::string Title() const override { return "Key Totem Menu"; }
     std::string Describe() const override {
         return menu_ ? "choose any item from a menu" : "choose from " + std::to_string(choices_) + " items in a row";
     }

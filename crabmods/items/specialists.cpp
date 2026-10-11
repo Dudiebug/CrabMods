@@ -121,7 +121,7 @@ protected:
     float PrimaryBuff() const override { return mult_; }
 
 private:
-    std::string Title() const {
+    std::string Title() const override {
         std::string s;
         for (const wchar_t* p = def_.name; *p; p++) s.push_back(char(*p));
         return s;

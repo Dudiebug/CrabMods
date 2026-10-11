@@ -51,6 +51,7 @@ elementalClawsMultiplier = 2
         else if (k == "vampireHealth") vampire_ = ParseFloat(v);
         else if (k == "elementalClawsMultiplier") elemental_ = ParseFloat(v);
     }
+    std::string Title() const override { return "Stronger Melee Mods"; }
     std::string Describe() const override {
         if (!enabled_) return "off (the game's values)";
         return "Sharp " + Num(sharp_) + "%, Time " + Num(time_) + "%, Iron " + Num(iron_) + "% (cooldown +" +

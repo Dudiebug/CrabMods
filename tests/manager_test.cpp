@@ -1,4 +1,6 @@
 // Manager tests: versions, the releases list, share codes, ini merging and crash reports (manager/core.hpp).
+#include <windows.h>
+
 #include <cstdio>
 
 #include "../manager/core.hpp"
@@ -33,10 +35,11 @@ static void Releases() {
       {"tag_name":"crabmods-v0.2.0","assets":[{"name":"CrabMods-0.2.0.zip","browser_download_url":"https://x/z"}]},
       {"tag_name":"crabsync-v1.0.1","assets":[{"name":"CrabSync.dll","browser_download_url":"https://x/s.dll"}],
        "body":"Fixes \"quotes\" and \u00e9 \ud83e\udd80"},
-      {"tag_name":"manager-v0.1.0","assets":[]}
+      {"tag_name":"manager-v0.1.0","assets":[]},
+      {"tag_name":"manager-v0.3.0","assets":[{"name":"CrabModsManager.exe","browser_download_url":"https://x/m.exe"}]}
     ])";
     auto latest = LatestReleases(json);
-    CHECK(latest.size() == 2);
+    CHECK(latest.size() == 3 && latest["Manager"].version == "0.3.0");
     CHECK(latest["CrabMods"].version == "0.3.0");
     CHECK(latest["CrabMods"].assets["CrabMods.dll"] == "https://x/m030.dll");
     CHECK(latest["CrabMods"].assets["xinput1_3.dll"] == "https://x/l.dll");
@@ -182,6 +185,141 @@ static void Crashes() {
     CHECK(zip.compare(zip.size() - 22, 4, "PK\x05\x06") == 0);
 }
 
+static const char* kSyncIni = R"(# CrabSync: shared team inventory. Only the host's settings matter; clients need nothing.
+enabled = true
+
+# Equipment: the most recent change by anyone is applied to everyone.
+syncWeapon = true
+syncAbility = true
+
+# Max health added to the pool for each player after the first (2 players = your max + 250).
+healthPerPlayer = 250
+# Chests that cost health or max health (spiked and greed chests):
+#   split = each player's chest costs the team a share
+#   full  = the team pays every chest's whole cost
+#   free  = they cost the team nothing
+chestHealthCost = split
+pollSeconds = 0.1
+)";
+
+static const char* kCatalogJson = R"({"header":"# CrabMods\n","items":[
+  {"section":"hoarder","name":"Hoarder","kind":"Perk","rarity":"legendary","ini":"# Hoarder, a perk: more damage for each weapon mod.\nenabled = true\n\n# Damage bonus, in percent.\ndamagePercent = 3\n\n# Which chests it drops from: common, epic, legendary or greed.\nrarity = legendary\n"},
+  {"section":"keyTotem","name":"Key Totem Menu","kind":"Tweak","rarity":"","ini":"# Key totem: choose any item. A locked item\n# you choose is unlocked.\nenabled = true\n\n# Without the menu: how many items are in the row (1 to 8).\nchoices = 3\nmenu = true\n"},
+  {"section":"martyr","name":"Martyr","kind":"Relic","rarity":"epic","ini":"# Martyr, a relic: hurts.\nenabled = true\nname = big bang\n"}
+]})";
+
+static void CatalogParsing() {
+    auto cat = ParseCatalog(kCatalogJson);
+    CHECK(cat && cat->items.size() == 3 && cat->header == "# CrabMods\n");
+    if (!cat || cat->items.size() != 3) return;
+    const CatalogItem& h = cat->items[0];
+    CHECK(h.name == "Hoarder" && h.kind == "Perk" && h.rarity == "legendary" && h.toggle);
+    CHECK(h.about == "More damage for each weapon mod.");
+    CHECK(h.settings.size() == 2);
+    CHECK(h.settings[0].key == "damagePercent" && h.settings[0].type == Setting::Int && h.settings[0].def == "3");
+    CHECK(h.settings[0].help == "Damage bonus, in percent.");
+    CHECK(h.settings[1].type == Setting::Choice && h.settings[1].choices.size() == 4 && h.settings[1].choices[3] == "greed");
+    const CatalogItem& k = cat->items[1];
+    CHECK(k.about == "Choose any item. A locked item you choose is unlocked.");
+    CHECK(k.settings[0].range && k.settings[0].lo == 1 && k.settings[0].hi == 8);
+    CHECK(k.settings[1].type == Setting::Bool && k.settings[1].help.empty());
+    CHECK(cat->items[2].settings[0].type == Setting::Text);
+    std::string ini = DefaultCrabModsIni(*cat);
+    CHECK(ini.rfind("# CrabMods\n\n[hoarder]\n# Hoarder", 0) == 0 && ini.find("\n[martyr]\n") != std::string::npos);
+
+    CatalogItem s = CrabSyncItem(kSyncIni);
+    CHECK(s.about.rfind("Shared team inventory.", 0) == 0 && !s.toggle);
+    CHECK(s.settings.size() == 5);
+    CHECK(s.settings[3].key == "chestHealthCost" && s.settings[3].type == Setting::Choice && s.settings[3].choices.size() == 3);
+    CHECK(s.settings[4].type == Setting::Float && s.settings[2].type == Setting::Int);
+
+    IniValues v = ReadIni("[hoarder]\nenabled = false\ndamagePercent = 7\n");
+    CHECK(!ItemOn(v, h) && ItemOn(v, k));
+    CHECK(ValueOf(v, "hoarder", h.settings[0]) == "7" && ValueOf(v, "hoarder", h.settings[1]) == "legendary");
+
+    CHECK(ListAround("Pick from a, b or c. Or not.", "b").size() == 3);
+    CHECK(ListAround("nothing here", "b").empty());
+}
+
+static void SetupCodes() {
+    auto cat = *ParseCatalog(kCatalogJson);
+    CatalogItem sync = CrabSyncItem(kSyncIni);
+    Setup all;
+    all.crabSync = all.crabMods = true;
+    std::string code = MakeSetupCode(cat, &sync, all);
+    CHECK(code.rfind("CRAB2-S;M-", 0) == 0 && code.size() == 14);
+    auto back = ReadSetupCode(cat, &sync, code);
+    CHECK(back && back->crabSync && back->crabMods && back->on["hoarder"] && back->on["martyr"] && back->unknown == 0);
+
+    Setup s;
+    s.crabMods = true;
+    s.on["martyr"] = false;
+    s.values["hoarder"]["damagePercent"] = "5";
+    s.values["hoarder"]["rarity"] = "legendary";  // the default: not in the code
+    s.values["keyTotem"]["menu"] = "false";
+    s.values["martyr"]["name"] = "a;b=c d%";
+    code = MakeSetupCode(cat, &sync, s);
+    CHECK(code.find("legendary") == std::string::npos && code.find("keyTotem.menu=0") != std::string::npos);
+    CHECK(code.find(' ') == std::string::npos);
+    back = ReadSetupCode(cat, &sync, "  " + code.substr(0, 9) + "\r\n" + code.substr(9));
+    CHECK(back && !back->crabSync && back->crabMods && !back->on["martyr"] && back->on["hoarder"]);
+    CHECK(back && back->values["hoarder"]["damagePercent"] == "5" && back->values["keyTotem"]["menu"] == "false");
+    CHECK(back && back->values["martyr"]["name"] == "a;b=c d%");
+
+    // Mostly off: listed as the ones that are on.
+    Setup few;
+    few.crabMods = true;
+    few.on = {{"hoarder", false}, {"keyTotem", false}, {"martyr", true}};
+    code = MakeSetupCode(cat, nullptr, few);
+    CHECK(code.find(";0;+martyr") != std::string::npos || code.find("0;+martyr") == 6);
+    back = ReadSetupCode(cat, nullptr, code);
+    CHECK(back && !back->on["hoarder"] && !back->on["keyTotem"] && back->on["martyr"]);
+
+    // Damaged, cut short, other things.
+    std::string bad = code;
+    bad[7] = bad[7] == 'x' ? 'y' : 'x';
+    CHECK(!ReadSetupCode(cat, nullptr, bad));
+    CHECK(!ReadSetupCode(cat, nullptr, code.substr(0, code.size() - 1)));
+    CHECK(!ReadSetupCode(cat, nullptr, "CRAB1-abc"));
+    // A newer version's item or setting is counted, not used.
+    std::string payload = "M;-newThing;hoarder.newKey=1";
+    back = ReadSetupCode(cat, nullptr, kSetupPrefix + payload + "-" + CodeCheck(payload));
+    CHECK(back && back->unknown == 2 && back->on["hoarder"]);
+
+    std::string ini = SetupIni(s, {&cat.items[0], &cat.items[2]});
+    IniValues v = ReadIni(ini);
+    CHECK(v["hoarder"]["enabled"] == "true" && v["hoarder"]["damagePercent"] == "5" && v["martyr"]["enabled"] == "false");
+    CHECK(ReadIni(SetupIni(s, {&sync}))[""]["chestHealthCost"] == "split");
+}
+
+// The catalog of the CrabMods.dll next to the test, as the manager reads it.
+static void RealCatalog() {
+    HMODULE dll = LoadLibraryW(L"CrabMods.dll");
+    auto fn = dll ? reinterpret_cast<const char* (*)()>(GetProcAddress(dll, "CrabModsCatalog")) : nullptr;
+    CHECK(fn);
+    if (!fn) return;
+    auto cat = ParseCatalog(fn());
+    CHECK(cat && cat->items.size() >= 30);
+    if (!cat) return;
+    int toggles = 0;
+    for (const CatalogItem& it : cat->items) {
+        toggles += it.toggle;
+        if (it.about.empty() || it.name.empty() || it.kind.empty()) std::printf("  incomplete: %s\n", it.section.c_str());
+        CHECK(!it.about.empty() && !it.name.empty());
+        for (const Setting& s : it.settings)
+            if (s.key == "rarity") CHECK(s.type == Setting::Choice);
+    }
+    CHECK(toggles == int(cat->items.size()));
+    Setup all;
+    all.crabMods = true;
+    CHECK(MakeSetupCode(*cat, nullptr, all).size() == 12);
+    // A new ini from the catalog is what CrabMods writes itself, so the item defaults agree.
+    for (const CatalogItem& it : cat->items) CHECK(ItemOn(ReadIni(DefaultCrabModsIni(*cat)), it));
+    HMODULE sync = LoadLibraryW(L"CrabSync.dll");
+    auto ini = sync ? reinterpret_cast<const char* (*)()>(GetProcAddress(sync, "CrabSyncDefaultIni")) : nullptr;
+    CHECK(ini && CrabSyncItem(ini()).settings.size() > 10);
+}
+
 int main() {
     Versions();
     Releases();
@@ -189,6 +327,9 @@ int main() {
     Merge();
     Libraries();
     Crashes();
+    CatalogParsing();
+    SetupCodes();
+    RealCatalog();
     std::printf(g_failures ? "manager tests: %d FAILED\n" : "manager tests: all passed\n", g_failures);
     return g_failures ? 1 : 0;
 }

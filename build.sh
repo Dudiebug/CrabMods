@@ -54,13 +54,16 @@ BEGIN
   END
 END
 EOF
-    "$TC/x86_64-w64-mingw32-windres" "$OUT/obj/$1.rc" -O coff -o "$OUT/obj/$1.res.o"
+    [ -n "${5:-}" ] && echo "$5" >>"$OUT/obj/$1.rc"
+    "$TC/x86_64-w64-mingw32-windres" --include-dir manager "$OUT/obj/$1.rc" -O coff -o "$OUT/obj/$1.res.o"
 }
 version_of() { sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' "$1"; }
 version_res loader 1.0.0 "Crab Champions mod loader" xinput1_3.dll
 version_res CrabSync "$(version_of crabsync/main.cpp)" "CrabSync for Crab Champions" CrabSync.dll
 version_res CrabMods "$(version_of crabmods/main.cpp)" "CrabMods for Crab Champions" CrabMods.dll
-version_res manager "$(version_of manager/main.cpp)" "CrabMods Manager" CrabModsManager.exe
+# The manager also carries its font (resource 2).
+version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" CrabModsManager.exe \
+    "2 RCDATA \"$PWD/manager/fonts/Roboto-Medium.ttf\""
 
 # The mod loader: the game imports xinput1_3.dll, so Windows loads it, and it loads the other DLLs beside it.
 "$CXX" "${CXXFLAGS[@]}" loader/xinput_proxy.cpp loader/xinput1_3.def "$OUT/obj/loader.res.o" "${LDFLAGS[@]}" \
@@ -72,9 +75,17 @@ version_res manager "$(version_of manager/main.cpp)" "CrabMods Manager" CrabMods
 "$CXX" "${CXXFLAGS[@]}" crabmods/main.cpp crabmods/items/*.cpp "${MH_OBJS[@]}" "$OUT/obj/CrabMods.res.o" \
     "${LDFLAGS[@]}" -o "$OUT/CrabMods.dll"
 
-# The manager: a Windows program (it runs under wine too).
-"$CXX" "${CXXFLAGS[@]}" manager/main.cpp "$OUT/obj/manager.res.o" -municode -mwindows -static -s \
-    -lwinhttp -lcomctl32 -lshell32 -lole32 -lversion -o "$OUT/CrabModsManager.exe"
+# The manager: a Windows program (it runs under wine too), drawn with Dear ImGui on Direct3D 11.
+IMGUI=third_party/imgui
+IMGUI_OBJS=()
+for f in "$IMGUI"/imgui.cpp "$IMGUI"/imgui_draw.cpp "$IMGUI"/imgui_tables.cpp "$IMGUI"/imgui_widgets.cpp \
+    "$IMGUI"/backends/imgui_impl_win32.cpp "$IMGUI"/backends/imgui_impl_dx11.cpp; do
+    o="$OUT/obj/imgui_$(basename "${f%.cpp}").o"
+    [ "$o" -nt "$f" ] || "$CXX" -std=c++20 -O2 -I"$IMGUI" -c "$f" -o "$o"
+    IMGUI_OBJS+=("$o")
+done
+"$CXX" "${CXXFLAGS[@]}" -I"$IMGUI" manager/main.cpp "${IMGUI_OBJS[@]}" "$OUT/obj/manager.res.o" -municode -mwindows -static -s \
+    -lwinhttp -lcomctl32 -lshell32 -lole32 -lversion -ld3d11 -ldxgi -ld3dcompiler -ldwmapi -lgdi32 -limm32 -o "$OUT/CrabModsManager.exe"
 
 "$CXX" "${CXXFLAGS[@]}" tests/ledger_test.cpp crabsync/ledger.cpp -static -o "$OUT/ledger_test.exe"
 "$CXX" "${CXXFLAGS[@]}" tests/manager_test.cpp -static -o "$OUT/manager_test.exe"

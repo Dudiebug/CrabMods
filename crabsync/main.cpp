@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.4";
+constexpr const char kVersion[] = "1.0.5";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -554,8 +554,11 @@ DWORD WINAPI Init(LPVOID) {
 
 }  // namespace
 
+// For CrabMods Manager, which loads the DLL to read it (outside the game, so DllMain does nothing).
+extern "C" __declspec(dllexport) const char* CrabSyncDefaultIni() { return kDefaultIni; }
+
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
-    if (reason == DLL_PROCESS_ATTACH) {
+    if (reason == DLL_PROCESS_ATTACH && GetModuleHandleW(L"CrabChampions-Win64-Shipping.exe")) {
         DisableThreadLibraryCalls(inst);
         // Hooks go in off the loader lock.
         CloseHandle(CreateThread(nullptr, 0, Init, nullptr, 0, nullptr));

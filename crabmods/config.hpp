@@ -133,4 +133,28 @@ inline LoadResult LoadConfig(const std::wstring& path, const std::wstring& oldAr
     return r;
 }
 
+// What CrabMods Manager shows: every item with its name, kind, default rarity and default settings, as JSON
+// ({"header": "...", "items": [{"section", "name", "kind", "rarity", "ini"}, ...]}).
+inline std::string CatalogJson() {
+    auto str = [](const std::string& s) {
+        std::string r = "\"";
+        for (unsigned char c : s) {
+            if (c == '"' || c == '\\') r += '\\', r += char(c);
+            else if (c == '\n') r += "\\n";
+            else if (c < 0x20) r += ' ';
+            else r += char(c);
+        }
+        return r + "\"";
+    };
+    std::string j = "{\"header\":" + str(kIniHeader) + ",\"items\":[";
+    bool first = true;
+    for (Item* i : SortedItems()) {
+        j += first ? "{" : ",{";
+        first = false;
+        j += "\"section\":" + str(i->Section()) + ",\"name\":" + str(i->Title()) + ",\"kind\":" + str(i->CatalogKind()) +
+             ",\"rarity\":" + str(i->CatalogRarity()) + ",\"ini\":" + str(i->DefaultIni()) + "}";
+    }
+    return j + "]}";
+}
+
 }  // namespace crabmods
