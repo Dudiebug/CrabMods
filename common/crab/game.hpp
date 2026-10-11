@@ -416,6 +416,11 @@ constexpr int Widget_Slot = 0x28;            // UPanelSlot*
 constexpr int UserWidget_WidgetTree = 0x1D8;
 constexpr int Button_WidgetStyle = 0x128;   // FButtonStyle (SetStyle's parameter)
 constexpr int Button_OnClicked = 0x3C8;     // FMulticastScriptDelegate
+// FButtonStyle (0x278): its Normal / Hovered / Pressed brushes' tint colours (FLinearColor)
+constexpr int ButtonStyle_Size = 0x278;
+constexpr int ButtonStyle_NormalTint = 0x28;
+constexpr int ButtonStyle_HoveredTint = 0xB0;
+constexpr int ButtonStyle_PressedTint = 0x138;
 constexpr int FocusMenu_Focusable = 0x2C8;  // TArray<UWidget*>: what gamepad focus moves between
 constexpr int FocusMenu_Canvas = 0x358;     // MenuCanvasPanel
 constexpr int Prompt_MessageText = 0x3E0;

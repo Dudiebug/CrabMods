@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.5.1
+
+- **Key totem menu**: the item cards sit on a dark, nearly opaque plate, so they are no longer see-through over the blurred game. The plate lightens when you hover or press a card.
+
 ### 0.5.0
 
 - **Key totem menu**: the lobby's key totem now opens a menu instead of dropping a row of items. It is the game's own confirmation prompt with the items' own pickup cards as buttons: click one (or select it with a gamepad) and it is unlocked and comes out of the totem. It works with **any host**, CrabMods or not. `menu = false` brings back the row.

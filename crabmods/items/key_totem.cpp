@@ -243,11 +243,18 @@ private:
         if (!grid) return false;
         ui::Margin gap{8, 8, 8, 8};
         ui::Call(grid, L"SetSlotPadding", &gap);
+        // The YES button's look with a dark, nearly opaque plate: the cards are see-through (made to float over
+        // the world), and the YES button's own plate is a faint white.
+        alignas(8) uint8_t style[off::ButtonStyle_Size];
+        std::memcpy(style, &At<uint8_t>(yes, off::Button_WidgetStyle), sizeof style);
+        At<ui::LinearColor>(style, off::ButtonStyle_NormalTint) = {0.01f, 0.01f, 0.02f, 0.92f};
+        At<ui::LinearColor>(style, off::ButtonStyle_HoveredTint) = {0.3f, 0.3f, 0.36f, 0.96f};
+        At<ui::LinearColor>(style, off::ButtonStyle_PressedTint) = {0.5f, 0.5f, 0.56f, 1.f};
         for (int i = 0; i < n; i++) {
             void* btn = ui::NewWidget(w, va::UButton_StaticClass);
             void* card = ui::CreateWidget(pc, At<void*>(das[i], off::DA_InteractUIClass));
             if (!btn || !card) return false;
-            ui::Call(btn, L"SetStyle", &At<uint8_t>(yes, off::Button_WidgetStyle));  // the YES button's look
+            ui::Call(btn, L"SetStyle", style);
             FillCard(card, das[i], n > 3);
             ui::SetVisibility(card, ui::HitTestInvisible);  // the button takes the clicks
             ui::SetPadding(ui::SetContent(btn, card), {6, 6, 6, 6});
