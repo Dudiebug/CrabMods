@@ -17,6 +17,11 @@ namespace crabmods {
 
 using namespace crab;
 
+// Relic types some item may grant (Item::GrantsRelic); set by those items' constructors.
+inline bool g_grantedRelics[256] = {};
+// Perk types some item adds a buff to (Item::PerkBuff); set by those items' constructors.
+inline bool g_grantedPerks[256] = {};
+
 class Item;
 inline std::vector<Item*>& Items() {
     static std::vector<Item*> items;
@@ -94,6 +99,15 @@ public:
     // Weapon fire, on the machine that controls the player (its shots deal the damage; the others see copies).
     // true: this player's next shot falls from above the aim point, the way Ice Staff fires.
     virtual bool ShotsFromAbove(void* ps) { return false; }
+    // Every machine: does the player count as holding this relic (ACrabPS::HasRelic) though they don't? Only
+    // asked for relic types in g_grantedRelics.
+    virtual bool GrantsRelic(void* ps, uint8_t relicType) { return false; }
+    // Every machine: buff added to the game's ACrabPS::GetPerkBuff(perkType), as if the player held more of
+    // that perk. Only asked for perk types in g_grantedPerks.
+    virtual float PerkBuff(void* ps, uint8_t perkType) { return 0.f; }
+    // Every machine: the line under an item in the inventory menu's details (as the game's "Current damage
+    // bonus: 12%"), for the item da the player holds; empty if it isn't this item's.
+    virtual std::string InventoryNote(void* ps, void* da) { return {}; }
     // One projectile of a player's shot is about to appear at start, flying along dir; items may change both.
     // weapon: ACrabWeapon*.
     virtual void OnShot(void* weapon, void* ps, Vec3& start, Vec3& dir) {}
@@ -260,6 +274,28 @@ public:
     Kind GetKind() const { return spec_.kind; }
     // The player's total level of this item, 0 if not held.
     int Level(void* ps) const { return da_ ? LevelOf(ps, spec_.kind, da_) : 0; }
+
+    // What the item gives the player right now: its damage, fire rate and max health bonus (those it has).
+    std::string InventoryNote(void* ps, void* da) override {
+        if (!da || da != da_ || !ps) return {};
+        std::string s;
+        auto line = [&](const char* what, float f) {
+            if (f == 0.f) return;
+            if (!s.empty()) s += "\n";
+            s += std::string("Current ") + what + ": " + (f > 0 ? "+" : "") + Num(Round(f * 100.f)) + "%";
+        };
+        line("damage bonus", DamageBonus(ps));
+        line("fire rate bonus", FireRateBonus(ps));
+        line("max health bonus", MaxHealthMultiplierBonus(ps));
+        return s;
+    }
+    // A count line before the bonus lines, for items that count something.
+    std::string CountNote(void* ps, void* da, const std::string& what, int n) {
+        if (!da || da != da_) return {};
+        std::string s = what + ": " + std::to_string(n), bonus = AssetItem::InventoryNote(ps, da);
+        return bonus.empty() ? s : s + "\n" + bonus;
+    }
+    static float Round(float f) { return float(int(f * 10.f + (f < 0 ? -0.5f : 0.5f))) / 10.f; }
     uint8_t Rarity() const { return rarity_; }
 
 protected:

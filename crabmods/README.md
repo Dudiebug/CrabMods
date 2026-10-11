@@ -24,8 +24,8 @@
 | **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
 | **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
-| **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +10% damage. |
-| **Hellshooter** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +10% damage. |
+| **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +35% damage. |
+| **Hellshot** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +35% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
 
 ### Health and fire rate
@@ -54,6 +54,8 @@
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
+| **Enhanced Turrets** | ability mod | Common | The game's Enhanced Turrets perk, as an ability mod: more turret damage per level, as much as the perk gave. It drops only with a turret ability. The perk no longer drops. |
+| **Portal Shot** | perk | Legendary | Replaces the Portal Amulet relic: your shots fire from the nearest enemy, and each level adds +20% damage. Portal Amulet no longer drops. |
 
 ### Weapon
 
@@ -88,17 +90,17 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 | **Ring of the Grave** | relic | Epic | Your undead have **25%** more health and damage. |
 | **Phylactery** | relic | Legendary | Once per island, a hit that would down you is cancelled and you're left at half health or more. It spends all your souls, and needs at least **50**. |
 
-### Inventory slots
+### Charms (inventory slots)
 
-One Legendary per inventory group. Each level gives that group **5 more slots**, so stacking one makes room for more. The inventory menu scrolls once the slots no longer fit.
+Charms are a kind of item of their own, and they're what give you more inventory space. There is one Legendary charm per inventory group. Each level gives that group **5 more slots**. A second copy of a charm adds its levels to the one you have. Charms never take a relic slot. They have their own **CHARMS** section in the inventory and their own tab in the key totem menu. The inventory menu scrolls once the slots no longer fit.
 
-| Item | Type | Rarity | Effect |
-|---|---|---|---|
-| **Bandolier** | weapon mod | Legendary | +5 weapon mod slots per level. |
-| **Tool Belt** | ability mod | Legendary | +5 ability mod slots per level. |
-| **Scabbard** | melee mod | Legendary | +5 melee mod slots per level. |
-| **Backpack** | perk | Legendary | +5 perk slots per level. |
-| **Reliquary** | relic | Legendary | +5 relic slots (the game allows 10 relics). Relics don't stack, so it's +5 once. |
+| Charm | Rarity | Effect |
+|---|---|---|
+| **Bandolier** | Legendary | +5 weapon mod slots per level. |
+| **Tool Belt** | Legendary | +5 ability mod slots per level. |
+| **Scabbard** | Legendary | +5 melee mod slots per level. |
+| **Backpack** | Legendary | +5 perk slots per level. |
+| **Reliquary** | Legendary | +5 relic slots per level (the game allows 10 relics). |
 
 ### Game changes
 
@@ -175,7 +177,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
 | `[communitySupport]` | `fireRatePercent` | `12` | Per Community Support in range (Rapid Fire's is 12). |
 | | `rangeMeters` | `20` | |
-| `[bulletRain]`, `[hellshooter]` | `damagePercent` | `10` | |
+| `[bulletRain]`, `[hellshot]` | `damagePercent` | `35` | |
 | `[meleeMods]` | `sharpClawsPercent` | `200` | Game: 100. |
 | | `timeClawsPercent` | `300` | Game: 150. |
 | | `ironClawsPercent` | `500` | Game: 300. |
@@ -242,10 +244,13 @@ The effects:
 - **Collateral Damage**: on the host, every destructible reports the hit that breaks it, with the player who dealt it (or the last player who hit it, for explosions). Breaks only count during an island's fight, and not the landmines, homing barrels and mushrooms players' own items spawn. The bonus is kept in the perk's own counter, which the game sends to every player.
 - **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
 - **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
-- **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshooter leaves every other shot alone, so they alternate between the sky and the ground.
+- **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshot** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshot leaves every other shot alone, so they alternate between the sky and the ground.
 - **Martyr**: the revive bubble is the game's revival harvest area. Every machine sets a holder's bubble radius (which the host checks for reviving teammates) and its effect's size to the base radius times their Magnify. Four times a second the host fires the game's radial damage (Explosive Armor's) from the bubble's centre, with the downed character as its source, so the enemy-only filter, Magnify and kill credit work as they do for the game's explosions. The damage is the basic crab's base health (15) times the enemy health multiplier the game sets for each wave.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
+- **Charms** are relics underneath, so they cost the game nothing new to send or save. The host merges a second copy into the one held (adding levels) instead of adding another. Relic slot checks leave charms out. The inventory menu's relic list leaves them out too, and CrabMods adds a CHARMS heading and grid under it for them.
+- **Portal Shot** answers "yes" when the weapon asks whether its owner holds Portal Amulet (ACrabPS::HasRelic), on every machine. **Enhanced Turrets** adds its buff to the game's lookup of the Enhanced Turrets perk, which is where turret projectiles get their damage bonus.
+- **Inventory lines**: the details under the selected item come from the game's own line (UCrabInventoryUI's accumulated buff row). CrabMods fills it in for its items, and for game items with a built-up buff but no line of their own.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
 - **Reliquary**: relics have no slot count; the game allows 10, both when checking whether you can take a relic and in the inventory menu. On every machine, CrabMods raises both by the Reliquary's slots (worked out from the inventory, which everyone sees).
 - **Soul Whip**: a copy of the Sniper's weapon asset (with its own projectile: the Arcane Wand's purple orb, slowed so you can see it, which bursts on a hit or at the whip's reach) given the Lightning Scepter's swing, crosshair and aiming, added to the lobby's weapon list before the game builds it. The whip's damage multiplies the hit where the host totals a player's damage. The machine of the player who cracks it sends where the crack landed to the host, which tags the enemies there. Raise keys are read on your machine (only with the game window in front, no menu open and the chat closed) and sent to the host in the same hidden way, over the game's chat call. The host keeps everyone's souls and the kinds they can raise, spawns the undead through the game's own enemy spawn (outside the island's enemy count, so the island can still end), and tells every player where, so their machines tint them too. Who can hurt whom is one game function, which CrabMods answers for undead (enemies and undead: yes; players and undead: no); who an enemy goes after is another, which CrabMods follows with its own pick. An undead's death drops nothing, and its kills count as its owner's. The ability key does nothing while you hold the whip. Its pedestal is a copy of the Crossbow's stone, placed by every machine one gap left of it each time the lobby loads (and taken away on islands, which load into the lobby's world); the host spawns the pickup on it, which the game sends to everyone. Its looks and sounds come inside `CrabMods.dll`: on start, every machine builds the whip's meshes and the HUD's pictures from them through the engine's own run-time mesh and texture functions. The lash is a chain of mesh pieces drawn on each machine (no physics: a droop, a sway and a trail behind as you move), which cracks whenever the weapon's shot count (sent by the game) goes up: it unrolls out toward where the shot lands, holds, and falls back. The glow is the whip's palette at eight brightnesses, a material each, swapped on the pieces as a wave. The sounds play through a little mixer of CrabMods' own, since the engine can't load a sound at run time.
@@ -264,7 +269,7 @@ The effects:
 - **Key totem**: the menu stays open until you choose (the keys are already spent). With `menu = false`, the unlock happens when you take one of the items, and walking away without taking one unlocks nothing. A new unlock joins the loot on the next level, as in the game.
 - **Scabbard** uses Big Claws' icon: the game has no plain melee mod icon.
 - **Slot items** are tested only by reading the game's code, not in play: if the inventory menu looks wrong with extra slots, please open an issue with your `CrabMods.log`.
-- **Hellshooter** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
+- **Hellshot** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
 - **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
 - **Soul Whip** is tested only by reading the game's code, not in play yet: its pedestal, model, lash, HUD and sounds are all new and unchecked in game. If its art can't be built on your machine, it falls back to the Sniper's look (your log says why). Its sounds don't follow the game's volume settings (`soundVolume` sets them). It isn't kept as your weapon between runs. If something looks wrong, please open an issue with your `CrabMods.log`.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.

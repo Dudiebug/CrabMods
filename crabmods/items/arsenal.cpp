@@ -63,6 +63,15 @@ countStacks = false
         return level * others * pct_ * 0.01f;
     }
 
+    std::string InventoryNote(void* ps, void* da) override {
+        if (!da || da != da_) return {};
+        int others = 0;
+        ForEachItem(ps, off::PS_WeaponMods, [&](void* d, int l) {
+            if (d != da_) others += countStacks_ ? l : 1;
+        });
+        return CountNote(ps, da, "Other weapon mods counted", others);
+    }
+
     bool countStacks_ = false;
 
 protected:

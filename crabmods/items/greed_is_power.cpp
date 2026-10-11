@@ -44,6 +44,15 @@ rarity = greed
         return level * greedLevels * pct_ * 0.01f;
     }
 
+    std::string InventoryNote(void* ps, void* da) override {
+        if (!da || da != da_) return {};
+        int greedLevels = 0;
+        ForEachItem(ps, off::PS_Perks, [&](void* d, int l) {
+            if (At<uint8_t>(d, off::DA_Rarity) == rarity::Greed || d == da_) greedLevels += l;
+        });
+        return CountNote(ps, da, "Greed perk levels counted", greedLevels);
+    }
+
 protected:
     float PrimaryBuff() const override { return pct_; }
 

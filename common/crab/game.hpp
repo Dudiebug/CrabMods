@@ -54,6 +54,8 @@ constexpr uintptr_t ACrabPS_AddWeaponMod = 0x140d210a0;       // void(ACrabPS*, 
 constexpr uintptr_t ACrabPS_AddAbilityMod = 0x140d1fd60;
 constexpr uintptr_t ACrabPS_AddMeleeMod = 0x140d20140;
 constexpr uintptr_t ACrabPS_AddPerk = 0x140d20520;
+// void(ACrabPS*, const FCrabRelic*): appends it (never merges: the same relic again is a second entry),
+// broadcasts OnInventoryChanged and calls the owner's ClientOnPickedUpPickup(DA, 1).
 constexpr uintptr_t ACrabPS_AddRelic = 0x140d20930;
 constexpr uintptr_t ACrabPS_RemoveWeaponMod = 0x140d299d0;    // void(ACrabPS*, uint8 Type)
 constexpr uintptr_t ACrabPS_RemoveAbilityMod = 0x140d29650;
@@ -214,6 +216,9 @@ constexpr const wchar_t* GameplayStaticsPath = L"/Script/Engine.Default__Gamepla
 // save and asks the server (ServerSpawnKeyTotemPickup RPC) to spawn it in front of the totem. The server spawns
 // whatever it is asked for.
 constexpr uintptr_t ACrabTotem_Interact = 0x140cb5860;
+// AActor::ProcessEvent (an actor's virtual 0x220): every blueprint / RPC call on an actor, e.g. the player
+// character's ServerInteract(ACrabInteractable*) when it is sent.
+constexpr uintptr_t AActor_ProcessEvent = 0x14208b200;
 constexpr uintptr_t ACrabPC_ClientOnInteractedWithKeyTotem_Impl = 0x140d095f0;  // void(ACrabPC*, ACrabTotem*)
 constexpr uintptr_t ACrabPC_ServerSpawnKeyTotemPickup = 0x140d7bb70;  // RPC: void(ACrabPC*, ACrabTotem*, DA*)
 constexpr uintptr_t ACrabPC_VTable = 0x143244480;
@@ -315,6 +320,18 @@ constexpr uintptr_t ACrabPS_ApplyChallengeSlots = 0x140d28d10;  // void(ACrabPS*
 // Relics have no slot count: the game allows 10 (only a pickup's check and the menu know it).
 constexpr uintptr_t ACrabPS_CanPickupRelic = 0x140d22c30;  // bool(ACrabPS*, uint8 RelicType): not held && Num < 10
 constexpr uintptr_t UCrabInventoryUI_SetupGrid = 0x140d5e170;  // void(UI*, grid, uint8 count): slot i > count locked
+// void(UCrabInventorySlotUI*, UCrabPickupDA*, const FCrabInventoryInfo*): shows that item in the slot (Refresh
+// calls it for item i of a grid, after SetupGrid).
+constexpr uintptr_t InventorySlotUI_Set = 0x140d59830;
+// void(UCrabInventoryUI*, UCrabPickupDA*, float AccumulatedBuff): the details' "Current damage bonus" / "Total
+// health healed" line (+0x488, its row +0x480), shown only for the game's own list of items.
+constexpr uintptr_t UCrabInventoryUI_ShowAccumulatedBuff = 0x140d5d060;
+// TArray<FCrabRelic>*(ACrabPS*, TArray<FCrabRelic>* Out): a copy of the relics (Refresh lays out the relic grid
+// from it, then frees it).
+constexpr uintptr_t ACrabPS_GetRelics = 0x140d25a60;
+// The pickup message on the player's own machine (a relic's, from ACrabPS::AddRelic).
+constexpr uintptr_t ACrabPC_StaticClass = 0x140d7af40;
+constexpr uintptr_t ACrabPC_ClientOnPickedUpPickup = 0x140d7b720;  // void(ACrabPC*, UCrabPickupDA*, uint8 Level)
 constexpr uintptr_t UCrabMeleeModDA_StaticClass = 0x140d7a240;
 
 // Necromancer (Soul Whip, undead), host unless noted
@@ -590,6 +607,8 @@ constexpr int WrapBox_bExplicitWrapSize = 0x131;
 constexpr int InventoryUI_Grids[4] = {0x400, 0x408, 0x410, 0x418};  // weapon mod, ability mod, melee mod, perk grids
 constexpr int InventoryUI_RelicGrid = 0x420;
 constexpr int InventoryUI_OwningPS = 0x3E0;
+constexpr int InventoryUI_AccumulatedBuffRow = 0x480;   // UHorizontalBox
+constexpr int InventoryUI_AccumulatedBuffText = 0x488;  // UTextBlock
 constexpr int InventorySlotUI_Button = 0x2F0;
 constexpr int UniformGridSlot_Row = 0x3C;
 constexpr int UniformGridSlot_Column = 0x40;
@@ -691,6 +710,8 @@ constexpr uint8_t AbilityMod_HeatSink = 11;   // ECrabAbilityModType
 constexpr uint8_t MeleeMod_BigClaws = 2;      // ECrabMeleeModType; the enum ends at Brawler = 12
 constexpr uint8_t Perk_Banana = 6;            // max health multiplier +20%
 constexpr uint8_t Perk_Magnify = 39;          // area of effect +20%
+// Turret damage: a turret's projectile damage x (1 + GetPerkBuff(EnhancedTurrets)), set in 0x140d64840.
+constexpr uint8_t Perk_EnhancedTurrets = 51;
 constexpr uint8_t Relic_RingOfDefense = 21;   // ECrabRelicType
 constexpr uint8_t Relic_RingOfFury = 27;
 constexpr uint8_t Relic_FireRing = 31;        // ECrabRelicType; the enum ends at RushedRing = 67

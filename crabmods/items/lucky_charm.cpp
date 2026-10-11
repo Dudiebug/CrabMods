@@ -7,11 +7,13 @@
 // The game's pickup card never shows a level, so every machine adds it to the name of a pickup above level 1
 // ("Vitality (Lv 2)").
 #include <random>
+#include <iterator>
 #include <string>
 
 #include <crab/hook.hpp>
 
 #include "../item.hpp"
+#include "shared.hpp"
 
 namespace crabmods {
 namespace {
@@ -74,12 +76,19 @@ private:
     using SetupUIFn = void (*)(void*);
     static inline SetupUIFn oSetupUI;
 
-    // After the game fills the card from the DA, puts the pickup's level after its name.
+    // After the game fills the card from the DA, puts the pickup's level after its name. A charm's card (any
+    // charm, this is the only hook on the card) says "Charm" in the charms' colour.
     static void HkSetupUI(void* pickup) {
         oSetupUI(pickup);
         void* card = At<void*>(pickup, off::Pickup_UI);
         void* da = At<void*>(pickup, off::Pickup_PickupInfo + off::PickupInfo_DA);
         uint8_t level = At<uint8_t>(pickup, off::Pickup_PickupInfo + off::PickupInfo_Level);
+        if (card && IsCharm(da)) {
+            wchar_t type[] = L"Charm";
+            TArray<wchar_t> ts{type, int(std::size(type)), int(std::size(type))};
+            Fn<void (*)(void*, const void*)>(va::InteractUI_SetType)(card, &ts);
+            Fn<void (*)(void*, const float*)>(va::InteractUI_SetRarityColor)(card, kCharmColor);
+        }
         if (!card || !da || level < 2) return;
         const auto& name = At<TArray<wchar_t>>(da, off::DA_Name);
         std::wstring s = name.Data && name.Num > 1 ? std::wstring(name.Data, name.Num - 1) : L"";

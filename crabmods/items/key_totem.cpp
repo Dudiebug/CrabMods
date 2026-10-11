@@ -67,6 +67,7 @@ choices = 3
     // forgets it on a new level (its widgets are gone).
     void OnTick(void* world) override {
         CleanSave(world);
+        if (parked_.totem && LevelManagerOf(world) != parked_.lm) parked_ = {};
         if (!open_.widget) return;
         if (LevelManagerOf(world) != open_.lm) {
             open_ = {};
@@ -113,6 +114,7 @@ choices = 3
                     &oNextSubmenu, "UCrabConfirmationPromptUI::NextSubmenu");
         SwapVirtual(va::UCrabConfirmationPromptUI_VTable + va::FocusMenu_PreviousSubmenu_Slot, &HkPreviousSubmenu,
                     &oPreviousSubmenu, "UCrabConfirmationPromptUI::PreviousSubmenu");
+        Hook(va::AActor_ProcessEvent, &HkActorEvent, &oActorEvent, "AActor::ProcessEvent");
         Hook(va::ACrabTotem_Interact, &HkTotemInteract, &oTotemInteract, "ACrabTotem::Interact");
         Hook(va::ACrabPC_ClientOnInteractedWithKeyTotem_Impl, &HkInteracted, &oInteracted,
              "ACrabPC::ClientOnInteractedWithKeyTotem");
@@ -187,7 +189,7 @@ private:
     struct Candidate {
         void* da;
         int list;  // which unlockables list: weapons, abilities, melee, weapon mods, ability mods, melee mods,
-                   // perks, relics
+                   // perks, relics; kCharmList for a charm
         bool locked;
     };
 
@@ -233,7 +235,7 @@ private:
             if (!da || std::any_of(out.begin(), out.end(), [&](const Candidate& c) { return c.da == da; })) continue;
             for (int j = 0; j < 5; j++)
                 if (IsA(da, StaticClass(kKinds[j]))) {
-                    out.push_back({da, 3 + j, false});
+                    out.push_back({da, IsCharm(da) ? kCharmList : 3 + j, false});
                     break;
                 }
         }
@@ -277,13 +279,14 @@ private:
     // Clicks and typing are caught by binding them to UUserWidget::CancelLatentActions (hooked): a card's click on
     // the card, a tab's on a hidden card kept for it (its relay), the search box's typing on the menu itself.
 
+    static constexpr int kCharmList = 8;
     static constexpr int32_t kMenuZOrder = 2;  // as the game's menus
-    static constexpr int kTabs = 10;  // all, locked, then one per unlockables list
+    static constexpr int kTabs = 11;  // all, locked, then one per unlockables list, then charms (list 8)
     static constexpr int kLockedTab = 1;
     static constexpr const wchar_t* kTabNames[kTabs] = {L"ALL",         L"LOCKED",      L"WEAPONS",
                                                         L"ABILITIES",   L"MELEE",       L"WEAPON MODS",
                                                         L"ABILITY MODS", L"MELEE MODS", L"PERKS",
-                                                        L"RELICS"};
+                                                        L"RELICS",      L"CHARMS"};
     static constexpr float kListWidth = 1300.f;  // three 400-wide cards on their plates, with the gaps
     static constexpr float kListHeight = 600.f;
 
@@ -502,6 +505,7 @@ private:
         uint8_t type = At<uint8_t>(da, off::DA_PickupType), rarity = At<uint8_t>(da, off::DA_Rarity);
         std::wstring t = type < std::size(kTypes) ? kTypes[type] : L"";
         if (type > 3 && rarity < std::size(kRarities) && *kRarities[rarity]) t = std::wstring(kRarities[rarity]) + L" " + t;
+        if (IsCharm(da)) t = L"Charm";
         if (locked) t = L"Locked " + t;
         TArray<wchar_t> ts{t.data(), int(t.size()) + 1, int(t.size()) + 1};
         Fn<void (*)(void*, void*)>(va::InteractUI_SetIcon)(card, At<void*>(da, off::DA_Icon));
@@ -511,6 +515,7 @@ private:
                                                                         &At<TArray<wchar_t>>(da, off::DA_Description));
         ui::LinearColor color{};
         Fn<void* (*)(void*, ui::LinearColor*)>(va::PickupDA_GetRarityColor)(da, &color);
+        if (IsCharm(da)) color = {kCharmColor[0], kCharmColor[1], kCharmColor[2], kCharmColor[3]};
         Fn<void (*)(void*, const ui::LinearColor*)>(va::InteractUI_SetRarityColor)(card, &color);
         Fn<void (*)(void*, uint8_t)>(va::InteractUI_SetLootPool)(card, At<uint8_t>(da, off::DA_LootPool));
         if (void* pickUp = At<void*>(card, off::InteractUI_InteractMessageText))
@@ -603,13 +608,19 @@ private:
         if (void* hud = At<void*>(pc, off::PC_HUD)) Fn<void (*)(void*, bool)>(va::UI_SetShown)(hud, false);
     }
 
-    void Choose(size_t i) {
+    // The menu goes away and the game's input comes back; what was open is returned.
+    Menu Close() {
         Menu m = std::move(open_);
         open_ = {};
         CallVirtual(m.widget, va::FocusMenu_PressSound_Slot);
         ui::RemoveFromParent(m.widget);
         if (At<void*>(m.pc, off::PC_OpenMenu) == m.widget)
             Fn<void (*)(void*)>(va::ACrabPC_CloseMenuRestoreGame)(m.pc);
+        return m;
+    }
+
+    void Choose(size_t i) {
+        Menu m = Close();
         void* da = m.items[i].da;
         void* gi = GameInstanceOf(m.pc);
         bool unlock = m.items[i].locked && gi && !Unlocked(gi, da);
@@ -667,10 +678,44 @@ private:
         return true;
     }
 
-    // Escape and the gamepad's back button close a menu only if it allows it.
+    // Escape and the gamepad's back button close a menu only if it allows it. Ours closes itself, without a
+    // choice (the totem can be used again); the game isn't let close it as its own prompt (that would be NO).
     using CanCloseFn = bool (*)(void*);
     static inline CanCloseFn oCanClose;
-    static bool HkCanClose(void* w) { return w != g_self->open_.widget && oCanClose(w); }
+    static bool HkCanClose(void* w) {
+        if (!w || w != g_self->open_.widget) return oCanClose(w);
+        g_self->Park();
+        return false;
+    }
+
+    // Closed without a choice: the keys are spent, so the choice waits. Using the same totem again (the player's
+    // ServerInteract, which is kept from the server) opens the menu again, until the level changes.
+    void Park() {
+        Menu m = Close();
+        void* c = At<void*>(m.pc, off::Controller_Pawn);
+        if (c && !serverInteract_)
+            serverInteract_ = Fn<void* (*)(void*, uint64_t, int)>(va::UClass_FindFunctionByName)(
+                At<void*>(c, off::Object_Class), ui::Name(L"ServerInteract"), 1);
+        parked_ = {m.pc, m.totem, m.lm};
+        CRAB_LOG("keyTotem: menu closed without a choice, use the totem again to choose");
+    }
+    void Unpark() {
+        Parked p = parked_;
+        parked_ = {};
+        std::vector<Candidate> items;
+        bool unlocking = false;
+        if (Pick(p.pc, items, unlocking) && OpenMenu(p.pc, p.totem, items)) CRAB_LOG("keyTotem: menu opened again");
+    }
+
+    using EventFn = void (*)(void*, void*, void*);
+    static inline EventFn oActorEvent;
+    static void HkActorEvent(void* obj, void* fn, void* params) {
+        KeyTotem& self = *g_self;
+        if (self.parked_.totem && fn && fn == self.serverInteract_ && params &&
+            *static_cast<void**>(params) == self.parked_.totem && !self.open_.widget)
+            return self.Unpark();
+        oActorEvent(obj, fn, params);
+    }
 
     // --- Host ---
 
@@ -773,6 +818,12 @@ private:
     bool menu_ = true;
     int choices_ = 3;
     Menu open_;
+    struct Parked {
+        void* pc = nullptr;
+        void* totem = nullptr;
+        void* lm = nullptr;
+    } parked_;
+    void* serverInteract_ = nullptr;  // ACrabPlayerC::ServerInteract's UFunction
     std::mt19937 rng_{std::random_device{}()};
     // Player's machine: what was offered, in order, and whether taking one unlocks it.
     std::vector<void*> offered_;

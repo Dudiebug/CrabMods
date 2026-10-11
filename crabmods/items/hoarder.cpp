@@ -45,6 +45,15 @@ rarity = legendary
         return level * count * pct_ * 0.01f;
     }
 
+    std::string InventoryNote(void* ps, void* da) override {
+        if (!da || da != da_) return {};
+        int count = 0;
+        bool stacks = ArsenalCountStacks();
+        ForEachItem(ps, off::PS_WeaponMods, [&](void*, int l) { count += stacks ? l : 1; });
+        ForEachItem(ps, off::PS_Perks, [&](void*, int l) { count += l; });
+        return CountNote(ps, da, "Weapon mods and perks counted", count);
+    }
+
 protected:
     float PrimaryBuff() const override { return pct_; }
 

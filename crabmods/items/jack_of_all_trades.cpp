@@ -38,7 +38,14 @@ rarity = legendary
     // Jack of All Trades level x the number of different pickup tags among all held pickups.
     float DamageBonus(void* ps) override {
         int level = Level(ps);
-        if (!level) return 0.f;
+        return level ? level * Tags(ps) * pct_ * 0.01f : 0.f;
+    }
+    std::string InventoryNote(void* ps, void* da) override {
+        return CountNote(ps, da, "Different pickup tags held", Tags(ps));
+    }
+
+private:
+    static int Tags(void* ps) {
         uint32_t mask = 0;
         auto scan = [&](int offset) {
             ForEachItem(ps, offset, [&](void* da, int) {
@@ -54,7 +61,7 @@ rarity = legendary
         scan(off::PS_Relics);
         int count = 0;
         for (; mask; mask &= mask - 1) count++;
-        return level * count * pct_ * 0.01f;
+        return count;
     }
 
 protected:

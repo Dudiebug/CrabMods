@@ -4,6 +4,16 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.4
+
+- **Hellshooter is now Hellshot.** Its settings moved to `[hellshot]`.
+- **Bullet Rain and Hellshot deal +35% damage** (was +10%). An existing `CrabMods.ini` keeps its old `damagePercent` under `[bulletRain]` until you change it.
+- **Charms**, a new kind of item, now give the extra inventory slots. Bandolier, Tool Belt, Scabbard, Backpack and Reliquary are charms. Charms stack (a second one adds its levels), never take a relic slot, and have their own **CHARMS** section in the inventory and their own tab in the key totem menu.
+- **Portal Shot**, a Legendary perk, replaces the Portal Amulet relic. Your shots fire from the nearest enemy, and each level adds +20% damage. Portal Amulet no longer drops while it's on.
+- **Enhanced Turrets is an ability mod.** It drops like the game's perk did (only with a turret ability) and gives the perk's turret damage per level. The perk no longer drops while it's on.
+- **The inventory shows what items are doing.** Every CrabMods item has a line for its current bonus. Counting items say what they count: Arsenal and Hoarder (items counted), Greed Is Power (greed perk levels), Minimalist (empty weapon mod slots), Jack of All Trades (different tags) and Purist (elements). Game items that build something up with no line of their own get a "Total gained" line.
+- **Escape closes the key totem menu.** Before, it reopened right away. Your keys stay spent: use the totem again to get back to the same choice.
+
 ### 0.10.3
 
 - **CrabMods' version shows in game**, after the game's own version in the corner of the HUD ("CrabMods 0.10.3").

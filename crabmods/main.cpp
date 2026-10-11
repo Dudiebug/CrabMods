@@ -43,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.10.3";
+constexpr const char kVersion[] = "0.10.4";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -272,6 +272,14 @@ void crabmods_HasRelicHook();
 bool crabmods_OnRewardChests(void* ps, char* frame, uint32_t num, void** data) {
     return RewardChests(ps, frame, int(num), data);
 }
+// Every other call: the game's answer, or an item's (Portal Shot holding Portal Amulet's place).
+bool crabmods_HasRelicAny(void* ps, uint8_t type) {
+    if (reinterpret_cast<bool (*)(void*, uint8_t)>(crabmods_hasRelicOrig)(ps, type)) return true;
+    if (!ps || !g_grantedRelics[type]) return false;
+    bool granted = false;
+    ForEachEnabled([&](Item* i) { granted = granted || i->GrantsRelic(ps, type); });
+    return granted;
+}
 }
 
 // At entry rsp points at the return address; the caller's rsp is 8 above it. crabmods_RewardSite pushes
@@ -285,7 +293,7 @@ crabmods_HasRelicHook:
     mov rax, qword ptr [rip + crabmods_rewardSite]
     cmp qword ptr [rsp], rax
     je crabmods_RewardSite
-    jmp qword ptr [rip + crabmods_hasRelicOrig]
+    jmp crabmods_HasRelicAny
 
 .seh_proc crabmods_RewardSite
 crabmods_RewardSite:
@@ -315,6 +323,48 @@ crabmods_RewardSite:
 
 namespace {
 
+// --- Inventory details ----------------------------------------------------------------------------------
+//
+// The details of the item under the cursor have a line for what some of the game's items have built up. Every
+// CrabMods item gets one (what it gives now), and so does any other item with something built up that the
+// game shows no line for.
+
+// Every machine: items standing in for one of the game's perks (Enhanced Turrets as an ability mod) add their
+// buff to the game's lookup of that perk.
+using PerkBuffFn = float (*)(void*, uint8_t);
+PerkBuffFn oPerkBuff;
+
+float HkPerkBuff(void* ps, uint8_t type) {
+    float buff = oPerkBuff(ps, type);
+    if (ps && g_grantedPerks[type]) ForEachEnabled([&](Item* i) { buff += i->PerkBuff(ps, type); });
+    return buff;
+}
+
+using ShowBuffFn = void (*)(void*, void*, float);
+ShowBuffFn oShowBuff;
+
+void HkShowBuff(void* inv, void* da, float buff) {
+    void* row = inv ? At<void*>(inv, off::InventoryUI_AccumulatedBuffRow) : nullptr;
+    void* text = inv ? At<void*>(inv, off::InventoryUI_AccumulatedBuffText) : nullptr;
+    if (row) ui::SetVisibility(row, ui::Collapsed);
+    oShowBuff(inv, da, buff);
+    void* ps = inv ? At<void*>(inv, off::InventoryUI_OwningPS) : nullptr;
+    if (!row || !text || !da || !ps) return;
+    std::string note;
+    ForEachEnabled([&](Item* i) {
+        if (note.empty()) note = i->InventoryNote(ps, da);
+    });
+    if (note.empty()) {
+        uint8_t shown = ui::Collapsed;
+        ui::Call(row, L"GetVisibility", &shown);
+        if (shown != ui::Collapsed || buff == 0.f) return;
+        note = "Total gained: " + Num(AssetItem::Round(buff));
+    }
+    std::wstring w(note.begin(), note.end());
+    ui::SetText(text, w.c_str());
+    ui::SetVisibility(row, ui::SelfHitTestInvisible);
+}
+
 void HookRewardChests() {
     // Only the call this was written for: mov dl, 0x3F; mov rcx, rdi; call HasRelic.
     crabmods_rewardSite = Addr(va::Ret_RewardChestsHighRoller);
@@ -323,10 +373,10 @@ void HookRewardChests() {
     memcpy(&rel, p + 6, 4);
     if (memcmp(p, "\xB2\x3F\x48\x8B\xCF\xE8", 6) != 0 || crabmods_rewardSite + rel != Addr(va::ACrabPS_HasRelic)) {
         CRAB_LOG("island rewards: the High Roller check isn't where expected; Double or Nothing can't work");
-        return;
+        crabmods_rewardSite = 0;  // HasRelic is still hooked, for the items that grant relics
     }
     Hook(va::ACrabPS_HasRelic, &crabmods_HasRelicHook, reinterpret_cast<void (**)()>(&crabmods_hasRelicOrig),
-         "ACrabPS::HasRelic (island rewards)");
+         "ACrabPS::HasRelic (island rewards, granted relics)");
 }
 
 // --- Portal rewards ----------------------------------------------------------------------------------------
@@ -724,6 +774,8 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::UCrabHC_TakeDamage, &HkTakeDamage, &oTakeDamage, "UCrabHC::TakeDamage");
     Hook(va::ACrabPS_CalcOutgoingDamage, &HkOutgoingDamage, &oOutgoingDamage, "ACrabPS::CalcOutgoingDamage");
     HookRewardChests();
+    Hook(va::UCrabInventoryUI_ShowAccumulatedBuff, &HkShowBuff, &oShowBuff, "UCrabInventoryUI::ShowAccumulatedBuff");
+    Hook(va::ACrabPS_GetPerkBuff, &HkPerkBuff, &oPerkBuff, "ACrabPS::GetPerkBuff");
     Hook(va::LootRoll, &HkLootRoll, &oLootRoll, "LootRoll");
     Hook(va::ACrabPS_GetPickups, &HkGetPickups, &oGetPickups, "ACrabPS::GetPickups");
     Hook(va::WeightedPick, &HkWeightedPick, &oWeightedPick, "WeightedPick");

@@ -1,11 +1,11 @@
-// Bullet Rain and Hellshooter, weapon mods: your shots no longer leave your gun. Bullet Rain drops them from the
-// sky onto the spot you aim at; Hellshooter fires them up out of the ground under it.
+// Bullet Rain and Hellshot, weapon mods: your shots no longer leave your gun. Bullet Rain drops them from the
+// sky onto the spot you aim at; Hellshot fires them up out of the ground under it.
 //
 // Both act on the machine that controls the player, whose projectiles deal the damage; the game sends the other
 // players a copy of each shot with the same start and direction.
 // - Bullet Rain switches the weapon to the game's own "above the crosshair" firing (Ice Staff's) for each shot:
 //   the camera's aim point, 2500 units up (under any ceiling), falling straight down.
-// - Hellshooter traces from the camera to the aim point, finds the ground under it, and starts each projectile
+// - Hellshot traces from the camera to the aim point, finds the ground under it, and starts each projectile
 //   just above the ground, flying straight up.
 // With both, the shots alternate: every other one falls from the sky, the rest come up out of the ground.
 #include <random>
@@ -36,7 +36,7 @@ protected:
     float PrimaryBuff() const override { return pct_; }
 
     const char* ini_;
-    float pct_ = 10.f;
+    float pct_ = 35.f;
 };
 
 class BulletRain : public ShotMod {
@@ -52,7 +52,7 @@ public:
 enabled = true
 
 # Damage bonus, in percent. Each extra Bullet Rain stacks it again.
-damagePercent = 10
+damagePercent = 35
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -61,20 +61,20 @@ rarity = epic
     bool ShotsFromAbove(void* ps) override { return Level(ps) > 0; }
 };
 
-class Hellshooter : public ShotMod {
+class Hellshot : public ShotMod {
 public:
-    explicit Hellshooter(const BulletRain& rain)
-        : ShotMod("hellshooter", 185,
-                  {Kind::WeaponMod, L"DA_WeaponMod_Hellshooter", L"Hellshooter",
+    explicit Hellshot(const BulletRain& rain)
+        : ShotMod("hellshot", 185,
+                  {Kind::WeaponMod, L"DA_WeaponMod_Hellshooter" /* kept: the asset's name across versions */, L"Hellshot",
                    L"Your shots erupt from the ground under where you aim",
                    L"Shots fire up out of the ground under where you aim, and deal PrimaryBuff% more damage", 202,
                    WeaponMod_StreakShot},
-                  R"(# Hellshooter, a weapon mod: your shots fire straight up out of the ground under the spot you aim at,
+                  R"(# Hellshot, a weapon mod: your shots fire straight up out of the ground under the spot you aim at,
 # instead of leaving your gun.
 enabled = true
 
-# Damage bonus, in percent. Each extra Hellshooter stacks it again.
-damagePercent = 10
+# Damage bonus, in percent. Each extra Hellshot stacks it again.
+damagePercent = 35
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -112,7 +112,7 @@ private:
 };
 
 BulletRain g_rain;
-Hellshooter g_hell(g_rain);
+Hellshot g_hell(g_rain);
 
 }  // namespace
 }  // namespace crabmods

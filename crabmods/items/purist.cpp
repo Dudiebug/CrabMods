@@ -38,7 +38,14 @@ rarity = epic
     // Purist level x the bonus, only while the elemental pickups held (all inventory kinds) are one element.
     float DamageBonus(void* ps) override {
         int level = Level(ps);
-        if (!level) return 0.f;
+        return level && Elements(ps) == 1 ? level * pct_ * 0.01f : 0.f;
+    }
+    std::string InventoryNote(void* ps, void* da) override {
+        return CountNote(ps, da, "Elements held", Elements(ps));
+    }
+
+private:
+    static int Elements(void* ps) {
         bool seen[5] = {};
         auto scan = [&](void* da, int) {
             uint8_t t = At<uint8_t>(da, off::DA_PickupTag);
@@ -55,7 +62,7 @@ rarity = epic
         ForEachItem(ps, off::PS_Relics, scan);
         int distinct = 0;
         for (bool s : seen) distinct += s;
-        return distinct == 1 ? level * pct_ * 0.01f : 0.f;
+        return distinct;
     }
 
 protected:

@@ -17,7 +17,7 @@ Items (all bonuses are per level, and stack):
   Community Support (Epic perk): you and players within 20 m fire faster, one
     Rapid Fire level for each player in range who has it, you included.
   Bullet Rain (Epic weapon mod): shots fall from the sky onto where you aim.
-  Hellshooter (Epic weapon mod): shots fire up out of the ground where you aim.
+  Hellshot (Epic weapon mod): shots fire up out of the ground where you aim.
     With both, your shots alternate between the sky and the ground.
   Martyr (Epic relic): while you're down, your revive bubble hurts the
     enemies in it (a third of a basic crab's max health a second, growing
@@ -43,10 +43,15 @@ Items (all bonuses are per level, and stack):
   Summoner Specialist (Epic relic, Soul Whip holders only): the Soul Whip's
     pickups are offered 3x as often and can come out of any of your chests.
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
-  Bandolier / Tool Belt / Scabbard / Backpack (Legendary weapon mod / ability
-    mod / melee mod / perk): +5 slots in that inventory group per level. The
-    inventory menu scrolls when they don't fit.
-  Reliquary (Legendary relic): +5 relic slots on top of the game's 10.
+  Enhanced Turrets (Common ability mod): the game's Enhanced Turrets perk as an
+    ability mod: more turret damage per level. The perk no longer drops.
+  Portal Shot (Legendary perk): replaces the Portal Amulet relic. Shots fire
+    from the nearest enemy, +20% damage per level.
+  Charms (Legendary), a kind of item of their own, with their own inventory
+    section: Bandolier / Tool Belt / Scabbard / Backpack / Reliquary give +5
+    weapon mod / ability mod / melee mod / perk / relic slots per level.
+    Charms stack and never take a relic slot. The inventory menu scrolls
+    when the slots don't fit.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,

@@ -43,6 +43,13 @@ rarity = epic
         return level * empty * pct_ * 0.01f;
     }
 
+    std::string InventoryNote(void* ps, void* da) override {
+        if (!da || da != da_) return {};
+        int slots = At<uint8_t>(ps, off::PS_NumWeaponModSlots), used = 0;
+        ForEachItem(ps, off::PS_WeaponMods, [&](void*, int) { used++; });
+        return CountNote(ps, da, "Empty weapon mod slots", slots > used ? slots - used : 0);
+    }
+
 protected:
     float PrimaryBuff() const override { return pct_; }
 
