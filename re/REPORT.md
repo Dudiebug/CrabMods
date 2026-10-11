@@ -193,6 +193,13 @@ It then rolls the loot (`0x140caf1c0`).
 - The portal's reward description is built on every machine by `0x140d5ed80` (called from the portal UI update `0x140cb29f0`, run by `SetInfo` and the replicated info). For the Spiked pool it copies a fixed 77-character literal at `0x143256cc0` ("... costs 25% of your base max health to open"), inlined as 78 `wchar_t` (the NUL included). Rewriting the literal in memory, at the same length, changes the text.
 
 
+## Island reward chests (Double or Nothing)
+
+- 0x140d01610 (host) runs at the end of an island. For each player in the GameState's PlayerArray it builds a `TArray<UClass*>` of chests in its own frame: Data at rsp+0x40, Num +0x48, Max +0x4C (after its `sub rsp, 0x410`), also kept in r12 (Data) and esi (Num), which the rest of the loop uses. The main chest class comes from SpawnablesDA by reward pool, then bonus chests, Care Package and totem chests are added.
+- Then `mov dl, 0x3F; mov rcx, rdi; call 0x140d23bb0` (ACrabPS HasRelic, bool(ps, uint8 RelicType): walks PS+0x438 for DA+0xD8 == type), return address 0x140d029b0. High Roller: rand() <= 33.33% adds 2 more of the main chest, <= 66.66% nothing, otherwise empties the array and calls 0x140cf9280(LM) (a short timer, then SpawnPortals 0x140d00210). Messages go through 0x140d26f40(ps, FString*) (to the PS's owner controller); the caller frees the FString.
+- Afterwards a key chest may be added, then positions (0x140d33070, count = esi) and one spawn per entry; the array (r12) is freed with FMemory::Free at the end of each player.
+- CrabMods hooks HasRelic with an asm thunk: at that return address it passes the caller's frame, esi and r12 to the items (checking they match the array), then reloads esi/r12 from the frame.
+
 ## Kills
 
 - `ACrabPS+0x358 Eliminations` (int, replicated with `OnRep`) counts the player's kills. It is incremented by `0x140d26c00`, called from the game mode's damage handler `0x140ce5780` when a hit eliminates an enemy. The unreflected `+0x35C` counts too (it feeds Tasty Orange).

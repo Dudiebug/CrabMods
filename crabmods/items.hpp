@@ -19,8 +19,18 @@ inline void SetFString(void* obj, int offset, const wchar_t* text) {
     s = {p, n, n};
 }
 
+// Shows text on that player's screen, like High Roller's "High Roller gave you 2 more chests!" (host).
+inline void ShowMessage(void* ps, const wchar_t* text) {
+    TArray<wchar_t> s{};
+    SetFString(&s, 0, text);
+    if (!s.Data) return;
+    Fn<void (*)(void*, TArray<wchar_t>*)>(va::ACrabPS_ShowMessage)(ps, &s);
+    Fn<void (*)(void*)>(va::FMemory_Free)(s.Data);
+}
+
 template <class T>
 bool Contains(const TArray<T>& a, T v) {
+
     for (int i = 0; i < a.Num; i++)
         if (a.Data[i] == v) return true;
     return false;

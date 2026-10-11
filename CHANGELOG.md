@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.3.3
+
+- **Double or Nothing** now works on chests instead of loot choices: at the end of each island you get **twice as many reward chests, or none** (50/50, `doubleChancePercent`). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls just before High Roller, so High Roller still works on what is left. You see "Double or Nothing doubled your chests!" or "Double or Nothing took all your chests!". Chests you open now always offer their normal choices.
+
 ### 0.3.2
 
 - With CrabSync's shared health pool (and `chestHealthCost = split`), the Spiked island's portal says "All the team's spiked chests together cost 35% of base max health", which CrabSync 1.0.3 now makes true.

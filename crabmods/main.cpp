@@ -6,7 +6,7 @@
 //   ACrabLM::BeginPlay      level start: items make their assets and join the loot lists
 //   ACrabPS::GetDamageBuff  the player's damage multiplier: items add their damage bonus
 //   UCrabHC::TakeDamage     a character is hit
-//   ACrabChest open         the number of loot choices a chest offers
+//   island-end rewards      the chests each player gets
 //   LootRoll                every loot roll: items scale how likely each pickup is, per player
 //   SpawnPortals            the next islands' rewards
 //   ability cooldown tick   every 0.25 s while a player's ability recharges
@@ -31,7 +31,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.3.2";
+constexpr const char kVersion[] = "0.3.3";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -107,28 +107,17 @@ void HkTakeDamage(void* hc, void* info) {
 
 // --- Loot --------------------------------------------------------------------------------------------------
 
-using ChestRollFn = void (*)(void*, void*);
 using LootRollFn = void (*)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 using GetPickupsFn = void* (*)(void*, void*);
 using WeightedPickFn = int (*)(TArray<float>*);
-ChestRollFn oChestRoll;
 LootRollFn oLootRoll;
 GetPickupsFn oGetPickups;
 WeightedPickFn oWeightedPick;
 
-void* g_chestOpener = nullptr;  // set while a chest rolls its loot
 int g_rollDepth = 0;            // inside LootRoll
 void* g_rollSource = nullptr;   // LootRoll's world context
 std::unordered_map<void*, float> g_baseWeight;  // SpawnWeights changed during this roll, to restore after
 std::minstd_rand g_rng{std::random_device{}()};
-
-// The chest works out how many choices to offer (its own count, the opener's perks and relics, at least 1)
-// and passes that to LootRoll.
-void HkChestRoll(void* chest, void* opener) {
-    g_chestOpener = opener;
-    oChestRoll(chest, opener);
-    g_chestOpener = nullptr;
-}
 
 // Sets every pickup's SpawnWeight for the player LootRoll is choosing for: its base weight times each item's
 // LootWeight. The roll reads the weights right after asking the player what they hold.
@@ -178,14 +167,6 @@ int HkWeightedPick(TArray<float>* weights) {
 // taken as raw 64-bit slots so every argument passes through untouched.
 void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t players, uint64_t choices, uint64_t f,
                 uint64_t out) {
-    if (void* opener = g_chestOpener) {
-        g_chestOpener = nullptr;
-        int n = int(uint32_t(choices)), was = n;
-        ForEachEnabled([&](Item* i) { n = i->ChestChoices(opener, n); });
-        if (n < 0) n = 0;
-        if (n != was) CRAB_LOG("chest opened by %p: %d loot choices instead of %d", opener, n, was);
-        choices = uint32_t(n);
-    }
     void* savedSource = g_rollSource;
     g_rollSource = reinterpret_cast<void*>(source);
     g_rollDepth++;
@@ -196,6 +177,97 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
         for (auto& [da, w] : g_baseWeight) At<float>(da, off::DA_SpawnWeight) = w;
         g_baseWeight.clear();
     }
+}
+
+// --- Island-end rewards ------------------------------------------------------------------------------------
+//
+// The host's rewards function builds each player's reward chests in a local array (Data/Num/Max at its
+// rsp+0x40, also kept in r12/esi), then asks HasRelic(player, High Roller). HasRelic is hooked with a small
+// thunk: at that one call it hands the array to the items, then loads the (possibly changed) array back into
+// r12/esi, which HasRelic itself leaves untouched and the rewards function goes on using.
+
+bool RewardChests(void* ps, char* frame, int num, void** data) {
+    auto& chests = At<TArray<void*>>(frame, 0x40);
+    if (chests.Num != num || chests.Data != data || num < 0 || num > chests.Max) {
+        static bool warned = false;
+        if (!warned) CRAB_LOG("island rewards: the chest list isn't where expected; left alone");
+        warned = true;
+        return false;
+    }
+    if (!ps || num == 0) return false;
+    ForEachEnabled([&](Item* i) { i->OnRewardChests(ps, chests); });
+    if (chests.Num == num) return true;
+    CRAB_LOG("island rewards for %p: %d chests instead of %d", ps, chests.Num, num);
+    // As when High Roller takes them all: with nothing to open, the portals come now.
+    if (chests.Num == 0)
+        if (void* lm = LevelManagerOf(ps)) Fn<void (*)(void*)>(va::ACrabLM_SpawnPortalsSoon)(lm);
+    return true;
+}
+
+}  // namespace
+
+extern "C" {
+uintptr_t crabmods_rewardSite;  // Ret_RewardChestsHighRoller, rebased
+void* crabmods_hasRelicOrig;    // the original HasRelic (MinHook trampoline)
+void crabmods_HasRelicHook();
+bool crabmods_OnRewardChests(void* ps, char* frame, uint32_t num, void** data) {
+    return RewardChests(ps, frame, int(num), data);
+}
+}
+
+// At entry rsp points at the return address; the caller's rsp is 8 above it. crabmods_RewardSite pushes
+// 16 bytes and reserves 40 (shadow space, keeping rsp 16-byte aligned for the call), so the caller's rsp is
+// its rsp + 64.
+asm(R"(
+.intel_syntax noprefix
+.text
+.globl crabmods_HasRelicHook
+crabmods_HasRelicHook:
+    mov rax, qword ptr [rip + crabmods_rewardSite]
+    cmp qword ptr [rsp], rax
+    je crabmods_RewardSite
+    jmp qword ptr [rip + crabmods_hasRelicOrig]
+
+.seh_proc crabmods_RewardSite
+crabmods_RewardSite:
+    push rcx
+    .seh_pushreg rcx
+    push rdx
+    .seh_pushreg rdx
+    sub rsp, 40
+    .seh_stackalloc 40
+    .seh_endprologue
+    lea rdx, [rsp + 64]
+    mov r8d, esi
+    mov r9, r12
+    call crabmods_OnRewardChests
+    test al, al
+    jz 1f
+    mov esi, dword ptr [rsp + 64 + 0x48]
+    mov r12, qword ptr [rsp + 64 + 0x40]
+1:
+    add rsp, 40
+    pop rdx
+    pop rcx
+    jmp qword ptr [rip + crabmods_hasRelicOrig]
+.seh_endproc
+.att_syntax prefix
+)");
+
+namespace {
+
+void HookRewardChests() {
+    // Only the call this was written for: mov dl, 0x3F; mov rcx, rdi; call HasRelic.
+    crabmods_rewardSite = Addr(va::Ret_RewardChestsHighRoller);
+    auto* p = reinterpret_cast<const uint8_t*>(crabmods_rewardSite - 10);
+    int32_t rel;
+    memcpy(&rel, p + 6, 4);
+    if (memcmp(p, "\xB2\x3F\x48\x8B\xCF\xE8", 6) != 0 || crabmods_rewardSite + rel != Addr(va::ACrabPS_HasRelic)) {
+        CRAB_LOG("island rewards: the High Roller check isn't where expected; Double or Nothing can't work");
+        return;
+    }
+    Hook(va::ACrabPS_HasRelic, &crabmods_HasRelicHook, reinterpret_cast<void (**)()>(&crabmods_hasRelicOrig),
+         "ACrabPS::HasRelic (island rewards)");
 }
 
 // --- Portal rewards ----------------------------------------------------------------------------------------
@@ -357,7 +429,7 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::ACrabLM_BeginPlay, &HkBeginPlay, &oBeginPlay, "ACrabLM::BeginPlay");
     Hook(va::ACrabPS_GetDamageBuff, &HkDamageBuff, &oDamageBuff, "ACrabPS::GetDamageBuff");
     Hook(va::UCrabHC_TakeDamage, &HkTakeDamage, &oTakeDamage, "UCrabHC::TakeDamage");
-    Hook(va::ACrabChest_RollLoot, &HkChestRoll, &oChestRoll, "ACrabChest roll");
+    HookRewardChests();
     Hook(va::LootRoll, &HkLootRoll, &oLootRoll, "LootRoll");
     Hook(va::ACrabPS_GetPickups, &HkGetPickups, &oGetPickups, "ACrabPS::GetPickups");
     Hook(va::WeightedPick, &HkWeightedPick, &oWeightedPick, "WeightedPick");

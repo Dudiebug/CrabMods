@@ -13,7 +13,7 @@ Items (all bonuses are per level, and stack):
   Martyr (Epic relic): while you are down, each teammate deals +15% damage.
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
-  Double or Nothing (Greed relic): chests offer twice as many choices, or nothing.
+  Double or Nothing (Greed relic): twice as many island reward chests, or none.
   Fire/Ice/Lightning/Poison/Critical/Damage/Luck Specialist (Epic relics):
     that kind of pickup is offered 3x as often (Damage and Luck: islands too).
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.

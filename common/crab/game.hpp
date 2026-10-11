@@ -110,6 +110,15 @@ constexpr uintptr_t ACrabPS_GetPickups = 0x140d253a0;  // TArray<UCrabPickupDA*>
 constexpr uintptr_t ACrabChest_RollLoot = 0x140caf1c0; // void(ACrabChest*, ACrabPS* Opener): LootRoll for the opener
 constexpr uintptr_t ACrabLM_SpawnPortals = 0x140d00210;  // void(ACrabLM*): rolls every portal's reward, then SetInfo
 constexpr uintptr_t ACrabPortal_SetInfo = 0x140cb2cc0;   // void(ACrabPortal*, FCrabPortalInfo*), server only
+constexpr uintptr_t ACrabLM_SpawnPortalsSoon = 0x140cf9280;  // void(ACrabLM*): a short timer, then SpawnPortals
+// Island-end rewards (0x140d01610, host): for each player it fills a TArray<UClass*> of reward chests in its own
+// frame (Data at caller rsp+0x40, Num +0x48, Max +0x4C, kept in r12 / esi), adds bonus chests, Care Package and
+// totem chests, then asks whether the player has High Roller (0x3F) before rolling that relic's +2 / nothing /
+// none. Return address of that call:
+constexpr uintptr_t Ret_RewardChestsHighRoller = 0x140d029b0;
+constexpr uintptr_t ACrabPS_HasRelic = 0x140d23bb0;     // bool(ACrabPS*, uint8 RelicType)
+constexpr uintptr_t ACrabPS_ShowMessage = 0x140d26f40;  // void(ACrabPS*, const FString*): on that player's screen
+
 // The Spiked island's portal description, a 77-character literal ("... costs 25% of your base max health to
 // open"). The portal UI (0x140d5ed80, on every machine) copies exactly 78 wchar_t of it, NUL included, so a
 // replacement must keep that length.

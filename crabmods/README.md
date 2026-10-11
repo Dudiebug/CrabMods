@@ -2,7 +2,7 @@
 
 **New items for Crab Champions.** 19 items: perks, relics, a weapon mod and an ability mod. Each one drops from chests and rewards like the game's own.
 
-> **Status: early (0.3.2), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
+> **Status: early (0.3.3), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
 ## Items
 
@@ -27,7 +27,7 @@
 |---|---|---|---|
 | **Fire / Ice / Lightning / Poison / Critical Specialist** | relics | Epic | Pickups with that tag are offered **3×** as often to you. |
 | **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you, and Damage (or Luck) islands 3× as often to the team. |
-| **Double or Nothing** | Greed relic | Greed | Every chest you open offers **twice as many** choices, or **nothing at all** (50/50). It applies after every other perk and relic that changes the number of choices. |
+| **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
 | **Heavy Shot** | the game's own weapon mod | Common | Drops **without Bouncing Shot**, for every weapon. |
 
 ### Ability
@@ -90,7 +90,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[martyr]` | `damagePercent` | `15` | For each teammate, while you are down. |
 | `[lastCrabStanding]` | `perDownedPercent` | `25` | Per downed teammate. |
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
-| `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many choices; otherwise the chest is empty. |
+| `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many island reward chests; otherwise none. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
 | `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
@@ -112,7 +112,7 @@ Crab Champions has none of these assets, so CrabMods makes them when a level loa
 The effects:
 - **Damage bonuses** are added where the game totals a player's damage buffs, beside its own damage perks.
 - **Specialists** change each pickup's spawn weight during every loot roll made for the holder, then put the weights back. Damage and Luck Specialist also re-pick each island's reward with those pools' weights tripled.
-- **Double or Nothing** changes the number of choices the chest has already worked out from every other perk and relic, just before the chest rolls its loot.
+- **Double or Nothing**: at the end of an island the host builds each player's list of reward chests, then checks for High Roller. CrabMods hooks that check: for a player with Double or Nothing it doubles or empties the list first (and, like High Roller, opens the portals straight away when no chests are left).
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
 - **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
 - **Heavy Shot**'s asset says

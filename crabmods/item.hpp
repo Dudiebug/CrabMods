@@ -55,9 +55,10 @@ public:
     // Loot rolls (host): how much more likely da is to be offered to this player, as a factor on its
     // SpawnWeight. 1 = unchanged, 0 = never. The factors of all items are multiplied.
     virtual float LootWeight(void* ps, void* da) { return 1.f; }
-    // A chest opened by this player: the number of loot choices, after everything the game itself adds or
-    // removes. Return the new number (0 = an empty chest).
-    virtual int ChestChoices(void* ps, int choices) { return choices; }
+    // Island-end rewards (host): the chests about to spawn for this player (chest classes), after the game's
+    // bonus chests, Care Package and totems and before High Roller. Items may add or remove entries (Append).
+    virtual void OnRewardChests(void* ps, TArray<void*>& chests) {}
+
     // Portal rewards (host): how much more likely an island is to reward this loot pool (pool::*). The game
     // picks Damage, Critical, ... for each Arena/Horde/Demolition portal; 1 = unchanged.
     virtual float PortalRewardWeight(void* lm, uint8_t lootPool) { return 1.f; }
