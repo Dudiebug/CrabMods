@@ -40,7 +40,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.8.0";
+constexpr const char kVersion[] = "0.8.1";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -205,9 +205,12 @@ int HkWeightedPick(TArray<float>* weights) {
 }
 
 // void(Source, uint8 Pool, uint8 Rarity, TArray<ACrabPS*>*, int Choices, float, TArray<FCrabPickupInfo>* Out),
-// taken as raw 64-bit slots so every argument passes through untouched.
+// taken as raw 64-bit slots so every argument passes through untouched. The players array is the caller's
+// by-value copy and LootRoll frees its data before returning (0x140d346d1), so the opener is read first.
 void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t players, uint64_t choices, uint64_t f,
                 uint64_t out) {
+    auto* who = reinterpret_cast<TArray<void*>*>(players);
+    void* opener = who && who->Num > 0 && who->Data ? who->Data[0] : nullptr;
     void* savedSource = g_rollSource;
     uint8_t savedPool = g_rollPool;
     g_rollSource = reinterpret_cast<void*>(source);
@@ -224,11 +227,10 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
         g_basePool.clear();
         // An opened chest's roll fills its PickupsToSpawn for the opener; it spawns them right after.
         void* chest = reinterpret_cast<void*>(source);
-        auto* who = reinterpret_cast<TArray<void*>*>(players);
         auto* loot = reinterpret_cast<TArray<uint8_t>*>(out);
-        if (chest && loot == &At<TArray<uint8_t>>(chest, off::Chest_PickupsToSpawn) && who && who->Num > 0 &&
-            who->Data && who->Data[0] && IsA(chest, StaticClass(va::ACrabChest_StaticClass)))
-            ForEachEnabled([&](Item* i) { i->OnChestLoot(chest, who->Data[0], *loot); });
+        if (chest && loot == &At<TArray<uint8_t>>(chest, off::Chest_PickupsToSpawn) &&
+            IsA(chest, StaticClass(va::ACrabChest_StaticClass)) && IsA(opener, StaticClass(va::ACrabPS_StaticClass)))
+            ForEachEnabled([&](Item* i) { i->OnChestLoot(chest, opener, *loot); });
     }
 }
 

@@ -4,6 +4,11 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.8.1
+
+- **Fixed a crash when opening a chest** (most likely with Lucky Charm in the game). After the game rolled a chest's loot, CrabMods looked up who opened it in a list the game had already freed, and Lucky Charm then read that leftover memory as the player. CrabMods now reads the opener before the roll, and checks it is a player.
+- **Lucky Charm should now actually work**: the same bug meant it was reading garbage instead of the opener's relics, so it most likely never saw that you had it and never upgraded chest items to level 2.
+
 ### 0.8.0
 
 - New **Epic perk, Combo Catalyst**: your hits apply **+1 stack of each element** they already apply (ice, fire, lightning, poison, arcane) **for every combo level above 1**, per Combo Catalyst level (`[comboCatalyst] stacksPerComboLevel`).
