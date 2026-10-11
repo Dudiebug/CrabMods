@@ -64,6 +64,7 @@ choices = 3
     // Player's machine: keeps the menu up until a choice is made (something else may have closed it), and
     // forgets it on a new level (its widgets are gone).
     void OnTick(void* world) override {
+        CleanSave(world);
         if (!open_.widget) return;
         if (LevelManagerOf(world) != open_.lm) {
             open_ = {};
@@ -82,6 +83,26 @@ choices = 3
         Show(open_.widget, pc);
     }
 
+    // CrabMods' items are made while playing, so they mustn't be in the save's unlock lists: the next launch
+    // would load them as nothing (0.6.0's menu could put them there). Those and empty entries are taken out.
+    static void CleanSave(void* world) {
+        void* gi = GameInstanceOf(world);
+        void* sg = gi ? At<void*>(gi, off::GI_SaveGame) : nullptr;
+        if (!sg) return;
+        std::vector<void*> ours;
+        for (Item* i : Items())
+            if (auto* a = dynamic_cast<AssetItem*>(i); a && a->Asset()) ours.push_back(a->Asset());
+        int removed = 0;
+        for (int list : off::SG_Unlocked) {
+            auto& a = At<TArray<void*>>(sg, list);
+            int n = 0;
+            for (int i = 0; a.Data && i < a.Num; i++)
+                if (a.Data[i] && std::find(ours.begin(), ours.end(), a.Data[i]) == ours.end()) a.Data[n++] = a.Data[i];
+                else removed++;
+            if (a.Data) a.Num = n;
+        }
+        if (removed) CRAB_LOG("keyTotem: took %d CrabMods or empty entries out of the save's unlocks", removed);
+    }
     void InstallHooks() override {
         Hook(va::UUserWidget_execCancelLatentActions, &HkClicked, &oClicked, "UUserWidget::execCancelLatentActions");
         SwapVirtual(va::UCrabConfirmationPromptUI_VTable + va::FocusMenu_CanClose_Slot, &HkCanClose, &oCanClose,
