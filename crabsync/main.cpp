@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.5";
+constexpr const char kVersion[] = "1.0.6";
 
 Config g_cfg;
 Ledger g_ledger;

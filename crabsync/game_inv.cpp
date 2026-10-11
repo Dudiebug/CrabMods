@@ -29,6 +29,11 @@ struct FCrabPickupInfo {
 };
 static_assert(sizeof(FCrabPickupInfo) == 0x50);
 
+// Items other mods add (CrabMods) use type bytes the game doesn't (200 and up). Their AccumulatedBuff is each
+// player's own (Collateral Damage keeps this island's count there), so it is neither read into the team inventory
+// nor written back: adding up everyone's changes to it fought those mods and never settled.
+bool OwnBuff(const void* da) { return At<uint8_t>(const_cast<void*>(da), off::DA_ItemType) >= 200; }
+
 struct FCrabDamageInfo {
     void* DamagedActor;
     float Damage;
@@ -160,7 +165,7 @@ void ReadInventory(void* ps, Inventory& out) {
             it.level = f.Info.Level;
             if (f.Info.Enhancements.Data && f.Info.Enhancements.Num > 0)
                 it.enhancements.assign(f.Info.Enhancements.Data, f.Info.Enhancements.Data + f.Info.Enhancements.Num);
-            it.buff = f.Info.AccumulatedBuff;
+            it.buff = OwnBuff(f.DA) ? 0.f : f.Info.AccumulatedBuff;
             v.push_back(std::move(it));
         }
     }
@@ -244,7 +249,7 @@ bool ApplyTarget(void* ps, const Inventory& cur, const Inventory& tgt, bool anno
                 SetEnhancements(live, want.enhancements);
                 dirty = true;
             }
-            if (live->Info.AccumulatedBuff != want.buff) {
+            if (!OwnBuff(live->DA) && live->Info.AccumulatedBuff != want.buff) {
                 live->Info.AccumulatedBuff = want.buff;
                 dirty = true;
             }

@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.6
+
+- **Fixed Collateral Damage running away to huge or negative damage in multiplayer with CrabSync** (the stats screen could show Global Damage at -1073741824%). Get CrabSync 1.0.6 too; it holds the actual fix. A client now also ignores a broken value instead of using it.
+
 ### 0.10.5
 
 - **Undead still standing when the fight ends give their souls back.** They still crumble, but you get their full raise cost back (up to your soul cap). Set it with `survivorRefundPercent` in `[necromancer]`.
@@ -214,6 +218,10 @@ First release.
 - `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
+
+### 1.0.6
+
+- **Fixed syncing stopping partway through a run.** CrabSync adds up every player's changes to an item's built-up buff. CrabMods' Collateral Damage keeps each player's own count there, so the two fought on every poll. The buff swung further each time (to huge or negative damage), and a player whose items never stopped changing was never synced again. Buffs of items added by other mods (CrabMods) are now left to those mods, per player.
 
 ### 1.0.5
 

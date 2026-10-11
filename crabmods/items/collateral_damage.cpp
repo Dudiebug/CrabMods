@@ -4,6 +4,7 @@
 // The host counts the breaks. The bonus (in percent) is mirrored into the perk's own AccumulatedBuff, which the game
 // replicates, so every machine sees it; but the game also carries that value to the next island, so the host keeps
 // its own per-island count and puts it back there.
+#include <cmath>
 #include <unordered_map>
 
 #include "../item.hpp"
@@ -61,7 +62,8 @@ rarity = epic
             return it == island_.end() ? 0.f : it->second * 0.01f;
         }
         uint8_t* e = EntryOf(ps, off::PS_Perks, da_);
-        return e ? *reinterpret_cast<float*>(e + off::Item_AccumulatedBuff) * 0.01f : 0.f;
+        float v = e ? *reinterpret_cast<float*>(e + off::Item_AccumulatedBuff) : 0.f;
+        return std::isfinite(v) && v > 0.f ? v * 0.01f : 0.f;  // CrabSync 1.0.5 and older could wreck it
     }
 
     // Host: a new island starts the count over, and the perk's replicated value is kept at this island's count
