@@ -20,7 +20,7 @@
 | **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
-| **Martyr** | relic | Epic | When you go down, you **explode** for 150 damage to the enemies around you (25 m). **Magnify** makes the explosion bigger, as it does the game's own explosions. |
+| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: 60 damage a second. **Magnify** makes the bubble bigger, for the damage and for reviving you. |
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +10% damage. |
 | **Hellshooter** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +10% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
@@ -63,7 +63,7 @@ One Legendary per inventory group. Each level gives that group **5 more slots**,
 | Change | Effect |
 |---|---|
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
-| **Key totem** | The lobby's key totem opens a **menu of every locked item**, shown as the game's own pickup cards in a scrolling list, with **category tabs** (the gamepad bumpers switch them) and a **search box** (name, type or description). The item you click (or select with a gamepad) is unlocked and comes out of the totem. Once everything is unlocked, the menu has every item. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
+| **Key totem** | The lobby's key totem opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 
 
@@ -114,9 +114,8 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[collateralDamage]` | `damagePercent` | `5` | Per destructible broken this island. |
 | `[overflow]` | `damagePercent` | `3` | Per stack. |
 | | `healthPerStack` | `100` | Healing past max health one stack takes. |
-| `[martyr]` | `damage` | `150` | Explosion damage. It falls off to 20% at the edge. |
-| | `radiusMeters` | `25` | Before Magnify. |
-| | `knockback` | `2500` | |
+| `[martyr]` | `damagePerSecond` | `60` | To each enemy in the bubble. It falls off to 20% at the edge. |
+| | `magnifyBubble` | `true` | The holder's revive bubble grows with their Magnify (+20% a level). |
 | `[lastCrabStanding]` | `perDownedPercent` | `25` | Per downed teammate. |
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
 | `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many island reward chests; otherwise none. |
@@ -168,7 +167,7 @@ The effects:
 - **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
 - **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
 - **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshooter leaves every other shot alone, so they alternate between the sky and the ground.
-- **Martyr** uses the game's own explosion code (Explosive Armor's), fired just before the downed player becomes a spectator, so Magnify, the enemy-only filter and kill credit all work as they do for the game's explosions.
+- **Martyr**: the revive bubble is the game's revival harvest area. Every machine sets a holder's bubble radius (which the host checks for reviving teammates) and its effect's size to the base radius times their Magnify. Four times a second the host fires the game's radial damage (Explosive Armor's) from the bubble's centre, with the downed character as its source, so the enemy-only filter, Magnify and kill credit work as they do for the game's explosions.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
@@ -181,7 +180,7 @@ The effects:
 - Heavy Shot still needs to be unlocked in your save before it can drop.
 - On very fast guns (Sniper, Marksman Rifle, Laser Cannons) the bullet reaches its target before it can drop much, so Heavy Shot is mostly its damage there.
 - Recharge only counts kills made while your ability is recharging, so kills while it is ready are not saved up.
-- With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr** explodes only when the whole team goes down, and **Last Crab Standing** rarely does anything. Turn off `syncHealth` in `CrabSync.ini` if you want them.
+- With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr**'s bubble only appears when the whole team goes down, and **Last Crab Standing** rarely does anything. Turn off `syncHealth` in `CrabSync.ini` if you want them.
 - **Key totem**: the menu stays open until you choose (the keys are already spent). With `menu = false`, the unlock happens when you take one of the items, and walking away without taking one unlocks nothing. A new unlock joins the loot on the next level, as in the game.
 - **Scabbard** uses Big Claws' icon: the game has no plain melee mod icon.
 - **Slot items** are tested only by reading the game's code, not in play: if the inventory menu looks wrong with extra slots, please open an issue with your `CrabMods.log`.

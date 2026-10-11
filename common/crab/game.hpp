@@ -157,6 +157,15 @@ constexpr uintptr_t ACrabPC_SpawnSpectator = 0x140d0e720;
 constexpr uintptr_t RadialDamage = 0x140d2dd20;
 constexpr uintptr_t ACrabC_GetCoreLocation = 0x140cbae30;           // FVector*(ACrabC*, FVector* out)
 constexpr uintptr_t ACrabLM_MulticastPlayOneShotFX = 0x140d79d00;   // void(ACrabLM*, FX, Sound, const FVector*): everyone
+constexpr uintptr_t ACrabPS_GetPerkBuff = 0x140d254b0;  // float(ACrabPS*, uint8 PerkType): Magnify (39) 0.2 a level
+
+// Harvest areas (ACrabHarvestArea; the revive bubble is BP_HarvestArea_Revival, SpawnablesDA +0x4C8). The host
+// spawns one where a player goes down; on a timer (0x140cf50f0) it looks for players within its Radius and
+// counts down while one stands in it. Its effect's size is the Niagara float "Radius", set from it once
+// (virtual 0x530); UNiagaraComponent::SetVariableFloat sets it again.
+constexpr uintptr_t ACrabHarvestArea_StaticClass = 0x140d775a0;
+constexpr uintptr_t NiagaraComponent_SetVariableFloat = 0x140845d30;  // void(UNiagaraComponent*, FName, float)
+constexpr const wchar_t* GameplayStaticsPath = L"/Script/Engine.Default__GameplayStatics";
 
 // Lobby key totem. Server: ACrabTotem::Interact(totem, ACrabC*) spends the keys and calls the
 // ClientOnInteractedWithKeyTotem RPC; on that player's machine the game picks a locked item, unlocks it in the
@@ -319,6 +328,10 @@ constexpr int Item_Level = 0x08;
 constexpr int Item_AccumulatedBuff = 0x20;  // float (FCrabInventoryInfo+0x18): replicated and kept across islands
 // APawn
 constexpr int Pawn_PlayerState = 0x240;
+constexpr int HarvestArea_NC = 0x220;              // UNiagaraComponent*
+constexpr int HarvestArea_Type = 0x238;            // uint8 ECrabHarvestAreaType: 2 Revival
+constexpr int HarvestArea_Radius = 0x23C;          // float, 1500 unless the blueprint sets it
+constexpr int HarvestArea_PlayerToRevive = 0x298;  // ACrabPS*, replicated
 // ACrabChest
 constexpr int Chest_CurrencyType = 0x2B0;  // ECrabCurrencyType: Crystal 0, Key 1, Health 2, MaxHealth 3
 constexpr int Chest_Cost = 0x2B4;          // int
@@ -432,6 +445,10 @@ constexpr int ButtonStyle_NormalTint = 0x28;
 constexpr int ButtonStyle_HoveredTint = 0xB0;
 constexpr int ButtonStyle_PressedTint = 0x138;
 constexpr int FocusMenu_Focusable = 0x2C8;  // TArray<UWidget*>: what gamepad focus moves between
+// Native tick (virtual 0x330): every focusable button gets ColorAndOpacity and BackgroundColor = the focused
+// colour (the one with focus) or the unfocused one (the rest), each tick.
+constexpr int FocusMenu_FocusedColor = 0x2E0;    // FLinearColor
+constexpr int FocusMenu_UnfocusedColor = 0x2F0;  // FLinearColor
 constexpr int FocusMenu_Canvas = 0x358;     // MenuCanvasPanel
 constexpr int Prompt_MessageText = 0x3E0;
 constexpr int Prompt_YesButton = 0x3E8;

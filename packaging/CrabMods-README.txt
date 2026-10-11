@@ -19,8 +19,8 @@ Items (all bonuses are per level, and stack):
   Bullet Rain (Epic weapon mod): shots fall from the sky onto where you aim.
   Hellshooter (Epic weapon mod): shots fire up out of the ground where you aim.
     With both, your shots alternate between the sky and the ground.
-  Martyr (Epic relic): when you go down, you explode for 150 damage to the
-    enemies around you. Magnify makes it bigger.
+  Martyr (Epic relic): while you're down, your revive bubble hurts the
+    enemies in it (60 damage a second). Magnify makes the bubble bigger.
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
   Double or Nothing (Greed relic): twice as many island reward chests, or none.
@@ -35,9 +35,9 @@ Items (all bonuses are per level, and stack):
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,
     Iron Claws +500%, Vampire 15 health per kill ([meleeMods]).
-  Key totem (the lobby's): a menu of every locked item, with category tabs
-    and a search box, lets you choose what to unlock; once everything is
-    unlocked, choose any item. Works with any host.
+  Key totem (the lobby's): a menu of every item, with category tabs (locked
+    items have their own) and a search box, lets you choose any item; a
+    locked one is unlocked. Works with any host.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 

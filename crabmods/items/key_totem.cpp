@@ -1,7 +1,6 @@
-// Key totem: the lobby's key totem lets you choose what to unlock. Using it opens a menu in the game's own style
-// (its confirmation prompt, with every locked item's pickup card as a button, category tabs and a search box);
-// the item you choose is unlocked and comes out of the totem, as the game's own one does. Once everything is
-// unlocked the menu has every item.
+// Key totem: the lobby's key totem lets you choose any item. Using it opens a menu in the game's own style (its
+// confirmation prompt, with every item's pickup card as a button, category tabs and a search box); the item you
+// choose comes out of the totem, as the game's own one does, and is unlocked if it was locked.
 //
 // The game picks the item on the player's own machine (from their save), unlocks it and asks the server to spawn
 // it. The menu only changes which item that is, so it works with any host.
@@ -40,8 +39,8 @@ public:
     KeyTotem() : Item("keyTotem", 190) { g_self = this; }
 
     std::string DefaultIni() const override {
-        return R"(# Key totem: the lobby's key totem lets you choose what it unlocks, from a menu of every locked item (with
-# category tabs and a search box). Once everything is unlocked, the menu has every item.
+        return R"(# Key totem: the lobby's key totem lets you choose any item from a menu of every item (with category tabs,
+# locked items in a tab of their own, and a search box). A locked item you choose is unlocked.
 enabled = true
 
 # true: choose from the menu (works with any host). false: a row of random locked items comes out of the totem
@@ -166,6 +165,7 @@ private:
         void* da;
         int list;  // which unlockables list: weapons, abilities, melee, weapon mods, ability mods, melee mods,
                    // perks, relics
+        bool locked;
     };
 
     // The game's choice is replaced by a menu, else by a row of choices when the host runs CrabMods, else it
@@ -176,32 +176,52 @@ private:
         std::vector<Candidate> items;
         bool unlocking = false;
         if (!self.Pick(pc, items, unlocking)) return oInteracted(pc, totem);
-        if (self.menu_ && self.OpenMenu(pc, totem, items, unlocking)) return;
-        if (HostHasCrabMods(pc) && self.SendRow(pc, totem, self.Some(items), unlocking)) return;
+        if (self.menu_ && self.OpenMenu(pc, totem, items)) return;
+        if (HostHasCrabMods(pc) && self.SendRow(pc, totem, self.Some(items, unlocking), unlocking)) return;
         oInteracted(pc, totem);
     }
 
-    // The locked items while there are any, else every item.
-    bool Pick(void* pc, std::vector<Candidate>& out, bool& unlocking) {
+    // Every item: each kind's full list, and the items made while playing (CrabMods' own), which are only in
+    // the level's loot pool. Locked: neither in the save nor in the pool. anyLocked: some are.
+    bool Pick(void* pc, std::vector<Candidate>& out, bool& anyLocked) {
         void* lm = LevelManagerOf(pc);
         void* sp = lm ? At<void*>(lm, off::LM_SpawnablesDA) : nullptr;
         void* gi = GameInstanceOf(pc);
         void* sg = gi ? At<void*>(gi, off::GI_SaveGame) : nullptr;
         if (!sp || !sg) return false;
-        std::vector<Candidate> locked, any;
+        auto& pool = At<TArray<void*>>(lm, off::LM_AllUnlockedPickups);
+        out.clear();
+        anyLocked = false;
         for (int k = 0; k < 8; k++) {
             auto& all = At<TArray<void*>>(sp, off::Spawnables_Unlockables[k]);
             auto& mine = At<TArray<void*>>(sg, off::SG_Unlocked[k]);
             for (int i = 0; i < all.Num; i++)
-                if (void* da = all.Data[i]) (Contains(mine, da) ? any : locked).push_back({da, k});
+                if (void* da = all.Data[i]) {
+                    bool locked = !Contains(mine, da) && !Contains(pool, da);
+                    out.push_back({da, k, locked});
+                    anyLocked |= locked;
+                }
         }
-        unlocking = !locked.empty();
-        out = unlocking ? std::move(locked) : std::move(any);
+        static constexpr uintptr_t kKinds[5] = {va::UCrabWeaponModDA_StaticClass, va::UCrabAbilityModDA_StaticClass,
+                                                va::UCrabMeleeModDA_StaticClass, va::UCrabPerkDA_StaticClass,
+                                                va::UCrabRelicDA_StaticClass};  // lists 3..7
+        for (int i = 0; i < pool.Num; i++) {
+            void* da = pool.Data[i];
+            if (!da || std::any_of(out.begin(), out.end(), [&](const Candidate& c) { return c.da == da; })) continue;
+            for (int j = 0; j < 5; j++)
+                if (IsA(da, StaticClass(kKinds[j]))) {
+                    out.push_back({da, 3 + j, false});
+                    break;
+                }
+        }
         return !out.empty();
     }
 
     // choices_ of them at random, for the row.
-    std::vector<void*> Some(std::vector<Candidate> items) {
+    std::vector<void*> Some(std::vector<Candidate> items, bool lockedOnly) {
+        if (lockedOnly)
+            items.erase(std::remove_if(items.begin(), items.end(), [](const Candidate& c) { return !c.locked; }),
+                        items.end());
         std::shuffle(items.begin(), items.end(), rng_);
         std::vector<void*> das;
         for (size_t i = 0; i < items.size() && int(i) < choices_; i++) das.push_back(items[i].da);
@@ -235,16 +255,19 @@ private:
     // the card, a tab's on a hidden card kept for it (its relay), the search box's typing on the menu itself.
 
     static constexpr int32_t kMenuZOrder = 2;  // as the game's menus
-    static constexpr int kTabs = 9;            // all, then one per unlockables list
-    static constexpr const wchar_t* kTabNames[kTabs] = {L"ALL",         L"WEAPONS",      L"ABILITIES",
-                                                        L"MELEE",       L"WEAPON MODS",  L"ABILITY MODS",
-                                                        L"MELEE MODS",  L"PERKS",        L"RELICS"};
+    static constexpr int kTabs = 10;  // all, locked, then one per unlockables list
+    static constexpr int kLockedTab = 1;
+    static constexpr const wchar_t* kTabNames[kTabs] = {L"ALL",         L"LOCKED",      L"WEAPONS",
+                                                        L"ABILITIES",   L"MELEE",       L"WEAPON MODS",
+                                                        L"ABILITY MODS", L"MELEE MODS", L"PERKS",
+                                                        L"RELICS"};
     static constexpr float kListWidth = 1300.f;  // three 400-wide cards on their plates, with the gaps
     static constexpr float kListHeight = 600.f;
 
     struct Entry {
         void* da = nullptr;
         int tab = 0;
+        bool locked = false;
         void* button = nullptr;
         void* card = nullptr;
         std::wstring text;  // name, type and description in lower case, for the search
@@ -255,7 +278,6 @@ private:
         void* pc = nullptr;
         void* lm = nullptr;
         void* totem = nullptr;
-        bool unlocking = false;
         std::vector<Entry> items;
         void* tabs[kTabs]{};       // null: no items of that kind
         void* tabRelays[kTabs]{};  // what each tab's click calls CancelLatentActions on
@@ -287,7 +309,7 @@ private:
         return s;
     }
 
-    bool OpenMenu(void* pc, void* totem, std::vector<Candidate> items, bool unlocking) {
+    bool OpenMenu(void* pc, void* totem, std::vector<Candidate> items) {
         void* cls = ui::FindObject(va::ConfirmationPromptClassPath);
         void* clsCls = cls ? At<void*>(cls, off::Object_Class) : nullptr;
         if (!clsCls || ObjectName(clsCls) != "WidgetBlueprintGeneratedClass") {
@@ -311,7 +333,7 @@ private:
         });
 
         Menu m;
-        m.widget = w, m.pc = pc, m.lm = LevelManagerOf(pc), m.totem = totem, m.unlocking = unlocking;
+        m.widget = w, m.pc = pc, m.lm = LevelManagerOf(pc), m.totem = totem;
         // The prompt's font: its message bigger, as a menu's title; the rest at its size.
         ui::Font font, title;
         ui::FontOf(msg, 16, font);
@@ -324,9 +346,9 @@ private:
         SetTints(tabStyle, {1, 1, 1, 0}, {1, 1, 1, 0.1f}, {1, 1, 1, 0.25f});
         SetTints(cardStyle, {0.01f, 0.01f, 0.02f, 0.92f}, {0.3f, 0.3f, 0.36f, 0.96f}, {0.5f, 0.5f, 0.56f, 1.f});
 
-        // Tabs: all, and each kind there's something of.
+        // Tabs: all, locked, and each kind there's something of.
         int count[kTabs]{};
-        for (const Candidate& c : items) count[0]++, count[c.list + 1]++;
+        for (const Candidate& c : items) count[0]++, count[kLockedTab] += c.locked, count[c.list + 2]++;
         void* tabsBox = ui::NewWidget(w, va::UHorizontalBox_StaticClass);
         void* relayClass = At<void*>(items[0].da, off::DA_InteractUIClass);
         if (!tabsBox) return false;
@@ -368,12 +390,13 @@ private:
         for (const Candidate& c : items) {
             Entry e;
             e.da = c.da;
-            e.tab = c.list + 1;
+            e.tab = c.list + 2;
+            e.locked = c.locked;
             e.button = ui::NewWidget(w, va::UButton_StaticClass);
             e.card = ui::CreateWidget(pc, At<void*>(c.da, off::DA_InteractUIClass));
             if (!e.button || !e.card) return false;
             ui::Call(e.button, L"SetStyle", cardStyle);
-            std::wstring type = FillCard(e.card, c.da);
+            std::wstring type = FillCard(e.card, c.da, c.locked);
             e.text = Lower(WString(c.da, off::DA_Name) + L"\n" + type + L"\n" + WString(c.da, off::DA_Description));
             ui::SetVisibility(e.card, ui::HitTestInvisible);  // the button takes the clicks
             ui::SetPadding(ui::SetContent(e.button, e.card), {6, 6, 6, 6});
@@ -417,7 +440,7 @@ private:
         open_ = std::move(m);
         Filter();
         Show(w, pc);
-        CRAB_LOG("keyTotem: menu of %d items%s", int(open_.items.size()), unlocking ? "" : " (everything is unlocked)");
+        CRAB_LOG("keyTotem: menu of %d items, %d locked", int(open_.items.size()), count[kLockedTab]);
         return true;
     }
 
@@ -447,14 +470,16 @@ private:
     }
 
     // The pickup's own card, filled as the game fills it over a pickup, 400 wide, without its "PICK UP" row and
-    // its blur (it's on a plate, and hundreds of blurs would be slow). Returns the type line ("Epic Perk").
-    static std::wstring FillCard(void* card, void* da) {
+    // its blur (it's on a plate, and hundreds of blurs would be slow). Returns the type line ("Epic Perk",
+    // "Locked Epic Perk").
+    static std::wstring FillCard(void* card, void* da, bool locked) {
         static const wchar_t* const kTypes[] = {L"",           L"Weapon",    L"Ability", L"Melee", L"Weapon Mod",
                                                 L"Ability Mod", L"Melee Mod", L"Perk",    L"Relic"};
         static const wchar_t* const kRarities[] = {L"", L"Common", L"Epic", L"Legendary", L"Greed"};
         uint8_t type = At<uint8_t>(da, off::DA_PickupType), rarity = At<uint8_t>(da, off::DA_Rarity);
         std::wstring t = type < std::size(kTypes) ? kTypes[type] : L"";
         if (type > 3 && rarity < std::size(kRarities) && *kRarities[rarity]) t = std::wstring(kRarities[rarity]) + L" " + t;
+        if (locked) t = L"Locked " + t;
         TArray<wchar_t> ts{t.data(), int(t.size()) + 1, int(t.size()) + 1};
         Fn<void (*)(void*, void*)>(va::InteractUI_SetIcon)(card, At<void*>(da, off::DA_Icon));
         Fn<void (*)(void*, const void*)>(va::InteractUI_SetType)(card, &ts);
@@ -500,7 +525,7 @@ private:
         Menu& m = open_;
         int shown = 0;
         for (Entry& e : m.items) {
-            bool show = (m.tab == 0 || e.tab == m.tab) && Matches(e.text, m.query);
+            bool show = (m.tab == 0 || (m.tab == kLockedTab ? e.locked : e.tab == m.tab)) && Matches(e.text, m.query);
             if (show != e.shown) ui::SetVisibility(e.button, show ? ui::Visible : ui::Collapsed);
             e.shown = show;
             shown += show;
@@ -529,12 +554,19 @@ private:
     // shown cards instead of YES / NO.
     void Prepare() {
         void* w = open_.widget;
-        ui::SetText(At<void*>(w, off::Prompt_MessageText),
-                    open_.unlocking ? L"CHOOSE AN ITEM TO UNLOCK" : L"CHOOSE AN ITEM");
+        ui::SetText(At<void*>(w, off::Prompt_MessageText), L"CHOOSE AN ITEM");
+        Opaque(w);
         auto& focusable = At<TArray<void*>>(w, off::FocusMenu_Focusable);
         focusable.Num = 0;
         for (Entry& e : open_.items)
             if (e.shown) Append(focusable, e.button);
+    }
+
+    // The menu tints each card every frame: full for the one with gamepad focus, else its "unfocused" colour,
+    // half see-through for YES / NO. The cards stay opaque, only a little darker.
+    static void Opaque(void* w) {
+        At<ui::LinearColor>(w, off::FocusMenu_FocusedColor) = {1, 1, 1, 1};
+        At<ui::LinearColor>(w, off::FocusMenu_UnfocusedColor) = {0.8f, 0.8f, 0.8f, 1};
     }
 
     // As the game opens a menu: shown, refreshed, the player's open menu (input and cursor follow it), the
@@ -542,6 +574,7 @@ private:
     static void Show(void* w, void* pc) {
         Fn<void (*)(void*, bool)>(va::UI_SetShown)(w, true);
         CallVirtual(w, va::FocusMenu_Refresh_Slot);
+        Opaque(w);
         At<void*>(pc, off::PC_OpenMenu) = w;
         Fn<void (*)(void*)>(va::ACrabPC_UpdateInputMode)(pc);
         if (void* hud = At<void*>(pc, off::PC_HUD)) Fn<void (*)(void*, bool)>(va::UI_SetShown)(hud, false);
@@ -556,10 +589,11 @@ private:
             Fn<void (*)(void*)>(va::ACrabPC_CloseMenuRestoreGame)(m.pc);
         void* da = m.items[i].da;
         void* gi = GameInstanceOf(m.pc);
-        if (m.unlocking && gi && !Unlocked(gi, da)) Fn<void (*)(void*, void*)>(va::UCrabGI_UnlockPickup)(gi, da);
+        bool unlock = m.items[i].locked && gi && !Unlocked(gi, da);
+        if (unlock) Fn<void (*)(void*, void*)>(va::UCrabGI_UnlockPickup)(gi, da);
         // One item: the server spawns it as the game's own key totem item (a CrabMods host, for this player only).
         Fn<void (*)(void*, void*, void*)>(va::ACrabPC_ServerSpawnKeyTotemPickup)(m.pc, m.totem, da);
-        CRAB_LOG("keyTotem: chose %s%s", Name(da).c_str(), m.unlocking ? " (unlocked)" : "");
+        CRAB_LOG("keyTotem: chose %s%s", Name(da).c_str(), unlock ? " (unlocked)" : "");
     }
 
     // Cards, tabs and the search box call UUserWidget::CancelLatentActions (see above).

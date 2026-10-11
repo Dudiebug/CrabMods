@@ -4,6 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.7.0
+
+- **Key totem menu** now always has **every item**, CrabMods' own included (Bandolier, Hoarder, ...). Locked items say "Locked" on their card and have a **Locked** tab of their own; choosing one unlocks it. CrabMods' items are never written into your save's unlock list.
+- **Key totem menu** cards are no longer see-through. The menu was dimming every card without gamepad focus to half opacity, as it does YES / NO. Now they are only a little darker.
+- **Martyr** reworked: instead of exploding once when you go down, your **revive bubble hurts the enemies in it** for as long as you're down (`damagePerSecond`, 60 per level). **Magnify** makes the bubble bigger (`magnifyBubble`), both the area it hurts and the area a teammate can revive you from. The old `damage`, `radiusMeters` and `knockback` settings are gone.
+
 ### 0.6.0
 
 - **Key totem menu** is now a full catalog instead of a choice of 3. It shows **every locked item**, or **every item** once everything is unlocked, as the game's own pickup cards, three to a row in a scrolling list sorted by kind, rarity and name.
