@@ -29,6 +29,14 @@ Items (all bonuses are per level, and stack):
     crystals you'd gain while you hold it. Can't be dropped.
   Lucky Charm (Legendary relic): mods and perks in your chests have a 25%
     chance to be level 2.
+  Combo Catalyst (Epic perk): +1 stack of each element your hits apply for
+    every combo level above 1.
+  Encore (Epic relic): perks that go off by themselves (on-kill and armor
+    explosions, Grave Dodger, ...) have a 15% chance to go off twice.
+  Autoloader (Epic perk): each kill has a 10% chance to reload instantly.
+  Finishing Move (Epic perk): critical kills drop 50% more crystals.
+  Rigged Totems (Epic perk): Health, Chance and Gamble totems are 25% more
+    likely to go your way.
   Fire/Ice/Lightning/Poison/Critical/Damage/Luck Specialist (Epic relics):
     that kind of pickup is offered 3x as often and can come out of any of
     your chests, not only its own pool's (Damage and Luck: islands too).

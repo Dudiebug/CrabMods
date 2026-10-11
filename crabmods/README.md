@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 32 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 37 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -17,6 +17,9 @@
 | **Untouchable** | perk | Epic | +1% damage for each second without taking damage, up to +20%. Getting hit resets it. |
 | **Jack of All Trades** | perk | Legendary | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
 | **Greed Is Power** | Greed perk | Greed | +5% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
+| **Combo Catalyst** | perk | Epic | Your hits apply **+1 stack of each element** they already apply for every combo level above 1 (+4 at combo 5). |
+| **Encore** | relic | Epic | Perks that go off by themselves have a **15% chance to go off twice**: Exploding / Freezing / Flammable / Electric / Poisonous Enemies, Explosive / Poisonous / Flammable Armor, and Grave Dodger (it can save you again that island). A failed Rigged Totems or Autoloader roll gets a second try, and Finishing Move's bonus can count twice. |
+| **Autoloader** | perk | Epic | Each kill has a **10% chance to reload your weapon instantly** (more levels: 16.7%, 23.1%, ...). |
 | **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
@@ -41,6 +44,8 @@
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
 | **Cursed Lottery** | Greed relic | Greed | **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain. It **can't be dropped**. Rare (spawn weight 0.15). |
 | **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
+| **Finishing Move** | perk | Epic | Enemies you kill with a **critical hit** drop **+50% crystals**. |
+| **Rigged Totems** | perk | Epic | Health, Chance and Gamble totems are **25% more likely to go your way** (a 50% totem becomes 62.5%). |
 | **Heavy Shot** | the game's own weapon mod | Common | Drops **without Bouncing Shot**, for every weapon. |
 
 ### Ability
@@ -125,6 +130,11 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[cursedLottery]` | `crystals` | `100000` | Crystals when you pick it up. |
 | | `gainPercent` | `0.01` | The share of crystal gains you still get while holding it. |
 | `[luckyCharm]` | `chancePercent` | `25` | The chance for each mod or perk in your chests to be level 2. |
+| `[comboCatalyst]` | `stacksPerComboLevel` | `1` | Extra stacks of each element per combo level above 1 (rounded per hit). |
+| `[finishingMove]` | `crystalPercent` | `50` | More crystals from critical kills. |
+| `[autoloader]` | `chancePercent` | `10` | Per kill; levels add up hyperbolically. |
+| `[riggedTotems]` | `chanceBonusPercent` | `25` | How much more likely totems go your way (capped at certain). |
+| `[encore]` | `chancePercent` | `15` | The chance for a perk to go off a second time. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
 | `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
 | `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
@@ -165,6 +175,11 @@ The effects:
 - **Double or Nothing**: at the end of an island the host builds each player's list of reward chests, then checks for High Roller. CrabMods hooks that check: for a player with Double or Nothing it doubles or empties the list first (and, like High Roller, opens the portals straight away when no chests are left).
 - **Cursed Lottery**: the host gives every pickup through one function; when it gives the Cursed Lottery to someone who didn't have it, they get the crystals. CrabSync hands out copies through the same function, so only the game's own call pays. Every crystal gain goes through one function too, where a holder's gain is cut to the share (fractions are carried over, so lots of small gains still add up). The host refuses to drop it.
 - **Lucky Charm**: when a chest is opened, the host rolls its loot for the opener and spawns it straight after. In between, CrabMods turns level-1 mods and perks into level 2 at the chance (weapons, abilities and relics stay level 1).
+- **Combo Catalyst**: the host works out every hit a player lands in one function (their damage buffs, crits, and the elemental perks scaling the hit's element stacks). After it, CrabMods adds the extra stacks to each element the hit applies, from the player's combo level.
+- **Encore**: on the host, the on-kill and armor perks make their explosions through one function, and CrabMods tells their calls apart from all other explosions by where they come from; a lucky one is made again at the same spot. After Grave Dodger saves a player, a lucky roll marks it unused for the island again.
+- **Autoloader**: ammo is counted only by the machine of the player who holds the weapon, so that machine watches the player's kill counter (four times a second) and rolls for each new kill. A success fills the clip of every weapon that isn't full or reloading, like a finished reload, and updates the ammo on the HUD.
+- **Finishing Move**: the host remembers whether each player's last hit on an enemy was critical. When the enemy dies, it sets up its crystal drop, and CrabMods raises the amount if the killing blow was critical and the killer has the perk.
+- **Rigged Totems**: the Health, Chance and Gamble totems decide with one roll (a percent chance of the good outcome) when a player uses them. For a player with the perk, CrabMods raises that chance before the roll.
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
 - **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
 - **Heavy Shot**'s asset says

@@ -163,6 +163,39 @@ constexpr uintptr_t RadialDamage = 0x140d2dd20;
 constexpr uintptr_t ACrabC_GetCoreLocation = 0x140cbae30;           // FVector*(ACrabC*, FVector* out)
 constexpr uintptr_t ACrabLM_MulticastPlayOneShotFX = 0x140d79d00;   // void(ACrabLM*, FX, Sound, const FVector*): everyone
 constexpr uintptr_t ACrabPS_GetPerkBuff = 0x140d254b0;  // float(ACrabPS*, uint8 PerkType): Magnify (39) 0.2 a level
+// Return addresses of the RadialDamage calls of the game's on-kill and on-hit explosions. In EnemyElim (source: the
+// dying enemy, whose killer is its EliminatingC): Exploding (perk 78), Freezing (88), Flammable (89), Electric (90)
+// and Poisonous (91) Enemies. In the player-hit handler 0x140ca7fe0 (source: the hit player's character): Explosive
+// (perk 31), Poisonous (32) and Flammable (59) Armor.
+constexpr uintptr_t Ret_RadialExplodingEnemies = 0x140ca4569;
+constexpr uintptr_t Ret_RadialFreezingEnemies = 0x140ca4823;
+constexpr uintptr_t Ret_RadialFlammableEnemies = 0x140ca496b;
+constexpr uintptr_t Ret_RadialElectricEnemies = 0x140ca4ab2;
+constexpr uintptr_t Ret_RadialPoisonousEnemies = 0x140ca4bf3;
+constexpr uintptr_t Ret_RadialExplosiveArmor = 0x140ca88df;
+constexpr uintptr_t Ret_RadialPoisonousArmor = 0x140ca89df;
+constexpr uintptr_t Ret_RadialFlammableArmor = 0x140ca8adf;
+
+// Outgoing damage (host). void(ACrabPS*, FCrabDamageInfo*): the player's damage buffs, crits (adds DamageTag 1) and
+// the elemental perks' factors on the hit's debuff stacks. Only called from ACrabPlayerC::ModifyOutgoingDamage,
+// which UCrabHC::TakeDamage calls for hits by players.
+constexpr uintptr_t ACrabPS_CalcOutgoingDamage = 0x140d21480;
+// An enemy dies (host; virtual, void(ACrabEnemyC*)): its crystals, then the killer's on-kill perks.
+constexpr uintptr_t ACrabEnemyC_OnEliminated = 0x140ca4020;
+// void(ACrabCrystalPickup*, int Amount, int Bonus, uint8 Tier, ACrabPS*, bool): sets up a crystal drop; collecting it
+// shares Amount + Bonus between the players. Return address of the call for an enemy's crystals:
+constexpr uintptr_t ACrabCrystalPickup_Init = 0x140d3b0b0;
+constexpr uintptr_t Ret_CrystalInitEnemy = 0x140ca43ff;
+// Grave Dodger (perk 63) saving a player (host): void(ACrabPlayerC*), the heal, after TakeDamage marks the
+// protection used (HC_bDeathProtectionUsed). Called through the vtable only.
+constexpr uintptr_t ACrabPlayerC_GraveDodgerHeal = 0x140d167d0;
+// Totem chances (host): bool(float Percent, float Multiplier) = random 0..100 < Percent x Multiplier. Only called by
+// ACrabTotem::Interact, for the Health totem and the Chance/Gamble totems; true is the good outcome.
+constexpr uintptr_t TotemRoll = 0x140d32ab0;
+constexpr uintptr_t Ret_TotemRollHealth = 0x140cb5cdf;
+constexpr uintptr_t Ret_TotemRollChance = 0x140cb63b2;
+// void(ACrabWeapon*): ammo changed; tells the HUD (the controlling machine's).
+constexpr uintptr_t ACrabWeapon_OnAmmoChanged = 0x140d6eb20;
 
 // Harvest areas (ACrabHarvestArea; the revive bubble is BP_HarvestArea_Revival, SpawnablesDA +0x4C8). The host
 // spawns one where a player goes down; on a timer (0x140cf50f0) it looks for players within its Radius and
@@ -315,6 +348,8 @@ constexpr int PS_PlayerId = 0x224;
 constexpr int PS_Pawn = 0x280;
 constexpr int PS_PlayerName = 0x300;  // FString
 constexpr int PS_Eliminations = 0x358;  // int: enemies this player has killed (replicated)
+// Combo level (float): 1, then 2/3/4/5 at 25/75/175/325 ComboCounter (+0x350, int); 6/7/8 with Combo Ring.
+constexpr int PS_Combo = 0x354;
 constexpr int PS_PSPickups = 0x340;  // TArray<UCrabPickupDA*>: every pickup held, what PickupTag checks look at
 constexpr int PS_BaseMaxHealth = 0x398;  // float
 constexpr int PS_DamageMultiplier = 0x3A0;
@@ -367,6 +402,11 @@ constexpr int Weapon_WeaponDA = 0x260;
 constexpr int Weapon_OwningC = 0x268;
 constexpr int Weapon_OwningPC = 0x270;  // only on the machine that controls the player
 constexpr int Weapon_Spread = 0x2A0;    // float, degrees
+// Ammo is not replicated: the controlling machine counts it. A finished reload sets Ammo = ClipSize.
+constexpr int Weapon_ClipSize = 0x2CC;     // int, computed from the DA's BaseClipSize and mods
+constexpr int Weapon_Ammo = 0x2F0;         // int
+constexpr int Weapon_bIsReloading = 0x370;
+constexpr int WeaponDA_bInfiniteClipSize = 0x14C;
 constexpr int WeaponDA_ShotSpawnType = 0x104;  // 0 Muzzle, 1 AboveCrosshair (Ice Staff: falls from 2500 above the aim)
 // FCrabProjectileInfo
 constexpr int ProjInfo_Dir = 0x08;  // FVector
@@ -446,6 +486,10 @@ constexpr int DamageInfo_Knockback = 0x3C;  // float
 constexpr int DamageInfo_DamagedActor = 0x00;
 constexpr int DamageInfo_Damage = 0x08;  // float
 constexpr int DamageInfo_DamagingC = 0x40;  // ACrabC*
+constexpr int DamageInfo_Tags = 0x10;     // TArray<uint8> ECrabDamageTag: 1 = Critical
+constexpr int DamageInfo_Debuffs = 0x20;  // TArray<FCrabDebuff>: 8 bytes, uint8 Type (1 Ice .. 5 Arcane), int32 Stacks at +4
+// ACrabEnemyC
+constexpr int Enemy_EliminatingC = 0x930;  // ACrabC*: who killed it
 // FCrabPortalInfo
 constexpr int PortalInfo_RewardLootPool = 0x19;
 // UMG and the game's UI objects

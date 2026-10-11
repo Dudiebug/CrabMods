@@ -6,6 +6,7 @@
 //   ACrabLM::BeginPlay      level start: items make their assets and join the loot lists
 //   ACrabPS::GetDamageBuff  the player's damage multiplier: items add their damage bonus
 //   UCrabHC::TakeDamage     a character is hit
+//   CalcOutgoingDamage      a player's hit, after their buffs, crits and elements
 //   island-end rewards      the chests each player gets
 //   LootRoll                every loot roll: items scale how likely each pickup is, per player
 //   SpawnPortals            the next islands' rewards
@@ -39,7 +40,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.7.2";
+constexpr const char kVersion[] = "0.8.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -111,6 +112,14 @@ TakeDamageFn oTakeDamage;
 void HkTakeDamage(void* hc, void* info) {
     if (hc && info) ForEachEnabled([&](Item* i) { i->OnTakeDamage(hc, info); });
     oTakeDamage(hc, info);
+}
+
+using OutgoingDamageFn = void (*)(void*, void*);
+OutgoingDamageFn oOutgoingDamage;
+
+void HkOutgoingDamage(void* ps, void* info) {
+    oOutgoingDamage(ps, info);
+    if (ps && info) ForEachEnabled([&](Item* i) { i->OnOutgoingDamage(ps, info); });
 }
 
 // --- Loot --------------------------------------------------------------------------------------------------
@@ -651,6 +660,7 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::ACrabLM_BeginPlay, &HkBeginPlay, &oBeginPlay, "ACrabLM::BeginPlay");
     Hook(va::ACrabPS_GetDamageBuff, &HkDamageBuff, &oDamageBuff, "ACrabPS::GetDamageBuff");
     Hook(va::UCrabHC_TakeDamage, &HkTakeDamage, &oTakeDamage, "UCrabHC::TakeDamage");
+    Hook(va::ACrabPS_CalcOutgoingDamage, &HkOutgoingDamage, &oOutgoingDamage, "ACrabPS::CalcOutgoingDamage");
     HookRewardChests();
     Hook(va::LootRoll, &HkLootRoll, &oLootRoll, "LootRoll");
     Hook(va::ACrabPS_GetPickups, &HkGetPickups, &oGetPickups, "ACrabPS::GetPickups");

@@ -4,6 +4,14 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.8.0
+
+- New **Epic perk, Combo Catalyst**: your hits apply **+1 stack of each element** they already apply (ice, fire, lightning, poison, arcane) **for every combo level above 1**, per Combo Catalyst level (`[comboCatalyst] stacksPerComboLevel`).
+- New **Epic relic, Encore**: perks that go off by themselves have a **15% chance to go off a second time** (`[encore] chancePercent`): the on-kill explosions of Exploding, Freezing, Flammable, Electric and Poisonous Enemies, the Explosive, Poisonous and Flammable Armor explosions, and **Grave Dodger** (it can save you again that island). It also gives a failed Rigged Totems or Autoloader roll a second try, and doubles Finishing Move's bonus.
+- New **Epic perk, Autoloader**: each kill has a **10% chance to reload your weapon instantly** (`[autoloader] chancePercent`; more levels add up hyperbolically).
+- New **Epic perk, Finishing Move**: enemies you kill with a **critical hit** drop **50% more crystals** per level (`[finishingMove] crystalPercent`).
+- New **Epic perk, Rigged Totems**: Health, Chance and Gamble totems are **25% more likely to go your way** per level (`[riggedTotems] chanceBonusPercent`): a 50% totem becomes 62.5%.
+
 ### 0.7.2
 
 - New **Greed relic, Cursed Lottery**: **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain (`[cursedLottery] crystals`, `gainPercent`). It **can't be dropped**. It's as rare as the game's rarer Greed relics (spawn weight 0.15). With CrabSync, only the player who picks it up gets the crystals, not every copy.

@@ -21,6 +21,7 @@
 #include <crab/hook.hpp>
 
 #include "../item.hpp"
+#include "shared.hpp"
 #include "../ui.hpp"
 #include "../world.hpp"
 
@@ -681,7 +682,12 @@ private:
     };
 
     // Only a player who just used the key totem may have items spawned from it; the game itself doesn't check.
+    // Every totem goes through here, so it also tells other items (Rigged Totems) who is using one.
     static void HkTotemInteract(void* totem, void* c) {
+        struct User {
+            explicit User(void* c) { g_totemUser = c; }
+            ~User() { g_totemUser = nullptr; }
+        } user(c);
         if (!totem || !c || At<uint8_t>(totem, off::Totem_Type) != kKeyTotem) return oTotemInteract(totem, c);
         void* pc = At<void*>(c, off::Pawn_Controller);
         int before = At<TArray<void*>>(totem, off::Totem_UniqueIDInteractions).Num;
