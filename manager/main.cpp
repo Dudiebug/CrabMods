@@ -1,5 +1,6 @@
 // CrabMods Manager: installs, updates, switches on and off and removes the Crab Champions mods from this
-// repository's GitHub releases, and edits and shares their settings. One window, plain Win32, works under wine.
+// repository's GitHub releases, edits and shares their settings, starts the game and, when it crashes, gathers the
+// logs and the crash report for a GitHub issue. One window, plain Win32, works under wine.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -9,6 +10,7 @@
 #include <winhttp.h>
 
 #include <atomic>
+#include <cwchar>
 #include <tuple>
 #include <fstream>
 #include <thread>
@@ -19,7 +21,7 @@ using namespace mgr;
 
 namespace {
 
-constexpr const char kVersion[] = "0.1.0";
+constexpr const char kVersion[] = "0.2.0";
 constexpr const wchar_t kTitle[] = L"CrabMods Manager";
 
 // --- Strings and files ---------------------------------------------------------------------------------------
@@ -296,12 +298,220 @@ std::string Toggle(const ModInfo& m) {
     return std::string(m.name) + (on ? " switched off." : " switched on.");
 }
 
+// --- Crash reports -----------------------------------------------------------------------------------------
+
+// The game's Saved folder (its crash reports and log): in this Windows profile, and, for Proton, in the game's
+// own wine prefix in the Steam library, since the manager may run in another prefix.
+struct SavedDir {
+    std::wstring path;
+    bool proton;
+};
+std::vector<SavedDir> SavedDirs() {
+    std::vector<SavedDir> dirs;
+    wchar_t buf[MAX_PATH];
+    DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", buf, MAX_PATH);
+    if (n && n < MAX_PATH) dirs.push_back({std::wstring(buf, n) + L"\\CrabChampions\\Saved", RunningOnWine()});
+    if (size_t i = g_game.rfind(L"\\steamapps\\common\\"); i != std::wstring::npos)
+        dirs.push_back({g_game.substr(0, i) + L"\\steamapps\\compatdata\\" + Wide(kAppId) +
+                            L"\\pfx\\drive_c\\users\\steamuser\\AppData\\Local\\CrabChampions\\Saved",
+                        true});
+    std::erase_if(dirs, [](const SavedDir& d) { return !Exists(d.path); });
+    return dirs;
+}
+
+ULONGLONG Ticks(const FILETIME& f) { return (ULONGLONG(f.dwHighDateTime) << 32) | f.dwLowDateTime; }
+
+// The files in a folder (not its subfolders): name, size, last write.
+std::vector<WIN32_FIND_DATAW> FilesIn(const std::wstring& dir) {
+    std::vector<WIN32_FIND_DATAW> files;
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return files;
+    do
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) files.push_back(fd);
+    while (FindNextFileW(h, &fd));
+    FindClose(h);
+    return files;
+}
+
+// One of UE's crash folders (Saved\Crashes\UE4CC-Windows-...).
+struct Crash {
+    std::wstring dir;
+    std::string name;
+    ULONGLONG time = 0, size = 0;  // the newest file in it, and all of them together (to see it's finished)
+    bool proton = false;
+};
+
+std::optional<Crash> NewestCrash() {
+    std::optional<Crash> newest;
+    for (const SavedDir& saved : SavedDirs()) {
+        WIN32_FIND_DATAW fd;
+        HANDLE h = FindFirstFileW((saved.path + L"\\Crashes\\*").c_str(), &fd);
+        if (h == INVALID_HANDLE_VALUE) continue;
+        do {
+            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || fd.cFileName[0] == L'.') continue;
+            Crash c{saved.path + L"\\Crashes\\" + fd.cFileName, Utf8(fd.cFileName), 0, 0, saved.proton};
+            bool context = false;
+            for (const auto& f : FilesIn(c.dir)) {
+                c.time = std::max(c.time, Ticks(f.ftLastWriteTime));
+                c.size += (ULONGLONG(f.nFileSizeHigh) << 32) | f.nFileSizeLow;
+                context |= _wcsicmp(f.cFileName, L"CrashContext.runtime-xml") == 0;
+            }
+            if (context && (!newest || c.time > newest->time)) newest = c;
+        } while (FindNextFileW(h, &fd));
+        FindClose(h);
+    }
+    return newest;
+}
+
+ULONGLONG Now() {
+    FILETIME f;
+    GetSystemTimeAsFileTime(&f);
+    return Ticks(f);
+}
+constexpr ULONGLONG kSecond = 10'000'000;  // FILETIME ticks
+
+// "2026-10-11 14:03" (or "2026-10-11_14-03-05" for file names) in local time.
+std::string LocalTime(ULONGLONG ticks, bool forFile) {
+    FILETIME utc{DWORD(ticks), DWORD(ticks >> 32)}, local;
+    SYSTEMTIME t;
+    FileTimeToLocalFileTime(&utc, &local);
+    FileTimeToSystemTime(&local, &t);
+    char buf[32];
+    std::snprintf(buf, sizeof buf, forFile ? "%04d-%02d-%02d_%02d-%02d-%02d" : "%04d-%02d-%02d %02d:%02d", t.wYear,
+                  t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    return buf;
+}
+
+// What would name the player's account or machine in the files: user and computer names.
+std::vector<std::string> Secrets() {
+    std::vector<std::string> secrets;
+    for (const wchar_t* var : {L"USERNAME", L"USER", L"LOGNAME", L"COMPUTERNAME", L"HOSTNAME"}) {
+        wchar_t buf[256];
+        DWORD n = GetEnvironmentVariableW(var, buf, 256);
+        if (n && n < 256) secrets.push_back(Utf8(std::wstring(buf, n)));
+    }
+    wchar_t buf[256];
+    DWORD n = 256;
+    if (GetComputerNameW(buf, &n)) secrets.push_back(Utf8(std::wstring(buf, n)));
+    n = 256;
+    if (GetUserNameW(buf, &n) && n > 1) secrets.push_back(Utf8(std::wstring(buf, n - 1)));
+    std::erase_if(secrets, [](const std::string& s) { return s == "steamuser"; });  // Proton's, the same for all
+    return secrets;
+}
+
+std::string Versions() {
+    std::string v;
+    for (const ModInfo& m : Mods()) {
+        State st = StateOf(m);
+        v += std::string(m.name) + " " +
+             (st == State::Missing ? "not installed" : InstalledVersion(m) + (st == State::Disabled ? " (off)" : "")) +
+             ", ";
+    }
+    return v + "Manager " + kVersion;
+}
+
+struct BuiltReport {
+    CrashReport report;
+    std::wstring folder, zip;
+    std::string error;
+};
+
+// Copies the mod logs and settings, the game's log and the crash folder (if any) into
+// CrashReports\CrabCrash-<time> next to the manager, with names and ids taken out, and zips them there.
+BuiltReport BuildReport(const std::optional<Crash>& crash) {
+    BuiltReport b;
+    CrashReport& r = b.report;
+    std::vector<std::pair<std::string, std::string>> files;  // name in the report, contents
+    if (!g_game.empty())
+        for (const char* name : {"CrabMods.log", "CrabSync.log", "CrabMods.ini", "CrabSync.ini"})
+            if (auto t = ReadFile(g_game + L"\\" + Wide(name))) files.push_back({name, *t});
+    for (const SavedDir& saved : SavedDirs())
+        if (auto t = ReadFile(saved.path + L"\\Logs\\CrabChampions.log")) {
+            files.push_back({"CrabChampions.log", *t});
+            break;
+        }
+    if (crash)
+        for (const auto& f : FilesIn(crash->dir)) {
+            ULONGLONG size = (ULONGLONG(f.nFileSizeHigh) << 32) | f.nFileSizeLow;
+            bool dump = _wcsicmp(f.cFileName + std::max<size_t>(wcslen(f.cFileName), 4) - 4, L".dmp") == 0;
+            if (dump && (size == 0 || size > 20'000'000)) continue;  // wine writes empty ones; GitHub takes 25 MB
+            if (auto t = ReadFile(crash->dir + L"\\" + f.cFileName)) files.push_back({"crash/" + Utf8(f.cFileName), *t});
+        }
+
+    std::vector<std::string> players, secrets = Secrets();
+    for (const auto& [name, text] : files)
+        if (name == "CrabSync.log") players = PlayerNames(text);
+    for (auto& [name, text] : files) {
+        if (name.ends_with(".dmp")) continue;
+        if (name.ends_with(".runtime-xml")) text = StripCrashIds(text);
+        text = Scrub(text, secrets, players);
+        if (name == "CrabMods.log") r.crabModsLog = text;
+        if (name == "CrabSync.log") r.crabSyncLog = text;
+        if (name == "crash/CrashContext.runtime-xml") ReadCrashContext(r, text);
+    }
+    r.when = LocalTime(crash ? crash->time : Now(), false);
+    r.platform = (crash ? crash->proton : RunningOnWine()) ? "Linux (Proton)" : "Windows";
+    r.versions = Versions();
+    WIN32_FILE_ATTRIBUTE_DATA log;
+    if (crash && !g_game.empty() &&
+        GetFileAttributesExW((g_game + L"\\CrabMods.log").c_str(), GetFileExInfoStandard, &log) &&
+        Ticks(log.ftLastWriteTime) > crash->time + 60 * kSecond)
+        r.note = "the game was started again after the crash, so the mod logs are from that later session";
+
+    std::string stamp = (crash ? "CrabCrash-" : "CrabLogs-") + LocalTime(crash ? crash->time : Now(), true);
+    std::wstring root = ExeDir() + L"CrashReports";
+    CreateDirectoryW(root.c_str(), nullptr);
+    b.folder = root + L"\\" + Wide(stamp);
+    if (!CreateDirectoryW(b.folder.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
+        b.error = "could not make the folder " + Utf8(b.folder);
+        return b;
+    }
+    r.zipName = stamp + ".zip";
+    files.push_back({"report.md", "# " + IssueTitle(r) + "\n\n" + IssueBody(r, 200)});
+    CreateDirectoryW((b.folder + L"\\crash").c_str(), nullptr);
+    for (const auto& [name, text] : files) {
+        std::wstring path = b.folder + L"\\" + Wide(name);
+        std::replace(path.begin(), path.end(), L'/', L'\\');
+        WriteFile(path, text);
+    }
+    if (!crash) RemoveDirectoryW((b.folder + L"\\crash").c_str());  // only if empty
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    uint16_t dosTime = (t.wHour << 11) | (t.wMinute << 5) | (t.wSecond / 2);
+    uint16_t dosDate = ((t.wYear - 1980) << 9) | (t.wMonth << 5) | t.wDay;
+    b.zip = b.folder + L"\\" + Wide(r.zipName);
+    if (!WriteFile(b.zip, StoreZip(files, dosTime, dosDate))) b.error = "could not write " + r.zipName;
+    return b;
+}
+
+// Opens an address or a folder with the system's own program (under wine, the Linux one, through winebrowser).
+void OpenExternal(const std::wstring& target) {
+    if (RunningOnWine()) ShellExecuteW(nullptr, L"open", L"winebrowser.exe", (L"\"" + target + L"\"").c_str(), nullptr, SW_SHOWNORMAL);
+    else ShellExecuteW(nullptr, L"open", target.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+}
+
+// Starts the game through Steam (so the overlay, cloud saves and multiplayer work); without Steam, the game itself.
+std::string LaunchGame() {
+    std::wstring url = L"steam://rungameid/" + Wide(kAppId);
+    if (RunningOnWine()) {
+        OpenExternal(url);
+    } else if (INT_PTR(ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) <= 32) {
+        if (g_game.empty()) return "Could not start Steam, and the game folder is not known.";
+        std::wstring exe = g_game + L"\\" + kGameExe;
+        if (INT_PTR(ShellExecuteW(nullptr, L"open", exe.c_str(), nullptr, g_game.c_str(), SW_SHOWNORMAL)) <= 32)
+            return "Could not start the game.";
+    }
+    return "Starting Crab Champions through Steam. While this window is open, it watches for crashes.";
+}
+
 // --- Window ------------------------------------------------------------------------------------------------
 
 enum : int {
     IdGame = 100, IdBrowse, IdList, IdInstall, IdToggle, IdRemove, IdRefresh, IdIni, IdSave, IdReload, IdCopyCode,
-    IdPasteCode, IdOpenFolder, IdEditor, IdStatus,
+    IdPasteCode, IdOpenFolder, IdEditor, IdStatus, IdLaunch, IdCollect,
 };
+constexpr UINT_PTR kCrashTimer = 1;
 constexpr UINT WM_APP_RELEASES = WM_APP + 1, WM_APP_DONE = WM_APP + 2;
 
 HWND g_wnd, g_gameEdit, g_list, g_iniCombo, g_editor, g_status;
@@ -315,11 +525,14 @@ void SetStatus(const std::string& s) { SetWindowTextW(g_status, Wide(s).c_str())
 
 std::wstring OwnConfig() { return ExeDir() + L"CrabModsManager.ini"; }
 
-void SaveGameDir() { WriteFile(OwnConfig(), "game=" + Utf8(g_game) + "\n"); }
+std::string g_lastCrash;  // the crash folder last reported (or seen), so each crash is offered once
+
+void SaveConfig() { WriteFile(OwnConfig(), "game=" + Utf8(g_game) + "\nlastCrash=" + g_lastCrash + "\n"); }
 std::wstring LoadGameDir() {
     auto t = ReadFile(OwnConfig());
     if (!t) return {};
     IniValues v = ReadIni(*t);
+    g_lastCrash = v[""]["lastCrash"];
     return NormalizeGameDir(Wide(v[""]["game"]));
 }
 
@@ -350,6 +563,7 @@ void UpdateButtons() {
     bool ini = have && g_iniShown >= 0;
     for (int id : {IdSave, IdReload, IdCopyCode, IdPasteCode}) EnableWindow(GetDlgItem(g_wnd, id), ini);
     EnableWindow(GetDlgItem(g_wnd, IdOpenFolder), have);
+    EnableWindow(GetDlgItem(g_wnd, IdLaunch), have);
 }
 
 void RefreshList() {
@@ -460,6 +674,57 @@ std::wstring GetClipboard() {
     return text;
 }
 
+// Says what was saved and offers to report it: Yes opens a filled-in GitHub issue and the report's folder (to drag
+// the zip into the issue), No only the folder.
+void OfferReport(const BuiltReport& b) {
+    if (!b.error.empty()) {
+        SetStatus("Could not save the report: " + b.error);
+        return;
+    }
+    const CrashReport& r = b.report;
+    std::wstring msg;
+    if (r.crashed)
+        msg = L"Crab Champions crashed (" + Wide(r.when) + L")" +
+              (r.error.empty() ? L"" : L":\n" + Wide(r.error) + L" at " + Wide(r.callStack.substr(0, r.callStack.find('\n')))) +
+              L"\n\n";
+    msg += L"The mod logs and settings" + std::wstring(r.crashed ? L" and the game's crash report" : L"") +
+           L" are saved, with player names, user folders and machine ids taken out, in:\n" + b.zip +
+           L"\n\nReport it on GitHub?\n\nYes: opens a filled-in issue in your browser (you need a GitHub account) "
+           L"and the folder with the zip, to drag into the issue.\nNo: only opens the folder (report.md in it has the "
+           L"same text, to post anywhere else).";
+    SetStatus("Saved " + Utf8(b.zip));
+    int answer = MessageBoxW(g_wnd, msg.c_str(), kTitle,
+                             MB_YESNOCANCEL | MB_SETFOREGROUND | (r.crashed ? MB_ICONWARNING : MB_ICONINFORMATION));
+    if (answer == IDYES) OpenExternal(Wide(IssueUrl(r)));
+    if (answer == IDYES || answer == IDNO) OpenExternal(b.folder);
+}
+
+// Every few seconds: a crash folder the manager hasn't offered yet, once it has stopped growing (the crash
+// reporter writes it over a few seconds). Ones from before the manager was used, over 3 days old, are skipped.
+void CheckForCrash() {
+    static bool busy = false;
+    static std::string pending;
+    static ULONGLONG pendingSize = 0;
+    if (busy) return;
+    auto crash = NewestCrash();
+    if (!crash || crash->name == g_lastCrash) return;
+    if (crash->time + 3 * 24 * 3600 * kSecond < Now()) {
+        g_lastCrash = crash->name;
+        SaveConfig();
+        return;
+    }
+    if (pending != crash->name || pendingSize != crash->size) {
+        pending = crash->name;
+        pendingSize = crash->size;
+        return;
+    }
+    busy = true;
+    g_lastCrash = crash->name;
+    SaveConfig();
+    OfferReport(BuildReport(crash));
+    busy = false;
+}
+
 void OnCommand(int id, int code) {
     if (id >= 0 && g_busy && id != IdEditor) return;
     int sel = Selected();
@@ -478,7 +743,7 @@ void OnCommand(int id, int code) {
                                 kTitle, MB_ICONWARNING);
                 } else if (ConfirmDiscard()) {
                     SetGameDir(dir);
-                    SaveGameDir();
+                    SaveConfig();
                 }
             }
             CoTaskMemFree(pidl);
@@ -566,6 +831,16 @@ void OnCommand(int id, int code) {
     case IdOpenFolder:
         ShellExecuteW(g_wnd, L"open", g_game.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         break;
+    case IdLaunch:
+        SetStatus(LaunchGame());
+        break;
+    case IdCollect: {
+        // The newest crash report goes in too if it's from the last day.
+        auto crash = NewestCrash();
+        if (crash && crash->time + 24 * 3600 * kSecond < Now()) crash.reset();
+        OfferReport(BuildReport(crash));
+        break;
+    }
     }
 }
 
@@ -590,9 +865,11 @@ void Layout() {
     y += listH + 6;
     int x = m;
     for (int id : {IdInstall, IdToggle, IdRemove, IdRefresh}) {
-        place(id, x, y, 130, bh);
-        x += 136;
+        place(id, x, y, 115, bh);
+        x += 121;
     }
+    place(IdLaunch, w - m - 120 - 6 - 120, y, 120, bh);
+    place(IdCollect, w - m - 120, y, 120, bh);
     y += bh + m + 4;
     place(IdIni - 1, m, y + 5, 60, 20);
     place(IdIni, m + 65, y, 150, 200);
@@ -647,6 +924,8 @@ void Create() {
     Make(L"BUTTON", L"Switch off", BS_PUSHBUTTON, IdToggle);
     Make(L"BUTTON", L"Remove", BS_PUSHBUTTON, IdRemove);
     Make(L"BUTTON", L"Check for updates", BS_PUSHBUTTON, IdRefresh);
+    Make(L"BUTTON", L"Launch game", BS_PUSHBUTTON, IdLaunch);
+    Make(L"BUTTON", L"Collect logs...", BS_PUSHBUTTON, IdCollect);
 
     Make(L"STATIC", L"Settings:", 0, IdIni - 1);
     g_iniCombo = Make(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL, IdIni);
@@ -667,6 +946,7 @@ void Create() {
     if (dir.empty()) dir = FindGameDir();
     SetGameDir(dir);
     FetchReleases();
+    SetTimer(g_wnd, kCrashTimer, 3000, nullptr);
 }
 
 LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
@@ -679,10 +959,13 @@ LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
         Layout();
         return 0;
     case WM_GETMINMAXINFO:
-        reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize = {760, 480};
+        reinterpret_cast<MINMAXINFO*>(lp)->ptMinTrackSize = {800, 480};
         return 0;
     case WM_COMMAND:
         OnCommand(LOWORD(wp), HIWORD(wp));
+        return 0;
+    case WM_TIMER:
+        if (wp == kCrashTimer && !g_busy) CheckForCrash();
         return 0;
     case WM_NOTIFY:
         if (reinterpret_cast<NMHDR*>(lp)->idFrom == IdList && reinterpret_cast<NMHDR*>(lp)->code == LVN_ITEMCHANGED)
@@ -725,8 +1008,9 @@ LRESULT CALLBACK WndProc(HWND w, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 // "CrabModsManager.exe --selftest": no window. Finds the game, reads GitHub and the installed versions, and
-// writes what it found to CrabModsManager-selftest.txt next to the exe.
-int SelfTest() {
+// writes what it found to CrabModsManager-selftest.txt next to the exe. With --report it also saves a report of
+// the newest crash (or of the logs) as "Collect logs" does, and adds the issue address it would open.
+int SelfTest(bool report) {
     std::string r = std::string("CrabMods Manager ") + kVersion + "\n";
     g_game = LoadGameDir();
     if (g_game.empty()) g_game = FindGameDir();
@@ -742,6 +1026,13 @@ int SelfTest() {
              (st == State::Missing ? "no" : InstalledVersion(m) + (st == State::Disabled ? " (off)" : "")) +
              (UpdateAvailable(m) ? ", update available" : "") + "\n";
     }
+    for (const SavedDir& d : SavedDirs()) r += "saved: " + Utf8(d.path) + (d.proton ? " (proton)" : "") + "\n";
+    auto crash = NewestCrash();
+    r += "newest crash: " + (crash ? crash->name + " " + LocalTime(crash->time, false) : std::string("none")) + "\n";
+    if (report) {
+        BuiltReport b = BuildReport(crash);
+        r += "report: " + (b.error.empty() ? Utf8(b.zip) : b.error) + "\nissue: " + IssueUrl(b.report) + "\n";
+    }
     WriteFile(ExeDir() + L"CrabModsManager-selftest.txt", r);
     return body ? 0 : 1;
 }
@@ -749,7 +1040,7 @@ int SelfTest() {
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR cmd, int show) {
-    if (cmd && wcsstr(cmd, L"--selftest")) return SelfTest();
+    if (cmd && wcsstr(cmd, L"--selftest")) return SelfTest(wcsstr(cmd, L"--report") != nullptr);
     INITCOMMONCONTROLSEX icc{sizeof icc, ICC_LISTVIEW_CLASSES | ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&icc);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);

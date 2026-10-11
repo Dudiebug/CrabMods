@@ -1,6 +1,6 @@
 # CrabMods Manager
 
-A small Windows app that installs, updates and configures the mods in this repo. It also runs under Proton / wine on Linux and Steam Deck.
+A small Windows app that installs, updates and configures the mods in this repo, starts the game, and when the game crashes gathers everything needed to report it. It also runs under Proton / wine on Linux and Steam Deck.
 
 Download `CrabModsManager.exe` from [Releases](https://github.com/Dudiebug/CrabMods/releases?q=manager) and run it from anywhere. Nothing to install.
 
@@ -14,6 +14,31 @@ Download `CrabModsManager.exe` from [Releases](https://github.com/Dudiebug/CrabM
 - **Settings**: pick a mod's `.ini`, edit it, **Save**. **Reload** throws away unsaved edits. **Open folder** opens the game's `Win64` folder.
 
 Close the game before installing, updating or switching a mod. The game holds its DLLs open while it runs.
+
+## Crashes
+
+- **Launch game** starts Crab Champions through Steam.
+- **While the manager is open it watches for crashes**, however the game was started. When the game crashes it saves a report, then asks whether to report it. It also offers a crash that happened while it was closed, the next time it opens (up to 3 days later).
+- **Collect logs...** saves the same report by hand, for a problem that isn't a crash. It includes the newest crash report if it's from the last day.
+
+A report is a folder in `CrashReports` next to the exe. It holds a `.zip` with:
+- `CrabMods.log`, `CrabSync.log`, `CrabMods.ini` and `CrabSync.ini`;
+- the game's crash report from `Saved\Crashes` (`CrashContext.runtime-xml`, the minidump when it has one);
+- `report.md`, a summary: the error, the call stack, the versions and the end of the logs.
+
+**What's taken out** of every file (except the minidump, which is memory from the game):
+- player names (they become `Player 1`, `Player 2`, ...);
+- your user name and computer name, and the user folder in paths;
+- the crash report's machine and account ids.
+
+**Reporting it**:
+- **Yes** opens a new GitHub issue in your browser, already filled in with the summary, and opens the report folder. Describe what you were doing, drag the `.zip` into the issue, and submit.
+- **No** only opens the folder. Post `report.md` and the zip anywhere else, such as Discord.
+- Nothing is sent unless you submit the issue yourself.
+
+Opening an issue needs a GitHub account. GitHub has no way to file issues without one, and a key built into the app would let anyone post as the repo.
+
+On Linux the manager finds the game's crash reports in Proton's prefix (`steamapps/compatdata/774801`), even when the manager runs in another one.
 
 ## Share codes
 
@@ -42,11 +67,12 @@ WINEDLLOVERRIDES="xinput1_3=n,b" %command%
 
 | File | |
 |---|---|
-| `CrabModsManager.ini` | Next to the exe: the game folder you chose. |
-| `CrabModsManager-selftest.txt` | Written by `CrabModsManager.exe --selftest`: the game folder, the releases and installed versions it found. No window. |
+| `CrabModsManager.ini` | Next to the exe: the game folder you chose, and the last crash it offered to report. |
+| `CrashReports\` | Next to the exe: one folder per report (see [Crashes](#crashes)). |
+| `CrabModsManager-selftest.txt` | Written by `CrabModsManager.exe --selftest`: the game folder, the releases and installed versions, and the crash reports it found. No window. `--selftest --report` also saves a report. |
 
-The manager talks to `api.github.com` and GitHub's download servers, nothing else.
+The manager talks to `api.github.com` and GitHub's download servers, nothing else. Crash reports leave your PC only if you post them.
 
 ## Source
 
-`manager/main.cpp` (the window, downloads and files) and `manager/core.hpp` (versions, release JSON, ini merging, share codes; tested in `tests/manager_test.cpp`). Built by `./build.sh` with the other mods.
+`manager/main.cpp` (the window, downloads and files) and `manager/core.hpp` (versions, release JSON, ini merging, share codes, crash report scrubbing and the issue text; tested in `tests/manager_test.cpp`). Built by `./build.sh` with the other mods.

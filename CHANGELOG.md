@@ -124,6 +124,16 @@ First release, as Arsenal.
 
 ## CrabMods Manager
 
+### 0.2.0
+
+- **Launch game** starts Crab Champions through Steam.
+- **Crash reports.** While it is open, the manager watches the game's crash folder, including Proton's prefix on Linux. When the game crashes (or crashed while the manager was closed), it saves the mod logs, the settings and the game's crash report:
+  - Player names, your user and computer name, your user folder and the crash report's machine ids are taken out.
+  - It saves to `CrashReports` next to the exe, as a folder and a zip.
+  - It offers to open a GitHub issue already filled in with the error, the call stack, the versions and the end of the logs. Drag the zip into the issue.
+- **Collect logs...** does the same by hand.
+- `--selftest` lists the crash reports it finds. `--selftest --report` saves one.
+
 ### 0.1.0
 
 First release.

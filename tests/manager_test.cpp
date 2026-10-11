@@ -1,4 +1,4 @@
-// Manager tests: versions, the releases list, share codes and ini merging (manager/core.hpp).
+// Manager tests: versions, the releases list, share codes, ini merging and crash reports (manager/core.hpp).
 #include <cstdio>
 
 #include "../manager/core.hpp"
@@ -121,12 +121,74 @@ static void Libraries() {
     CHECK(libs.size() == 2 && libs[1] == "D:\\SteamLibrary");
 }
 
+static void Crashes() {
+    CHECK(ScrubHomes("C:\\Users\\Dudie Bug\\AppData\\x.log") == "C:\\Users\\<user>\\AppData\\x.log");
+    CHECK(ScrubHomes("Z:\\home\\dudie\\.local/share") == "Z:\\home\\<user>\\.local/share");
+    CHECK(ScrubHomes("/home/dudie") == "/home/<user>");
+    CHECK(ScrubHomes("C:/users/steamuser/AppData") == "C:/users/steamuser/AppData");
+    CHECK(ScrubHomes("my home is nice, /homes/x") == "my home is nice, /homes/x");
+    CHECK(ReplaceNoCase("DESKTOP-ABC and desktop-abc", "Desktop-Abc", "<user>") == "<user> and <user>");
+    CHECK(ReplaceNoCase("a b", "a", "x") == "a b");  // too short to be worth hiding
+
+    const char* sync = "[23:09:20.804] hook UGameEngine::Tick @ 00000001422EEFB0: MH_OK\n"
+                       "[23:10:23.483] Bob: gained ability mod x1 DA_AbilityMod_ToolBelt\n"
+                       "[23:10:24.000]   Bobby Tables: health=1/2 (x) base max=3\n"
+                       "[23:10:25.000] back in the lobby: team inventory cleared\n"
+                       "[23:10:26.000] the host runs CrabSync 1.0.4: ok\n"
+                       "[23:10:27.000] Bob: slots 1 +5\n";
+    auto names = PlayerNames(sync);
+    CHECK(names.size() == 2 && names[0] == "Bob" && names[1] == "Bobby Tables");
+    std::string s = Scrub("Bobby Tables met Bob at C:\\Users\\Dudie\\x on PC-7", {"PC-7"}, names);
+    CHECK(s == "Player 2 met Player 1 at C:\\Users\\<user>\\x on <user>");
+
+    const char* xml =
+        "<ErrorMessage>Unhandled Exception: EXCEPTION_ACCESS_VIOLATION reading address 0xff</ErrorMessage>\n"
+        "<SecondsSinceStart>1397</SecondsSinceStart>\n<MachineId>AFADD9FF</MachineId>\n"
+        "<LoginId>afadd9ff</LoginId>\n<Misc.OSVersionMajor>Windows 10</Misc.OSVersionMajor>\n"
+        "<PCallStack>\nCrabSync                      0x00006ffffb540000 + 1b10            \n"
+        "CrabChampions-Win64-Shipping  0x0000000140000000 + 78a4e0          \n</PCallStack>";
+    std::string clean = StripCrashIds(xml);
+    CHECK(clean.find("AFADD9FF") == std::string::npos && clean.find("afadd9ff") == std::string::npos);
+    CHECK(clean.find("<MachineId></MachineId>") != std::string::npos);
+    CrashReport r;
+    ReadCrashContext(r, clean);
+    CHECK(r.crashed && r.secondsIn == 1397 && r.os == "Windows 10");
+    CHECK(r.error == "EXCEPTION_ACCESS_VIOLATION reading address 0xff");
+    CHECK(r.callStack == "CrabSync+0x1b10\nCrabChampions-Win64-Shipping+0x78a4e0\n");
+    CHECK(IssueTitle(r) == "Crash: EXCEPTION_ACCESS_VIOLATION reading address 0xff at CrabSync+0x1b10");
+
+    CHECK(LastLines("a\nb\nc\n", 2) == "b\nc");
+    CHECK(LastLines("a\nb\nc", 5) == "a\nb\nc");
+    CHECK(LastLines("a\nb", 0).empty());
+    CHECK(LastLines("only", 1) == "only");
+    CHECK(UrlEncode("a b&c/\xc3\xa9~") == "a%20b%26c%2F%C3%A9~");
+
+    r.versions = "CrabMods 0.8.0";
+    r.platform = "Linux (Proton)";
+    r.zipName = "CrabCrash.zip";
+    for (int i = 0; i < 2000; i++) r.crabModsLog += "[00:00:00.000] a fairly long log line number " + std::to_string(i) + "\r\n";
+    r.crabSyncLog = "x ``` y\n";
+    std::string body = IssueBody(r, 3);
+    CHECK(body.find("number 1999\n") != std::string::npos && body.find("number 1997\n") != std::string::npos);
+    CHECK(body.find("number 1996") == std::string::npos && body.find('\r') == std::string::npos);
+    CHECK(body.find("x ''' y") != std::string::npos && body.find("CrabCrash.zip") != std::string::npos);
+    std::string url = IssueUrl(r);
+    CHECK(url.rfind("https://github.com/Dudiebug/CrabMods/issues/new?title=Crash%3A%20", 0) == 0);
+    CHECK(url.size() <= 7500 && url.find("number%201999") != std::string::npos);
+
+    std::string zip = StoreZip({{"a.txt", "hello"}, {"b/c.log", ""}});
+    CHECK(zip.compare(0, 4, "PK\x03\x04") == 0 && zip.find("hello") != std::string::npos);
+    CHECK(zip.size() == 30 + 5 + 5 + 30 + 7 + 46 + 5 + 46 + 7 + 22);
+    CHECK(zip.compare(zip.size() - 22, 4, "PK\x05\x06") == 0);
+}
+
 int main() {
     Versions();
     Releases();
     ShareCodes();
     Merge();
     Libraries();
+    Crashes();
     std::printf(g_failures ? "manager tests: %d FAILED\n" : "manager tests: all passed\n", g_failures);
     return g_failures ? 1 : 0;
 }

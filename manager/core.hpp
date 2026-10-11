@@ -1,4 +1,5 @@
-// CrabMods Manager: everything that is not the window. Release lists, versions, share codes, ini merging.
+// CrabMods Manager: everything that is not the window. Release lists, versions, share codes, ini merging,
+// crash reports.
 // No Windows calls here, so tests/manager_test.cpp can check it all.
 #pragma once
 #include <algorithm>
@@ -501,6 +502,268 @@ inline std::vector<std::string> SteamLibraries(const std::string& vdf) {
         i = j + 1;
     }
     return paths;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Crash reports: the game's crash folder and the mod logs, with what could identify the player taken out,
+// zipped, and summed up for a GitHub issue opened in the browser (prefilled through the address).
+
+inline constexpr const char kAppId[] = "774801";  // Crab Champions on Steam
+
+inline char Lower(char c) { return c >= 'A' && c <= 'Z' ? char(c - 'A' + 'a') : c; }
+
+// Every case-insensitive occurrence of `from` (at least 3 characters) replaced with `to`.
+inline std::string ReplaceNoCase(const std::string& s, const std::string& from, const std::string& to) {
+    if (from.size() < 3) return s;
+    std::string r;
+    size_t i = 0;
+    while (i < s.size()) {
+        bool hit = i + from.size() <= s.size();
+        for (size_t k = 0; hit && k < from.size(); k++) hit = Lower(s[i + k]) == Lower(from[k]);
+        if (hit) {
+            r += to;
+            i += from.size();
+        } else {
+            r += s[i++];
+        }
+    }
+    return r;
+}
+
+// "C:\Users\Name\..." and "/home/name/..." with the name replaced by "<user>" (Proton's shared "steamuser",
+// "Public" and "Default" are left alone).
+inline std::string ScrubHomes(const std::string& s) {
+    auto sep = [](char c) { return c == '\\' || c == '/'; };
+    std::string r;
+    size_t i = 0;
+    while (i < s.size()) {
+        r += s[i];
+        if (!sep(s[i++])) continue;
+        for (const char* dir : {"users", "home"}) {
+            size_t n = std::strlen(dir);
+            if (i + n >= s.size() || !sep(s[i + n])) continue;
+            bool hit = true;
+            for (size_t k = 0; hit && k < n; k++) hit = Lower(s[i + k]) == dir[k];
+            if (!hit) continue;
+            size_t a = i + n + 1, b = a;
+            while (b < s.size() && !sep(s[b]) && s[b] != '"' && s[b] != '<' && s[b] != '\n' && s[b] != '\r') b++;
+            std::string low;
+            for (size_t k = a; k < b; k++) low += Lower(s[k]);
+            if (low.empty() || low == "steamuser" || low == "public" || low == "default") break;
+            r += s.substr(i, n + 1) + "<user>";
+            i = b;
+            break;
+        }
+    }
+    return r;
+}
+
+// The player names in CrabSync.log: its lines about a player start with the name ("[time] Name: gained ...").
+inline std::vector<std::string> PlayerNames(const std::string& log) {
+    static const char* const notNames[] = {"hook ", "back in the lobby", "F9", "the host", "run started", "map loaded"};
+    std::vector<std::string> names;
+    std::istringstream in(log);
+    std::string line;
+    while (std::getline(in, line)) {
+        size_t a = line.find("] ");
+        if (line.empty() || line[0] != '[' || a == std::string::npos) continue;
+        a += 2;
+        while (a < line.size() && line[a] == ' ') a++;
+        size_t b = line.find(": ", a);
+        if (b == std::string::npos || b == a) continue;
+        std::string name = line.substr(a, b - a);
+        bool skip = name.find(" @ ") != std::string::npos;
+        for (const char* n : notNames) skip |= name.rfind(n, 0) == 0;
+        if (!skip && std::find(names.begin(), names.end(), name) == names.end()) names.push_back(name);
+    }
+    return names;
+}
+
+// Takes out the user's folders, the given secrets (user and computer name) and the player names, which become
+// "Player 1", "Player 2", ... in the order given, so every file of one report uses the same numbers.
+inline std::string Scrub(std::string s, const std::vector<std::string>& secrets, const std::vector<std::string>& players) {
+    s = ScrubHomes(s);
+    std::vector<size_t> order(players.size());  // longest name first, so "Bob" doesn't break up "Bobby"
+    for (size_t i = 0; i < order.size(); i++) order[i] = i;
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return players[a].size() > players[b].size(); });
+    for (size_t n : order) {
+        const std::string& name = players[n];
+        if (name.empty()) continue;
+        std::string to = "Player " + std::to_string(n + 1), r;
+        size_t i = 0;
+        for (size_t j; (j = s.find(name, i)) != std::string::npos; i = j + name.size()) r += s.substr(i, j - i) + to;
+        s = r + s.substr(i);
+    }
+    for (const auto& secret : secrets) s = ReplaceNoCase(s, secret, "<user>");
+    return s;
+}
+
+// The text of <tag>...</tag> in UE's CrashContext.runtime-xml, or "".
+inline std::string XmlValue(const std::string& xml, const std::string& tag) {
+    size_t a = xml.find("<" + tag + ">");
+    if (a == std::string::npos) return {};
+    a += tag.size() + 2;
+    size_t b = xml.find("</" + tag + ">", a);
+    return b == std::string::npos ? std::string() : Trim(xml.substr(a, b - a));
+}
+
+// The crash context with the ids that follow a machine or an account emptied.
+inline std::string StripCrashIds(std::string xml) {
+    for (const char* tag : {"MachineId", "LoginId", "EpicAccountId", "UserName", "UserDescription"}) {
+        std::string open = std::string("<") + tag + ">", close = std::string("</") + tag + ">";
+        size_t a = xml.find(open);
+        size_t b = a == std::string::npos ? a : xml.find(close, a);
+        if (b != std::string::npos) xml.erase(a + open.size(), b - a - open.size());
+    }
+    return xml;
+}
+
+// "CrabSync                      0x00006ffffb540000 + 1b10" -> "CrabSync+0x1b10", a frame a line.
+inline std::string CompactCallStack(const std::string& pcallstack, int maxFrames = 25) {
+    std::istringstream in(pcallstack);
+    std::string line, r;
+    int frames = 0;
+    while (std::getline(in, line) && frames < maxFrames) {
+        std::istringstream w(line);
+        std::string module, base, plus, offset;
+        if (!(w >> module >> base >> plus >> offset) || plus != "+") continue;
+        r += module + "+0x" + offset + "\n";
+        frames++;
+    }
+    return r;
+}
+
+// The last `n` lines of `text`, without the final line break.
+inline std::string LastLines(const std::string& text, int n) {
+    if (n <= 0) return {};
+    size_t end = text.size();
+    while (end > 0 && (text[end - 1] == '\n' || text[end - 1] == '\r')) end--;
+    size_t start = end;
+    for (int k = 0; k < n && start > 0; k++) {
+        size_t nl = text.rfind('\n', start - 1);
+        start = nl == std::string::npos ? 0 : nl;
+    }
+    if (start < end && text[start] == '\n') start++;
+    return text.substr(start, end - start);
+}
+
+inline std::string UrlEncode(const std::string& s) {
+    static const char hex[] = "0123456789ABCDEF";
+    std::string r;
+    for (unsigned char c : s) {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+            c == '.' || c == '~')
+            r += char(c);
+        else
+            r += std::string("%") + hex[c >> 4] + hex[c & 15];
+    }
+    return r;
+}
+
+struct CrashReport {
+    bool crashed = false;  // false: logs collected by hand
+    std::string when;      // "2026-10-11 14:03"
+    std::string platform;  // "Windows" or "Linux (Proton)"
+    std::string os;        // from the crash context
+    std::string versions;  // "CrabMods 0.8.0, CrabSync 1.0.4, Manager 0.2.0"
+    std::string error;     // "EXCEPTION_ACCESS_VIOLATION reading address 0x..."
+    std::string callStack; // CompactCallStack
+    int secondsIn = -1;    // how long the game had run
+    std::string crabModsLog, crabSyncLog;  // scrubbed
+    std::string zipName;
+    std::string note;      // anything else to know
+};
+
+// Reads what the report shows from a crash context.
+inline void ReadCrashContext(CrashReport& r, const std::string& xml) {
+    r.crashed = true;
+    r.error = XmlValue(xml, "ErrorMessage");
+    if (r.error.rfind("Unhandled Exception: ", 0) == 0) r.error.erase(0, 21);
+    r.callStack = CompactCallStack(XmlValue(xml, "PCallStack"));
+    r.os = XmlValue(xml, "Misc.OSVersionMajor");
+    std::string s = XmlValue(xml, "SecondsSinceStart");
+    r.secondsIn = s.empty() ? -1 : std::atoi(s.c_str());
+}
+
+inline std::string IssueTitle(const CrashReport& r) {
+    if (!r.crashed) return "Problem: ";
+    std::string t = "Crash: " + (r.error.empty() ? std::string("the game closed") : r.error);
+    if (t.size() > 90) t = t.substr(0, 87) + "...";
+    std::string first = r.callStack.substr(0, r.callStack.find('\n'));
+    if (!first.empty()) t += " at " + first;
+    return t;
+}
+
+// The issue's text, with `logLines` lines from the end of each mod log (fewer make a shorter address).
+inline std::string IssueBody(const CrashReport& r, int logLines) {
+    auto code = [](std::string s) {  // a code block can't contain its own fence
+        s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+        for (size_t i; (i = s.find("```")) != std::string::npos;) s.replace(i, 3, "'''");
+        return s;
+    };
+    std::string b = r.crashed ? "**What were you doing when it crashed?**\n\n\n\n" : "**What went wrong?**\n\n\n\n";
+    if (r.crashed) {
+        b += "**Crash**: `" + (r.error.empty() ? std::string("no error message") : r.error) + "`";
+        if (r.secondsIn >= 0) b += " after " + std::to_string(r.secondsIn / 60) + " min";
+        b += "\n";
+        if (!r.callStack.empty()) b += "```\n" + code(r.callStack) + "```\n";
+    }
+    b += "**Versions**: " + r.versions + "\n";
+    b += "**System**: " + r.platform + (r.os.empty() ? "" : ", " + r.os) + "\n";
+    if (!r.when.empty()) b += "**When**: " + r.when + "\n";
+    if (!r.note.empty()) b += "**Note**: " + r.note + "\n";
+    for (auto [name, text] : {std::pair{"CrabMods.log", &r.crabModsLog}, std::pair{"CrabSync.log", &r.crabSyncLog}}) {
+        std::string tail = LastLines(*text, logLines);
+        if (tail.empty()) continue;
+        b += "\n<details><summary>" + std::string(name) + " (last lines)</summary>\n\n```\n" + code(tail) +
+             "\n```\n</details>\n";
+    }
+    if (!r.zipName.empty())
+        b += "\n**Files**: drag `" + r.zipName + "` here (CrabMods Manager opened the folder it is in).\n";
+    b += "\n_Made by CrabMods Manager. Player names, user folders and machine ids were taken out._\n";
+    return b;
+}
+
+// The new-issue address, with as many log lines as fit (GitHub refuses addresses much over 8 KB).
+inline std::string IssueUrl(const CrashReport& r, size_t maxLength = 7500) {
+    std::string base = "https://github.com/" + std::string(kRepo) + "/issues/new?title=" + UrlEncode(IssueTitle(r));
+    for (int lines : {40, 25, 15, 8, 3, 0}) {
+        std::string url = base + "&body=" + UrlEncode(IssueBody(r, lines));
+        if (url.size() <= maxLength) return url;
+    }
+    return base;
+}
+
+// A .zip with the files stored as they are (no compression), which every system can open.
+inline std::string StoreZip(const std::vector<std::pair<std::string, std::string>>& files, uint16_t dosTime = 0,
+                            uint16_t dosDate = (46 << 9) | (1 << 5) | 1) {
+    auto u16 = [](std::string& o, uint32_t v) { o += char(v & 0xFF), o += char((v >> 8) & 0xFF); };
+    auto u32 = [&](std::string& o, uint32_t v) { u16(o, v & 0xFFFF), u16(o, v >> 16); };
+    std::string out, central;
+    for (const auto& [name, data] : files) {
+        uint32_t crc = Crc32(data), offset = uint32_t(out.size()), size = uint32_t(data.size());
+        auto header = [&](std::string& o, bool isCentral) {
+            u32(o, isCentral ? 0x02014b50 : 0x04034b50);
+            if (isCentral) u16(o, 20);  // made by
+            u16(o, 20);                 // version needed
+            u16(o, 0x0800);             // UTF-8 names
+            u16(o, 0);                  // stored
+            u16(o, dosTime), u16(o, dosDate);
+            u32(o, crc), u32(o, size), u32(o, size);
+            u16(o, uint32_t(name.size())), u16(o, 0);
+            if (isCentral) u16(o, 0), u16(o, 0), u16(o, 0), u32(o, 0), u32(o, offset);
+            o += name;
+        };
+        header(out, false);
+        out += data;
+        header(central, true);
+    }
+    uint32_t at = uint32_t(out.size());
+    out += central;
+    u32(out, 0x06054b50), u16(out, 0), u16(out, 0);
+    u16(out, uint32_t(files.size())), u16(out, uint32_t(files.size()));
+    u32(out, uint32_t(central.size())), u32(out, at), u16(out, 0);
+    return out;
 }
 
 }  // namespace mgr
