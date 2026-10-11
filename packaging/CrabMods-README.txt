@@ -20,10 +20,15 @@ Items (all bonuses are per level, and stack):
   Hellshooter (Epic weapon mod): shots fire up out of the ground where you aim.
     With both, your shots alternate between the sky and the ground.
   Martyr (Epic relic): while you're down, your revive bubble hurts the
-    enemies in it (60 damage a second). Magnify makes the bubble bigger.
+    enemies in it (a third of a basic crab's max health a second, growing
+    every island). Magnify makes the bubble bigger.
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
   Double or Nothing (Greed relic): twice as many island reward chests, or none.
+  Cursed Lottery (Greed relic): 100,000 crystals, then only 0.01% of the
+    crystals you'd gain while you hold it. Can't be dropped.
+  Lucky Charm (Legendary relic): mods and perks in your chests have a 25%
+    chance to be level 2.
   Fire/Ice/Lightning/Poison/Critical/Damage/Luck Specialist (Epic relics):
     that kind of pickup is offered 3x as often and can come out of any of
     your chests, not only its own pool's (Damage and Luck: islands too).

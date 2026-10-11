@@ -5,7 +5,8 @@
 // gets its radius times the holder's Magnify, and its effect is resized to match.
 // Host: four times a second, the game's radial damage from the bubble's centre over that radius. Its source is
 // the downed character, with its player state put back for the call, so only enemies are hurt and the kills
-// are the player's.
+// are the player's. The damage is a share of a basic crab's max health right now: its class's base health
+// times the level manager's enemy health multiplier for this wave, so it keeps up with the run.
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -21,6 +22,8 @@ namespace {
 
 constexpr uint8_t kRevival = 2;   // ECrabHarvestAreaType
 constexpr float kTickSeconds = 0.25f;  // OnTick
+constexpr wchar_t kBasicCrab[] = L"/Game/Blueprint/Enemy/Crab/BP_Enemy_Crab.BP_Enemy_Crab_C";
+constexpr float kBasicCrabHealth = 15.f;  // its HC's BaseMaxHealth, until the class is loaded
 
 // Every actor of a class in the world (UGameplayStatics::GetAllActorsOfClass).
 std::vector<void*> AllActorsOf(void* world, uintptr_t staticClassVa) {
@@ -43,8 +46,8 @@ public:
     Martyr()
         : AssetItem("martyr", 100,
                     {Kind::Relic, L"DA_Relic_Martyr", L"Martyr", L"Your revive bubble hurts enemies while you're down",
-                     L"While you're down, enemies in your revive bubble take PrimaryBuff damage a second. Magnify "
-                     L"makes the bubble bigger",
+                     L"While you're down, enemies in your revive bubble take PrimaryBuff% of a basic crab's max "
+                     L"health in damage a second. Magnify makes the bubble bigger",
                      208, Relic_RingOfDefense, pool::Health},
                     rarity::Epic) {}
 
@@ -53,9 +56,10 @@ public:
 # bigger (for reviving you too).
 enabled = true
 
-# Damage a second to each enemy in the bubble, for each Martyr level. It falls off to 20% at the edge, like
-# the game's explosions.
-damagePerSecond = 60
+# Damage a second to each enemy in the bubble, for each Martyr level, as a share of a basic crab's max
+# health (which grows every island): 0.33 is a third. It falls off to 20% at the edge, like the game's
+# explosions.
+crabHealthPerSecond = 0.33
 
 # true: the holder's revive bubble grows with their Magnify (+20% a level), as the game's explosions do.
 magnifyBubble = true
@@ -65,13 +69,14 @@ rarity = epic
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
-        if (k == "damagePerSecond") dps_ = ParseFloat(v);
+        if (k == "crabHealthPerSecond") share_ = std::clamp(ParseFloat(v), 0.f, 100.f);
         else if (k == "magnifyBubble") magnify_ = ParseBool(v);
+        else if (k == "damagePerSecond") {}  // a fixed number until 0.7.2
         else if (k == "damage" || k == "radiusMeters" || k == "knockback") {}  // the explosion's (0.4)
         else AssetItem::Set(k, v);
     }
     std::string Describe() const override {
-        return Num(dps_) + " damage a second in your revive bubble while down" +
+        return Num(share_ * 100.f) + "% of a basic crab's health a second in your revive bubble while down" +
                (magnify_ ? ", bubble grows with Magnify, " : ", ") + RarityName(rarity_);
     }
 
@@ -99,7 +104,7 @@ rarity = epic
             float radius = magnify_ ? base * magnify : base;
             Resize(area, radius);
 
-            if (At<uint8_t>(area, off::Actor_Role) != ROLE_Authority || dps_ <= 0.f) continue;
+            if (At<uint8_t>(area, off::Actor_Role) != ROLE_Authority || share_ <= 0.f) continue;
             auto it = bodies_.find(ps);
             if (it == bodies_.end()) continue;
             if (!looked) bodies = AllActorsOf(world, va::ACrabPlayerC_StaticClass), looked = true;
@@ -109,14 +114,38 @@ rarity = epic
                 continue;
             }
             // The game's radial damage grows its radius by the source's Magnify itself.
-            Hurt(area, it->second, ps, dps_ * level * kTickSeconds, radius / magnify);
+            float dps = share_ * CrabHealth(world);
+            if (dps != loggedDps_) {
+                loggedDps_ = dps;
+                CRAB_LOG("Martyr: %g damage a second for each level (a basic crab has %g health)", dps,
+                         dps / share_);
+            }
+            Hurt(area, it->second, ps, dps * level * kTickSeconds, radius / magnify);
         }
     }
 
 protected:
-    float PrimaryBuff() const override { return dps_; }
+    float PrimaryBuff() const override { return std::round(share_ * 100.f); }
 
 private:
+    // A basic crab's max health now (host): its base health times this wave's enemy health multiplier.
+    float CrabHealth(void* world) {
+        if (!crabBase_) {
+            void* cls = ui::FindObject(kBasicCrab);
+            void* cdo = cls ? At<void*>(cls, off::Class_DefaultObject) : nullptr;
+            void* hc = cdo ? At<void*>(cdo, off::C_HC) : nullptr;
+            if (hc && At<float>(hc, off::HC_BaseMaxHealth) > 0.f) {
+                crabBase_ = At<float>(hc, off::HC_BaseMaxHealth);
+                CRAB_LOG("Martyr: a basic crab's base health is %g", crabBase_);
+            }
+        }
+        float base = crabBase_ > 0.f ? crabBase_ : kBasicCrabHealth;
+        void* lm = LevelManagerOf(world);
+        float mult = lm ? At<float>(lm, off::LM_EnemyHealthMultiplier) : 1.f;
+        if (!(mult > 0.f && mult < 1e7f)) mult = 1.f;
+        return std::max(base * mult, 1.f);
+    }
+
     // The bubble's own radius: its class's default.
     static float BaseRadius(void* area) {
         void* cls = At<void*>(area, off::Object_Class);
@@ -167,7 +196,9 @@ private:
         bodies_ = std::move(kept);
     }
 
-    float dps_ = 60.f;
+    float share_ = 0.33f;
+    float crabBase_ = 0.f;   // read from the class once it's loaded
+    float loggedDps_ = -1.f;
     bool magnify_ = true;
     std::unordered_map<void*, void*> bodies_;  // player state -> downed character (host)
 };

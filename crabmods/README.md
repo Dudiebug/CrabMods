@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 30 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 32 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -20,7 +20,7 @@
 | **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
-| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: 60 damage a second. **Magnify** makes the bubble bigger, for the damage and for reviving you. |
+| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +10% damage. |
 | **Hellshooter** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +10% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
@@ -39,6 +39,8 @@
 | **Fire / Ice / Lightning / Poison / Critical Specialist** | relics | Epic | Pickups with that tag are offered **3×** as often to you, and can also come out of your chests of every other loot pool. |
 | **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you and can also come out of your other chests, and Damage (or Luck) islands are offered 3× as often to the team. |
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
+| **Cursed Lottery** | Greed relic | Greed | **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain. It **can't be dropped**. Rare (spawn weight 0.15). |
+| **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
 | **Heavy Shot** | the game's own weapon mod | Common | Drops **without Bouncing Shot**, for every weapon. |
 
 ### Ability
@@ -115,11 +117,14 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[collateralDamage]` | `damagePercent` | `5` | Per destructible broken this island. |
 | `[overflow]` | `damagePercent` | `3` | Per stack. |
 | | `healthPerStack` | `100` | Healing past max health one stack takes. |
-| `[martyr]` | `damagePerSecond` | `60` | To each enemy in the bubble. It falls off to 20% at the edge. |
+| `[martyr]` | `crabHealthPerSecond` | `0.33` | Damage a second to each enemy in the bubble, per level, as a share of a basic crab's max health (15 times this island's enemy health multiplier). It falls off to 20% at the edge. |
 | | `magnifyBubble` | `true` | The holder's revive bubble grows with their Magnify (+20% a level). |
 | `[lastCrabStanding]` | `perDownedPercent` | `25` | Per downed teammate. |
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
 | `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many island reward chests; otherwise none. |
+| `[cursedLottery]` | `crystals` | `100000` | Crystals when you pick it up. |
+| | `gainPercent` | `0.01` | The share of crystal gains you still get while holding it. |
+| `[luckyCharm]` | `chancePercent` | `25` | The chance for each mod or perk in your chests to be level 2. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
 | `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
 | `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
@@ -158,6 +163,8 @@ The effects:
 - **Damage bonuses** are added where the game totals a player's damage buffs, beside its own damage perks.
 - **Specialists** change each pickup's spawn weight during every loot roll made for the holder, then put the weights back. A chest only offers pickups of its own loot pool (read from each pickup's asset during the roll), so for the holder's rolls of a regular pool chest (Damage to Skill) CrabMods also sets the boosted pickups' pool to the chest's, and puts it back after. Damage and Luck Specialist also re-pick each island's reward with those pools' weights tripled.
 - **Double or Nothing**: at the end of an island the host builds each player's list of reward chests, then checks for High Roller. CrabMods hooks that check: for a player with Double or Nothing it doubles or empties the list first (and, like High Roller, opens the portals straight away when no chests are left).
+- **Cursed Lottery**: the host gives every pickup through one function; when it gives the Cursed Lottery to someone who didn't have it, they get the crystals. CrabSync hands out copies through the same function, so only the game's own call pays. Every crystal gain goes through one function too, where a holder's gain is cut to the share (fractions are carried over, so lots of small gains still add up). The host refuses to drop it.
+- **Lucky Charm**: when a chest is opened, the host rolls its loot for the opener and spawns it straight after. In between, CrabMods turns level-1 mods and perks into level 2 at the chance (weapons, abilities and relics stay level 1).
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
 - **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
 - **Heavy Shot**'s asset says
@@ -168,7 +175,7 @@ The effects:
 - **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
 - **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
 - **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshooter leaves every other shot alone, so they alternate between the sky and the ground.
-- **Martyr**: the revive bubble is the game's revival harvest area. Every machine sets a holder's bubble radius (which the host checks for reviving teammates) and its effect's size to the base radius times their Magnify. Four times a second the host fires the game's radial damage (Explosive Armor's) from the bubble's centre, with the downed character as its source, so the enemy-only filter, Magnify and kill credit work as they do for the game's explosions.
+- **Martyr**: the revive bubble is the game's revival harvest area. Every machine sets a holder's bubble radius (which the host checks for reviving teammates) and its effect's size to the base radius times their Magnify. Four times a second the host fires the game's radial damage (Explosive Armor's) from the bubble's centre, with the downed character as its source, so the enemy-only filter, Magnify and kill credit work as they do for the game's explosions. The damage is the basic crab's base health (15) times the enemy health multiplier the game sets for each wave.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.

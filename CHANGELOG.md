@@ -4,6 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.7.2
+
+- New **Greed relic, Cursed Lottery**: **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain (`[cursedLottery] crystals`, `gainPercent`). It **can't be dropped**. It's as rare as the game's rarer Greed relics (spawn weight 0.15). With CrabSync, only the player who picks it up gets the crystals, not every copy.
+- New **Legendary relic, Lucky Charm**: each mod and perk in the chests you open has a **25% chance to be level 2** (`[luckyCharm] chancePercent`).
+- **Martyr**'s bubble now does **a third of a basic crab's max health** a second (`crabHealthPerSecond = 0.33`), so it grows with the enemies every island: 5 a second on the first islands. The old `damagePerSecond` setting is ignored.
+
 ### 0.7.1
 
 - New **Legendary relic, Reliquary**: **+5 relic slots** (`[reliquary] slotsPerLevel`). The game allows 10 relics and won't let you pick up an 11th; with the Reliquary you can carry 15, and the inventory menu shows them all.

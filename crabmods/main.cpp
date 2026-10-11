@@ -39,7 +39,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.7.1";
+constexpr const char kVersion[] = "0.7.2";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -213,6 +213,13 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
         g_baseWeight.clear();
         for (auto& [da, p] : g_basePool) At<uint8_t>(da, off::DA_LootPool) = p;
         g_basePool.clear();
+        // An opened chest's roll fills its PickupsToSpawn for the opener; it spawns them right after.
+        void* chest = reinterpret_cast<void*>(source);
+        auto* who = reinterpret_cast<TArray<void*>*>(players);
+        auto* loot = reinterpret_cast<TArray<uint8_t>*>(out);
+        if (chest && loot == &At<TArray<uint8_t>>(chest, off::Chest_PickupsToSpawn) && who && who->Num > 0 &&
+            who->Data && who->Data[0] && IsA(chest, StaticClass(va::ACrabChest_StaticClass)))
+            ForEachEnabled([&](Item* i) { i->OnChestLoot(chest, who->Data[0], *loot); });
     }
 }
 

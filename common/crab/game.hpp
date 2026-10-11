@@ -45,6 +45,11 @@ constexpr uintptr_t UCrabAbilityModDA_StaticClass = 0x140d6f2b0;
 
 // Inventory
 constexpr uintptr_t ACrabPlayerC_GivePickup = 0x140d168d0;    // void(ACrabPlayerC*, FCrabPickupInfo*)
+// ServerDropPickup's implementation (host): takes the item out of the player's inventory and drops it as a pickup.
+constexpr uintptr_t ACrabPlayerC_ServerDropPickup = 0x140d1ae30;  // void(ACrabPlayerC*, UCrabPickupDA*, FCrabInventoryInfo*)
+// void(ACrabPS*, int Amount): every gain (enemy drops, salvage, ...) and cost; saturates, then broadcasts.
+constexpr uintptr_t ACrabPS_AddCrystals = 0x140d20d00;
+constexpr uintptr_t ACrabChest_StaticClass = 0x140d71550;
 constexpr uintptr_t ACrabPS_AddWeaponMod = 0x140d210a0;       // void(ACrabPS*, FItem*)
 constexpr uintptr_t ACrabPS_AddAbilityMod = 0x140d1fd60;
 constexpr uintptr_t ACrabPS_AddMeleeMod = 0x140d20140;
@@ -295,6 +300,9 @@ constexpr int GS_CurrentIslandType = 0x2D8;
 // ACrabLM (level manager)
 constexpr int LM_SpawnablesDA = 0x388;
 constexpr int LM_AllUnlockedPickups = 0x420;  // TArray<UCrabPickupDA*>: what chests and rewards roll from
+// FCrabEnemyStats.HealthMultiplier (host): set for each wave; a spawned enemy's max health is its HC's
+// BaseMaxHealth times this (and a few buffs).
+constexpr int LM_EnemyHealthMultiplier = 0x4F0;
 // UCrabSpawnablesDA
 constexpr int Spawnables_WeaponMods = 0x108;  // TArray<UCrabWeaponModDA*>
 constexpr int Spawnables_AbilityMods = 0x118;  // TArray<UCrabAbilityModDA*>
@@ -339,9 +347,12 @@ constexpr int HarvestArea_PlayerToRevive = 0x298;  // ACrabPS*, replicated
 constexpr int Chest_CurrencyType = 0x2B0;  // ECrabCurrencyType: Crystal 0, Key 1, Health 2, MaxHealth 3
 constexpr int Chest_Cost = 0x2B4;          // int
 constexpr int Chest_bIsChestOpened = 0x300;
+// TArray<FCrabPickupInfo>: ACrabChest::RollLoot has LootRoll fill it for the opener, then spawns them
+constexpr int Chest_PickupsToSpawn = 0x308;
 
 // ACrabC (any character)
 constexpr int C_HC = 0x4C0;             // UCrabHC*
+constexpr int HC_BaseMaxHealth = 0xC0;  // float, the class default's
 // ACrabDestructible
 constexpr int Destructible_LastPlayer = 0x340;  // ACrabC*: the last player who damaged it
 constexpr int Destructible_bExploded = 0x398;

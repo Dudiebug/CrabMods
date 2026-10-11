@@ -62,6 +62,10 @@ public:
     // Island-end rewards (host): the chests about to spawn for this player (chest classes), after the game's
     // bonus chests, Care Package and totems and before High Roller. Items may add or remove entries (Append).
     virtual void OnRewardChests(void* ps, TArray<void*>& chests) {}
+    // A chest's loot (host): what it is about to spawn for the player who opened it, right after the roll.
+    // pickups: TArray<FCrabPickupInfo> (0x50 each: the DA at +0, its level, a uint8, at +8). Items may change
+    // the entries.
+    virtual void OnChestLoot(void* chest, void* ps, TArray<uint8_t>& pickups) {}
 
     // Portal rewards (host): how much more likely an island is to reward this loot pool (pool::*). The game
     // picks Damage, Critical, ... for each Arena/Horde/Demolition portal; 1 = unchanged.
