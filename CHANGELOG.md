@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.5
+
+- **Undead still standing when the fight ends give their souls back.** They still crumble, but you get their full raise cost back (up to your soul cap). Set it with `survivorRefundPercent` in `[necromancer]`.
+
 ### 0.10.4
 
 - **Hellshooter is now Hellshot.** Its settings moved to `[hellshot]`.

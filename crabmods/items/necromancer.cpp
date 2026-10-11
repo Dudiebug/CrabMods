@@ -155,6 +155,8 @@ fodderPack = 3
 costMedium = 15
 costHard = 40
 costElite = 100
+# Undead still standing when the fight ends crumble and give back this percent of their raise cost.
+survivorRefundPercent = 100
 # How far from you you can raise, in meters.
 raiseRangeMeters = 40
 # While enemies are alive, each undead costs this percent of its raise cost a second. When the souls run out,
@@ -206,6 +208,7 @@ soundVolume = 80
         else if (k == "soulsBoss") souls_[5] = num(0.f, 1e6f);
         else if (k == "costFodder") cost_[0] = num(0.f, 1e6f);
         else if (k == "fodderPack") fodderPack_ = int(num(1.f, 10.f));
+        else if (k == "survivorRefundPercent") refund_ = num(0.f, 100.f) / 100.f;
         else if (k == "costMedium") cost_[1] = num(0.f, 1e6f);
         else if (k == "costHard") cost_[2] = num(0.f, 1e6f);
         else if (k == "costElite") cost_[3] = num(0.f, 1e6f);
@@ -1279,7 +1282,18 @@ private:
         if (!fight && !undead_.empty()) {
             CRAB_LOG("necromancer: the fight is over, %zu undead crumble", undead_.size());
             std::vector<void*> all;
-            for (auto& [u, info] : undead_) all.push_back(u);
+            std::unordered_map<void*, float> back;  // per owner: the survivors' cost they get back
+            for (auto& [u, info] : undead_) {
+                all.push_back(u);
+                if (info.owner && Alive(u)) back[info.owner] += info.cost * refund_;
+            }
+            for (auto& [ps, n] : back) {
+                if (n <= 0.f) continue;
+                PlayerData& d = players_[PlayerKey(ps)];
+                d.souls = std::min(d.souls + n, MaxSouls(ps));
+                d.dirty = true;
+                CRAB_LOG("necromancer: %s gets %.1f souls back for undead still standing", PlayerKey(ps).c_str(), n);
+            }
             fightOver_ = true;
             for (void* u : all) Crumble(u);
             fightOver_ = false;
@@ -2042,6 +2056,7 @@ private:
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
     float cost_[kTiers] = {5.f, 15.f, 40.f, 100.f};
     int fodderPack_ = 3;
+    float refund_ = 1.f;  // share of a surviving undead's cost given back when the fight ends
     float raiseRange_ = 4000.f, upkeep_ = 0.0025f, undeadDamage_ = 1.f, undeadHealth_ = 2.f, starve_ = 0.04f, eliteHealth_ = 0.5f, eliteDamage_ = 0.5f;
     float aggroBias_ = 1.5f, nestRange_ = 2500.f, nestDps_ = 30.f;
     std::string keyNames_[kTiers];
