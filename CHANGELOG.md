@@ -4,6 +4,11 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.4.1
+
+- **Specialists** now also bring their pickups into your chests of **every other loot pool**: with Critical Specialist, critical pickups can come out of a Speed or Health chest too, not only Critical chests. There they are as likely as the chest's own pickups (`otherChests = 1`; `0` turns it off). This works for the regular pool chests (Damage, Critical, Elemental, Speed, Luck, Health, Economy, Skill). Random chests already offered everything, and Greed, Relic, Anvil and Spiked chests stay as they are. Rarity still applies, so an Epic critical pickup still only comes out of Epic chests.
+- **Bullet Rain + Hellshooter**: with both, your shots alternate. Every other shot falls from the sky and the rest come up out of the ground (before this, Hellshooter took over every shot).
+
 ### 0.4.0
 
 6 new items, stronger melee mods, a key totem that lets you choose, and a new Martyr.

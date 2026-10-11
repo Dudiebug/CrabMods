@@ -19,10 +19,12 @@
 //   PostLogin, ClientMessage the host's settings, sent to every player who joins, and items' messages
 #include <windows.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cwchar>
 #include <random>
 #include <unordered_map>
+#include <vector>
 
 #include <crab/hook.hpp>
 #include <crab/log.hpp>
@@ -37,7 +39,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.4.0";
+constexpr const char kVersion[] = "0.4.1";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -122,14 +124,24 @@ WeightedPickFn oWeightedPick;
 
 int g_rollDepth = 0;            // inside LootRoll
 void* g_rollSource = nullptr;   // LootRoll's world context
+uint8_t g_rollPool = pool::None;  // LootRoll's loot pool
 std::unordered_map<void*, float> g_baseWeight;  // SpawnWeights changed during this roll, to restore after
+std::unordered_map<void*, uint8_t> g_basePool;  // LootPools changed during this roll, to restore after
+
+// The chests of one loot pool, the ones an item can add pickups of another pool to.
+bool RegularPool(uint8_t p) { return p >= pool::Damage && p <= pool::Skill; }
 std::minstd_rand g_rng{std::random_device{}()};
 
 // Sets every pickup's SpawnWeight for the player LootRoll is choosing for: its base weight times each item's
-// LootWeight. The roll reads the weights right after asking the player what they hold.
+// LootWeight. The roll reads the weights right after asking the player what they hold, and then keeps the
+// pickups whose LootPool (also read from the asset) is the chest's: a pickup an item adds to another pool's
+// chest (OtherChestWeight) gets the chest's pool for the rest of the roll.
 void ApplyWeights(void* ps) {
     void* lm = LevelManagerOf(g_rollSource);
     if (!lm) return;
+    for (auto& [da, p] : g_basePool) At<uint8_t>(da, off::DA_LootPool) = p;  // as the items expect them
+    g_basePool.clear();
+    std::vector<std::pair<void*, uint8_t>> moves;
     auto apply = [&](TArray<void*>* list) {
         if (!list || !list->Data) return;
         for (int i = 0; i < list->Num; i++) {
@@ -137,13 +149,27 @@ void ApplyWeights(void* ps) {
             if (!da) continue;
             auto [it, fresh] = g_baseWeight.try_emplace(da, At<float>(da, off::DA_SpawnWeight));
             float w = it->second;
-            ForEachEnabled([&](Item* item) { w *= item->LootWeight(ps, da); });
+            uint8_t p = At<uint8_t>(da, off::DA_LootPool);
+            float other = 0.f;
+            if (RegularPool(g_rollPool) && RegularPool(p) && p != g_rollPool)
+                ForEachEnabled([&](Item* item) { other = std::max(other, item->OtherChestWeight(ps, da)); });
+            if (other > 0.f) {
+                ForEachEnabled([&](Item* item) {
+                    if (item->OtherChestWeight(ps, da) <= 0.f) w *= item->LootWeight(ps, da);
+                });
+                w *= other;
+                moves.emplace_back(da, p);
+            } else {
+                ForEachEnabled([&](Item* item) { w *= item->LootWeight(ps, da); });
+            }
             At<float>(da, off::DA_SpawnWeight) = w;
         }
     };
     apply(&At<TArray<void*>>(lm, off::LM_AllUnlockedPickups));
     for (int list = off::Spawnables_WeaponMods; list <= off::Spawnables_Relics; list += 0x10)
         apply(Spawnables(lm, list));
+    for (auto& [da, p] : moves)
+        if (g_basePool.try_emplace(da, p).second) At<uint8_t>(da, off::DA_LootPool) = g_rollPool;
 }
 
 void* HkGetPickups(void* ps, void* out) {
@@ -174,14 +200,19 @@ int HkWeightedPick(TArray<float>* weights) {
 void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t players, uint64_t choices, uint64_t f,
                 uint64_t out) {
     void* savedSource = g_rollSource;
+    uint8_t savedPool = g_rollPool;
     g_rollSource = reinterpret_cast<void*>(source);
+    g_rollPool = uint8_t(pool);
     g_rollDepth++;
     oLootRoll(source, pool, rarity, players, choices, f, out);
     g_rollDepth--;
     g_rollSource = savedSource;
+    g_rollPool = savedPool;
     if (g_rollDepth == 0) {
         for (auto& [da, w] : g_baseWeight) At<float>(da, off::DA_SpawnWeight) = w;
         g_baseWeight.clear();
+        for (auto& [da, p] : g_basePool) At<uint8_t>(da, off::DA_LootPool) = p;
+        g_basePool.clear();
     }
 }
 

@@ -7,7 +7,9 @@
 //   the camera's aim point, 2500 units up (under any ceiling), falling straight down.
 // - Hellshooter traces from the camera to the aim point, finds the ground under it, and starts each projectile
 //   just above the ground, flying straight up.
+// With both, the shots alternate: every other one falls from the sky, the rest come up out of the ground.
 #include <random>
+#include <unordered_map>
 
 #include "../item.hpp"
 #include "../world.hpp"
@@ -61,7 +63,7 @@ rarity = epic
 
 class Hellshooter : public ShotMod {
 public:
-    Hellshooter()
+    explicit Hellshooter(const BulletRain& rain)
         : ShotMod("hellshooter", 185,
                   {Kind::WeaponMod, L"DA_WeaponMod_Hellshooter", L"Hellshooter",
                    L"Your shots erupt from the ground under where you aim",
@@ -77,10 +79,13 @@ damagePercent = 10
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
 )"),
+          rain_(rain),
           rng_(std::random_device{}()) {}
 
     void OnShot(void* weapon, void* ps, Vec3& start, Vec3& dir) override {
         if (!Level(ps)) return;
+        // With Bullet Rain too, every other shot is left to fall from the sky.
+        if (rain_.Enabled() && rain_.Level(ps) && (alternate_[ps] ^= true)) return;
         void* c = At<void*>(weapon, off::Weapon_OwningC);
         if (!IsA(c, StaticClass(va::ACrabPlayerC_StaticClass))) return;
         alignas(16) uint8_t hit[off::Hit_Size] = {};
@@ -101,11 +106,13 @@ rarity = epic
 
 private:
     static constexpr float kRange = 7500.f;  // as far as the game's falling shots aim when nothing is hit
+    const BulletRain& rain_;
     std::minstd_rand rng_;
+    std::unordered_map<void*, bool> alternate_;  // per player: the last shot was left to Bullet Rain
 };
 
 BulletRain g_rain;
-Hellshooter g_hell;
+Hellshooter g_hell(g_rain);
 
 }  // namespace
 }  // namespace crabmods

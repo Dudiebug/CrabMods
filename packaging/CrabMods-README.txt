@@ -18,13 +18,15 @@ Items (all bonuses are per level, and stack):
     Rapid Fire level for each player in range who has it, you included.
   Bullet Rain (Epic weapon mod): shots fall from the sky onto where you aim.
   Hellshooter (Epic weapon mod): shots fire up out of the ground where you aim.
+    With both, your shots alternate between the sky and the ground.
   Martyr (Epic relic): when you go down, you explode for 150 damage to the
     enemies around you. Magnify makes it bigger.
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
   Double or Nothing (Greed relic): twice as many island reward chests, or none.
   Fire/Ice/Lightning/Poison/Critical/Damage/Luck Specialist (Epic relics):
-    that kind of pickup is offered 3x as often (Damage and Luck: islands too).
+    that kind of pickup is offered 3x as often and can come out of any of
+    your chests, not only its own pool's (Damage and Luck: islands too).
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.

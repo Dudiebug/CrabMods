@@ -55,6 +55,10 @@ public:
     // Loot rolls (host): how much more likely da is to be offered to this player, as a factor on its
     // SpawnWeight. 1 = unchanged, 0 = never. The factors of all items are multiplied.
     virtual float LootWeight(void* ps, void* da) { return 1.f; }
+    // Loot rolls (host): lets da also be offered by chests of another loot pool (a regular chest: Damage to
+    // Skill) when rolling for this player. 0 = not added; otherwise its SpawnWeight factor there, used instead
+    // of this item's LootWeight (the largest wins when several items add it).
+    virtual float OtherChestWeight(void* ps, void* da) { return 0.f; }
     // Island-end rewards (host): the chests about to spawn for this player (chest classes), after the game's
     // bonus chests, Care Package and totems and before High Roller. Items may add or remove entries (Append).
     virtual void OnRewardChests(void* ps, TArray<void*>& chests) {}

@@ -36,8 +36,8 @@
 
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
-| **Fire / Ice / Lightning / Poison / Critical Specialist** | relics | Epic | Pickups with that tag are offered **3×** as often to you. |
-| **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you, and Damage (or Luck) islands 3× as often to the team. |
+| **Fire / Ice / Lightning / Poison / Critical Specialist** | relics | Epic | Pickups with that tag are offered **3×** as often to you, and can also come out of your chests of every other loot pool. |
+| **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you and can also come out of your other chests, and Damage (or Luck) islands are offered 3× as often to the team. |
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
 | **Heavy Shot** | the game's own weapon mod | Common | Drops **without Bouncing Shot**, for every weapon. |
 
@@ -125,6 +125,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `choices` | `3` | How many items to choose from (1 to 8). |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
+| | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 
 All percentages and amounts are per level of the item. `[meleeMods]` and `[keyTotem]` have only `enabled` besides the settings above; switching `meleeMods` off puts the game's values back.
 
@@ -142,7 +143,7 @@ Crab Champions has none of these assets, so CrabMods makes them when a level loa
 
 The effects:
 - **Damage bonuses** are added where the game totals a player's damage buffs, beside its own damage perks.
-- **Specialists** change each pickup's spawn weight during every loot roll made for the holder, then put the weights back. Damage and Luck Specialist also re-pick each island's reward with those pools' weights tripled.
+- **Specialists** change each pickup's spawn weight during every loot roll made for the holder, then put the weights back. A chest only offers pickups of its own loot pool (read from each pickup's asset during the roll), so for the holder's rolls of a regular pool chest (Damage to Skill) CrabMods also sets the boosted pickups' pool to the chest's, and puts it back after. Damage and Luck Specialist also re-pick each island's reward with those pools' weights tripled.
 - **Double or Nothing**: at the end of an island the host builds each player's list of reward chests, then checks for High Roller. CrabMods hooks that check: for a player with Double or Nothing it doubles or empties the list first (and, like High Roller, opens the portals straight away when no chests are left).
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
 - **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
@@ -153,7 +154,7 @@ The effects:
 - **Collateral Damage**: on the host, every destructible reports the hit that breaks it, with the player who dealt it (or the last player who hit it, for explosions). Breaks only count during an island's fight, and not the landmines, homing barrels and mushrooms players' own items spawn. The bonus is kept in the perk's own counter, which the game sends to every player.
 - **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
 - **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
-- **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot.
+- **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshooter leaves every other shot alone, so they alternate between the sky and the ground.
 - **Martyr** uses the game's own explosion code (Explosive Armor's), fired just before the downed player becomes a spectator, so Magnify, the enemy-only filter and kill credit all work as they do for the game's explosions.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine and asks the host to spawn it. CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took, which unlocks it in your save.

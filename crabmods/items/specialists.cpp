@@ -2,7 +2,9 @@
 //   Fire, Ice, Lightning, Poison and Critical Specialist: pickups with that tag. The relic carries the tag
 //   itself, so it also counts for pickups that need one of that tag to drop (Fire Ring, Mega Crit, ...).
 //   Damage and Luck Specialist: pickups from that loot pool, and islands rewarding it (for the whole team).
-// The weight goes on top of the game's own SpawnWeight for every loot roll made for the holder.
+// The weight goes on top of the game's own SpawnWeight for every loot roll made for the holder. Those pickups
+// can also come out of the holder's chests of every other loot pool (Damage, Critical, Elemental, Speed, Luck,
+// Health, Economy, Skill), where the game would never offer them.
 #include <string>
 
 #include "../item.hpp"
@@ -74,16 +76,22 @@ public:
 # How many times as likely.
 multiplier = 3
 
+# They can also come out of your chests of every other loot pool (a Speed chest, a Health chest, ...), this
+# many times as likely as the chest's own pickups there. 0 keeps them in their own chests.
+otherChests = 1
+
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
         if (k == "multiplier") mult_ = ParseFloat(v);
+        else if (k == "otherChests") other_ = ParseFloat(v) > 0.f ? ParseFloat(v) : 0.f;
         else AssetItem::Set(k, v);
     }
     std::string Describe() const override {
-        return std::string(def_.what) + " x" + Num(mult_) + ", " + RarityName(rarity_);
+        return std::string(def_.what) + " x" + Num(mult_) + (other_ > 0.f ? ", in every chest" : "") + ", " +
+               RarityName(rarity_);
     }
 
     void OnBeginPlay(void* lm) override {
@@ -94,6 +102,11 @@ rarity = epic
     float LootWeight(void* ps, void* da) override {
         if (!Boosts(da) || !Level(ps)) return 1.f;
         return mult_;
+    }
+
+    float OtherChestWeight(void* ps, void* da) override {
+        if (other_ <= 0.f || !Boosts(da) || !Level(ps)) return 0.f;
+        return other_;
     }
 
     // Damage and Luck: island rewards, if anyone in the game holds it.
@@ -122,6 +135,7 @@ private:
     const SpecialistDef& def_;
     int index_;
     float mult_ = 3.f;
+    float other_ = 1.f;
 };
 
 Specialist g_fire(0), g_ice(1), g_lightning(2), g_poison(3), g_critical(4), g_damage(5), g_luck(6);
