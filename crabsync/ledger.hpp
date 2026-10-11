@@ -140,6 +140,8 @@ public:
     // so the host reports each change as it happens and the team's base max follows it.
     // A player's own change (anything but a chest's cost): the whole team gets it.
     void addBaseMax(float amount);
+    // Whether max health is shared now (there is a team, during a run, with health sync on).
+    bool maxShared() const { return maxSynced(); }
     // A chest's cost, already taken from the opener: max health taken (negative) and health taken
     // (positive). fraction: a max health chest's cost as a fraction of the opener's max (Cost / 100).
     // The team pays the share chestCost says instead.

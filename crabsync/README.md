@@ -73,6 +73,7 @@ Every part can be switched off in `CrabSync.ini`.
 ## Troubleshooting
 
 - **Nothing syncs.** Check that you are the **host**: CrabSync on a joining player's PC does nothing. Then open `CrabSync.log`. It always says what CrabSync is doing, for example `host, syncing in the lobby`.
+- **Max health or deaths aren't shared in a friend's game.** The host needs CrabSync 1.0.2 or newer with `syncHealth = true`. If you have CrabSync 1.0.4 installed too, your `CrabSync.log` says which version the host runs (`the host runs CrabSync ...`). You get an on-screen message when the host's CrabSync is missing or older than 1.0.4.
 - **No `CrabSync.log` appears.** The DLLs are in the wrong folder, or (on Linux) the launch option is missing.
 - **`unsupported game build` in the log.** The game updated. Wait for a new CrabSync release.
 - **Antivirus complaint.** `xinput1_3.dll` is a mod loader that sits where Windows looks for the controller DLL. Antivirus tools sometimes flag that pattern. The full source is in this repo, and every release is built from it.

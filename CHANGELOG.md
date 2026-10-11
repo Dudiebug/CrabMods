@@ -118,6 +118,11 @@ First release.
 
 ## CrabSync
 
+### 1.0.4
+
+- **Is the host syncing?** Only the host's CrabSync syncs, so playing in a friend's game you couldn't tell whether max health and deaths would be shared. The host's CrabSync now greets every player who joins. If you have CrabSync too, your `CrabSync.log` says which version the host runs and whether it shares health (`syncHealth`). If no greeting arrives within 30 seconds, you get an on-screen message: the host isn't running CrabSync 1.0.4 or newer. Shared max health needs the host on 1.0.2 or newer.
+- The host's log now also records max health changes that aren't shared (in the lobby, or before the run has started), so a max health change that stays with one player can be traced.
+
 ### 1.0.3
 
 - Max health chests (spiked) are shared out so that **every player opening one costs the team what one chest costs alone**, compounding included: with a 35% spiked chest, four players lose about 10.2% each and exactly 35% together (it was the cost divided by the number of players, which came to about 31%). Health costs are still divided by the number of players.

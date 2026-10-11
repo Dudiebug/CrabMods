@@ -20,7 +20,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.3";
+constexpr const char kVersion[] = "1.0.4";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -38,6 +38,10 @@ struct Runtime {
     bool runStarting = false;  // left the lobby: rebuild the team once the game has set up the run
     std::unordered_map<PlayerKey, uintptr_t> bodies;  // each player's character at the last poll
     std::unordered_map<PlayerKey, Inventory> pending;  // players seen mid-change, as last read
+    // In someone else's game: whether their CrabSync said hello, and for how long we have been waiting.
+    bool hostAnnounced = false;
+    bool hostWarned = false;
+    float clientSeconds = 0.f;
 } g;
 
 // Max health added to every player's own max for the shared pool (healthPerPlayer per extra player).
@@ -46,6 +50,8 @@ float g_extraHealth = 0.f;
 int g_inUpdateMaxHealth = 0;
 
 using TickFn = void (*)(void*, float, bool);
+using PostLoginFn = void (*)(void*, void*);
+using ClientMessageFn = void (*)(void*, TArray<wchar_t>*, uint64_t, float);
 using RestoreFn = void (*)(void*, void*);
 using UpdateMaxHealthFn = void (*)(void*);
 using SetMaxHealthFn = void (*)(void*, float);
@@ -59,6 +65,8 @@ SetMaxHealthFn oSetMaxHealth = nullptr;
 AddBaseMaxHealthFn oAddBaseMaxHealth = nullptr;
 AddBaseMaxHealthFromPerkFn oAddBaseMaxHealthFromPerk = nullptr;
 ChestPayFn oChestPay = nullptr;
+PostLoginFn oPostLogin = nullptr;
+ClientMessageFn oClientMessage = nullptr;
 
 uint64_t g_frame = 0;  // engine ticks, to spot one team event reaching every player in the same frame
 uint64_t g_fortitudeFrame = ~0ull;
@@ -225,6 +233,79 @@ void Sync(void* gs) {
     g.forceResync = false;
 }
 
+// --- Is the host syncing? -------------------------------------------------------------------------------
+//
+// Only the host's CrabSync syncs, so a player in someone else's game cannot tell from their own log whether
+// anything is shared. The host's CrabSync (1.0.4 and newer) greets every player who joins with its version
+// and whether health is shared, as a ClientMessage (the RPC behind console messages) starting with a marker;
+// CrabSync on the player's machine logs it and keeps it off the console. A player who hears nothing is told
+// on screen that the host's CrabSync is missing or too old.
+
+constexpr wchar_t kHelloTag[] = L"CrabSync host\n";
+constexpr size_t kHelloTagLen = std::size(kHelloTag) - 1;
+constexpr float kHostWaitSeconds = 30.f;
+
+void SendClientMessage(void* pc, std::wstring msg) {
+    struct {
+        TArray<wchar_t> s;
+        uint64_t type;  // FName None
+        float lifeTime;
+        uint32_t pad;
+    } params{{msg.data(), int32_t(msg.size() + 1), int32_t(msg.size() + 1)}, 0, 0.f, 0};
+    uint64_t name = *reinterpret_cast<uint64_t*>(Addr(va::FName_ClientMessage));
+    void* fn = Fn<void* (*)(void*, uint64_t)>(va::UObject_FindFunctionChecked)(pc, name);
+    if (!fn) return;
+    void** vtable = *reinterpret_cast<void***>(pc);
+    reinterpret_cast<void (*)(void*, void*, void*)>(vtable[va::UObject_ProcessEvent_Slot / 8])(pc, fn, &params);
+}
+
+void HkPostLogin(void* gm, void* pc) {
+    oPostLogin(gm, pc);
+    if (!pc) return;
+    std::wstring msg = kHelloTag;
+    for (const char* c = kVersion; *c; c++) msg.push_back(wchar_t(*c));
+    msg += g_cfg.sync.health ? L"\nsyncHealth=1" : L"\nsyncHealth=0";
+    SendClientMessage(pc, msg);
+}
+
+void HkClientMessage(void* pc, TArray<wchar_t>* s, uint64_t type, float lifeTime) {
+    if (!s || !s->Data || s->Num <= int(kHelloTagLen) || wcsncmp(s->Data, kHelloTag, kHelloTagLen) != 0)
+        return oClientMessage(pc, s, type, lifeTime);
+    std::string text;
+    for (int i = int(kHelloTagLen); i < s->Num && s->Data[i]; i++) text.push_back(s->Data[i] == L'\n' ? ' ' : char(s->Data[i]));
+    // The host greets its own controller too; only a client's controller is not the authority.
+    if (At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority || g.hostAnnounced) return;
+    g.hostAnnounced = true;
+    bool health = text.find("syncHealth=1") != std::string::npos;
+    CRAB_LOG("the host runs CrabSync %s: %s", text.substr(0, text.find(' ')).c_str(),
+             health ? "the host syncs everything, including shared health, max health and deaths"
+                    : "the host has syncHealth = false, so health, max health and deaths are NOT shared");
+}
+
+// On this machine's own screen: of the player states a client sees, only its own has an owner (its controller).
+void ShowOwnMessage(void* gs, const wchar_t* text) {
+    static void* psClass = StaticClass(va::ACrabPS_StaticClass);
+    std::wstring copy = text;
+    TArray<wchar_t> s{copy.data(), int32_t(copy.size() + 1), int32_t(copy.size() + 1)};
+    auto& arr = At<TArray<void*>>(gs, off::GS_PlayerArray);
+    for (int i = 0; i < arr.Num; i++) {
+        void* ps = arr.Data[i];
+        if (IsA(ps, psClass) && At<void*>(ps, off::Actor_Owner))
+            Fn<void (*)(void*, TArray<wchar_t>*)>(va::ACrabPS_ShowMessage)(ps, &s);
+    }
+}
+
+void WatchHost(void* gs, float dt) {
+    if (g.hostAnnounced || g.hostWarned) return;
+    g.clientSeconds += dt;
+    if (g.clientSeconds < kHostWaitSeconds) return;
+    g.hostWarned = true;
+    CRAB_LOG("the host never announced CrabSync 1.0.4 or newer: they don't run CrabSync, or an older one. Older "
+             "versions don't share max health (before 1.0.2) or deaths; nothing is synced without it");
+    ShowOwnMessage(gs, L"CrabSync: the host isn't running CrabSync 1.0.4 or newer, so max health and deaths "
+                       L"may not be shared");
+}
+
 // Logs a line whenever what CrabSync is doing changes, so the log always says why it is (not) syncing.
 void SetStatus(const std::string& s) {
     if (s == g.status) return;
@@ -277,12 +358,16 @@ void OnTick(void* engine, float dt) {
     if (At<uint8_t>(gs, off::Actor_Role) != ROLE_Authority) {
         g_extraHealth = 0.f;
         SetStatus("this PC joined someone else's game: the host does all syncing, nothing to do here");
+        WatchHost(gs, dt);
         if (g.dumpRequested) {
             g.dumpRequested = false;
             DumpVisible(gs, "client");
         }
         return;
     }
+
+    g.hostAnnounced = g.hostWarned = false;  // hosting: the next game joined is checked afresh
+    g.clientSeconds = 0.f;
 
     uint8_t island = At<uint8_t>(gs, off::GS_CurrentIslandType);
     int islandNum = At<int32_t>(gs, off::GS_CurrentIsland);
@@ -372,6 +457,13 @@ void HkSetMaxHealth(void* character, float max) {
 // A player's base max health changed by `d` (on the host). Everything but a chest's cost is the team's.
 void OnBaseMaxHealth(void* ps, float d, uintptr_t ret) {
     if (d == 0.f) return;
+    if (!g_ledger.hasTeam() || !g_ledger.maxShared()) {
+        // Not an error in the lobby (nothing is shared there) or while a run is being set up; logged so a
+        // max health change that stays with one player can be traced.
+        CRAB_LOG("%s: max health %+.1f, not shared (%s)", PlayerName(ps).c_str(), d,
+                 !g_ledger.hasTeam() ? "no team yet" : "in the lobby");
+        return;
+    }
     if (ret == Addr(va::Ret_ChestMaxHealthCost)) {
         g_chestBaseMax += d;  // HkChestPay decides what the team pays
         return;
@@ -381,7 +473,6 @@ void OnBaseMaxHealth(void* ps, float d, uintptr_t ret) {
         if (g_fortitudeFrame == g_frame) return;
         g_fortitudeFrame = g_frame;
     }
-    if (!g_ledger.hasTeam()) return;
     g_ledger.addBaseMax(d);
     CRAB_LOG("%s: max health %+.1f, shared (team base max %.1f)", PlayerName(ps).c_str(), d, g_ledger.team().baseMax);
 }
@@ -446,6 +537,8 @@ DWORD WINAPI Init(LPVOID) {
     if (!HookInit()) return 0;
     Hook(va::UGameEngine_Tick, &HkTick, &oTick, "UGameEngine::Tick");
     Hook(va::ACrabPS_RestoreAutoSave, &HkRestoreAutoSave, &oRestore, "ACrabPS::RestoreAutoSave");
+    Hook(va::AGameModeBase_K2_PostLogin, &HkPostLogin, &oPostLogin, "AGameModeBase::K2_PostLogin");
+    Hook(va::APlayerController_ClientMessage_Impl, &HkClientMessage, &oClientMessage, "ClientMessage");
     if (g_cfg.sync.health) {
         Hook(va::ACrabPS_UpdateMaxHealth, &HkUpdateMaxHealth, &oUpdateMaxHealth, "ACrabPS::UpdateMaxHealth");
         Hook(va::ACrabC_SetMaxHealth, &HkSetMaxHealth, &oSetMaxHealth, "ACrabC::SetMaxHealth");

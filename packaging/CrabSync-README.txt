@@ -2,6 +2,9 @@ CrabSync - one team, one inventory, one health bar for Crab Champions co-op.
 https://github.com/Dudiebug/CrabMods
 
 Only the HOST needs this. Friends join like normal.
+Things are only shared when the host runs CrabSync (max health and deaths need
+1.0.2 or newer). If you install it too, you get a message in a friend's game
+when their CrabSync is missing or older than 1.0.4.
 
 INSTALL
 1. In Steam, right-click Crab Champions > Manage > Browse local files.
