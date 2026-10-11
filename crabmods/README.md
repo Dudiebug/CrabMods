@@ -84,7 +84,7 @@ One Legendary per inventory group. Each level gives that group **5 more slots**,
 
 **Every player in the lobby needs CrabMods**, the host and every friend who joins.
 
-The easy way is the [CrabMods Manager](../manager/README.md): it finds the game, installs and updates the mods, and edits their settings.
+The easy way is the [CrabMods Manager](../manager/README.md): it installs CrabMods with every item, keeps it up to date, and lets you uninstall single items and change their settings.
 
 By hand:
 
@@ -111,7 +111,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[arsenal]` | `damagePerModPercent` | `3` | Per other weapon mod. |
 | | `countStacks` | `false` | `true` counts a x3 stack as three mods (for Arsenal and Hoarder). |
 | `[hoarder]` | `damagePercent` | `3` | Per weapon mod and per perk level. |
-| `[heavyShot]` | `anyWeapon` | `true` | Let Heavy Shot drop for every weapon. |
+| `[heavyShot]` | `enabled` | `true` | Let Heavy Shot drop for every weapon (called `anyWeapon` before 0.9.0, still read). |
 | `[minimalist]` | `damagePercent` | `5` | Per empty weapon mod slot. |
 | `[underdog]` | `damagePercent` | `0.5` | Per 1% of health missing. |
 | `[untouchable]` | `damagePercent` | `1` | Per second without being hit. |
@@ -136,7 +136,8 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[riggedTotems]` | `chanceBonusPercent` | `25` | How much more likely totems go your way (capped at certain). |
 | `[encore]` | `chancePercent` | `15` | The chance for a perk to go off a second time. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
-| `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
+| `[spikedChest]` | `enabled` | `true` | Off: the Spiked Chest costs the game's own 25%. |
+| | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
 | `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
 | `[communitySupport]` | `fireRatePercent` | `12` | Per Community Support in range (Rapid Fire's is 12). |
 | | `rangeMeters` | `20` | |
@@ -161,7 +162,7 @@ All percentages and amounts are per level of the item. `[meleeMods]` and `[keyTo
 
 **In multiplayer everyone plays with the host's settings.** When you join, the host's CrabMods sends its `CrabMods.ini` settings to you, and your game uses them until you leave. Your log says `using the host's settings`, followed by every item's values. When you host again, or play alone, your own settings are back. Your `CrabMods.ini` file is never changed.
 
-To share settings outside a game, use **Copy share code** and **Paste share code** in the [Manager](../manager/README.md).
+To play someone's setup yourself, or host it, use their setup code in the [Manager](../manager/README.md#setup-codes)'s **Share** tab.
 
 ## How it works
 

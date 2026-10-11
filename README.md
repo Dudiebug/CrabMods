@@ -6,13 +6,13 @@ Native mods for **Crab Champions**, and the reverse-engineering notes and SDK th
 |---|---|---|---|
 | [**CrabSync**](crabsync/README.md) | One team, one inventory, one health bar: every pickup, crystal and hit is shared by the whole lobby. | The host only | [`CrabSync-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync) |
 | [**CrabMods**](crabmods/README.md) | 37 new items: damage perks and relics (Hoarder, Collateral Damage, Overflow, Last Crab Standing, ...), Thick Shell, Community Support, Bullet Rain and Hellshooter, a Martyr relic whose revive bubble hurts enemies, Specialist relics that make one kind of loot 3× as likely, Double or Nothing, Cursed Lottery, Lucky Charm (chest items can be level 2), Encore (perks go off twice), Combo Catalyst, Autoloader, Finishing Move, Rigged Totems, Recharge, Legendary items that add 5 inventory slots per level, stronger melee mods, a key totem menu to choose your unlock, Heavy Shot for every weapon, and Spiked Chests that cost 35% max health (35% for the whole team with CrabSync). In multiplayer the host's settings are used by everyone. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
-| [**CrabMods Manager**](manager/README.md) | Installs, updates, switches on/off and removes the mods; edits their settings and shares them as codes; launches the game and turns a crash into a ready-made GitHub issue. Windows, or Proton/wine on Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
+| [**CrabMods Manager**](manager/README.md) | **The easiest way to play with these mods.** Every item is a mod you install or uninstall, with its settings beside it; keeps the mods and itself up to date; shares your whole setup as one short code; starts the game and turns a crash into a ready-made GitHub issue. Windows, or Proton/wine on Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
 
 The two mods work together or on their own. Each one's page has its settings, details and known issues.
 
 ## Install
 
-The easy way: run the [CrabMods Manager](manager/README.md), press **Install** on each mod you want, and on Linux / Steam Deck set the launch option from step 5 below.
+**The easy way:** download [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) and run it. It finds the game, installs every mod, and keeps them up to date. Uninstall whatever you don't want. On Linux / Steam Deck it shows the launch option from step 5 below to paste into Steam.
 
 By hand:
 
@@ -56,6 +56,7 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 | `tests/` | CrabSync ledger tests and manager tests. |
 | `re/` | Reverse-engineering notes, SDK and scripts. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
+| `third_party/imgui/` | [Dear ImGui](https://github.com/ocornut/imgui) 1.91.9b (MIT), the manager's UI. |
 
 Every address in `common/crab/game.hpp` comes from static analysis of the game binary. The mods read and call the game's own code; they do not modify any game files.
 
@@ -65,6 +66,6 @@ Every address in `common/crab/game.hpp` comes from static analysis of the game b
 
 ## License
 
-[MIT](LICENSE). MinHook is © Tsuda Kageyu and contributors, under its own [BSD 2-Clause license](third_party/minhook/LICENSE.txt).
+[MIT](LICENSE). MinHook is © Tsuda Kageyu and contributors, under its own [BSD 2-Clause license](third_party/minhook/LICENSE.txt). Dear ImGui is © Omar Cornut, [MIT](third_party/imgui/LICENSE.txt). The manager's font, Roboto, is © Google, under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 These are fan-made mods. They are not affiliated with or endorsed by the developers or publishers of Crab Champions.

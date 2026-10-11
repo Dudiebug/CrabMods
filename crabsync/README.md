@@ -29,6 +29,10 @@ Every part can be switched off in `CrabSync.ini`.
 
 ## Install
 
+The easy way is the [CrabMods Manager](../manager/README.md): it installs CrabSync and keeps it up to date.
+
+By hand:
+
 1. Download `CrabSync-x.y.z.zip` from [Releases](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync).
 2. Open the game folder: in Steam, right-click **Crab Champions** → **Manage** → **Browse local files**.
 3. Go into `CrabChampions\Binaries\Win64` (the folder with `CrabChampions-Win64-Shipping.exe`).

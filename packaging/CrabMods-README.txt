@@ -59,8 +59,8 @@ Items (all bonuses are per level, and stack):
 EVERY PLAYER in the lobby needs it, the host and every friend. In multiplayer
 everyone uses the host's settings (CrabMods.ini), sent when you join.
 
-Easiest: use CrabModsManager.exe from the GitHub releases. It installs, updates
-and edits settings for you.
+Easiest: use CrabModsManager.exe from the GitHub releases. It installs every item,
+keeps CrabMods up to date, and lets you uninstall items and change settings.
 
 INSTALL
 1. In Steam, right-click Crab Champions > Manage > Browse local files.

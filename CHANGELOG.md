@@ -4,6 +4,11 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.9.0
+
+- **Works with CrabMods Manager 0.3.0**, which shows every item as a mod to install or uninstall, with its settings. CrabMods tells the manager its items and their default settings, and does nothing when it's loaded outside the game.
+- **Spiked Chest** and **Heavy Shot** can be switched off like every other item (`[spikedChest] enabled`, `[heavyShot] enabled`; the old `anyWeapon` still works). With Spiked Chest off, the chest costs the game's own 25%.
+
 ### 0.8.2
 
 - **Pickups show their level.** The game's pickup card never showed one, so you couldn't see Lucky Charm work. A pickup above level 1 now has its level after its name on the card, like **"Vitality (Lv 2)"**. This shows for every player.
@@ -133,6 +138,18 @@ First release, as Arsenal.
 
 ## CrabMods Manager
 
+### 0.3.0
+
+A new manager: a real window instead of a settings editor.
+
+- **Every CrabMods item is a mod** you install or uninstall, listed with CrabMods and CrabSync in one table you can search and filter by type. Click one to see what it does and change its settings with switches, sliders and lists (saved at once; Reset puts a setting back).
+- **Everything is installed by default.** On first start it installs CrabMods with every item, CrabSync and the mod loader. New items in an update arrive installed.
+- **Always up to date.** It checks GitHub at start and every 30 minutes and installs mod updates by itself (waiting for the game to close if it's running). **The manager updates itself too**: it downloads the new version, swaps it in and restarts. Both can be switched off. Managers before 0.3.0 can't do this: download 0.3.0 by hand once.
+- **Setup codes** (`CRAB2-`) hold which mods are installed and only the settings you changed, so they're short: everything at its default is `CRAB2-S;M-` plus a 4-character check. Loading one shows what it installs, uninstalls and changes first. Old `CRAB1-` codes still load.
+- **Play** waits for running updates, then starts the game.
+- On Linux / Steam Deck it shows the Steam launch option with a Copy button until Steam has it.
+- Crash reports work as in 0.2.0 (Settings tab: Collect logs, Open reports folder).
+
 ### 0.2.0
 
 - **Launch game** starts Crab Champions through Steam.
@@ -154,6 +171,10 @@ First release.
 - `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
+
+### 1.0.5
+
+- **Works with CrabMods Manager 0.3.0**: CrabSync tells the manager its default settings, so they show up there as controls, and does nothing when it's loaded outside the game.
 
 ### 1.0.4
 
