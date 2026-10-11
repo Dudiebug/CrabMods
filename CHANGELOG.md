@@ -4,10 +4,14 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.2
+
+- **The Soul Whip does 100 damage a second.** 0.10.1 meant to, but it was still doing 25: the bolt never hits directly, so only its 20-damage burst counted (and `whipDamage` did nothing). The burst now does all of it, 80 per crack at 1.25 cracks a second, to every enemy in it. Set it with `whipDps` in `[necromancer]`; `whipDamage` and `burstDamage` are gone.
+- The log notes what the whip really does every 5 seconds you fire it (shots a second, damage a second).
+
 ### 0.10.1
 
 - **The Soul Whip's sounds follow the game's volume.** They play through CrabMods' own mixer, so the game's sliders didn't reach them. They now go with the game's **Master** and **Gameplay** volume (times `soundVolume`).
-- **The Soul Whip does 100 damage a second** to one enemy (each crack's hit plus its burst), before your damage items and crits, which go on top. It was 0.7x the Sniper's hit. Set it with `whipDps` in `[necromancer]` (`whipDamage` is gone).
 - **Fixed souls and raisable kinds carrying over into the next run.** They were meant to clear in the lobby, but the check ran before the game knew it was the lobby. They now clear as soon as you're back there.
 - New relic: **Summoner Specialist** (Epic). The Soul Whip's 20 pickups are offered 3x as often and can come out of all your chests. It only drops while you hold the whip.
 - **The Soul Whip's pickups come out of their own chests.** Before, they came out of every chest a whip holder opened. Each now has a loot pool that fits it (Sturdy Bones in Health chests, Soul Jar in Economy chests, ...), plus the any-pool chests. The Ring relics no longer count as Fire pickups. Plague Bearers is a Poison pickup.

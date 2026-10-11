@@ -123,16 +123,15 @@ enabled = true
 # --- Soul Whip ---
 # Each crack sends a soul bolt toward your aim. It stops at the first enemy it hits, or the ground, or its
 # reach, and bursts there, hurting every enemy around.
-# Damage a second to one enemy, before your damage items, crits and the like: each crack's hit plus its
-# burst add up to this (the hit is whipDps / whipFireRate - burstDamage).
+# Damage a second. The bolt does its damage with its burst (whipDps / whipFireRate each, so 80 at 1.25 cracks a
+# second), to every enemy in it; those at its edge take less.
 whipDps = 100
 # Cracks a second.
 whipFireRate = 1.25
 # Reach in meters.
 whipRangeMeters = 45
-# The burst: its radius in meters, and its damage (the Arcane Wand's burst is 25, the Rocket Launcher's 75).
+# The burst's radius in meters.
 burstRadiusMeters = 4
-burstDamage = 20
 # A crack tags every enemy within this many meters of where it lands, for this many seconds. Your undead go
 # after tagged enemies first and hurt them more, and tagged kills give more souls.
 tagRadiusMeters = 6
@@ -195,7 +194,6 @@ soundVolume = 80
         else if (k == "whipFireRate") whipFireRate_ = num(0.1f, 20.f);
         else if (k == "whipRangeMeters") whipRange_ = num(1.f, 200.f) * 100.f;
         else if (k == "burstRadiusMeters") burstRadius_ = num(0.f, 50.f) * 100.f;
-        else if (k == "burstDamage") burstDamage_ = num(0.f, 10000.f);
         else if (k == "tagRadiusMeters") tagRadius_ = num(0.f, 100.f) * 100.f;
         else if (k == "tagSeconds") tagSeconds_ = num(0.f, 600.f);
         else if (k == "tagDamagePercent") tagDamage_ = num(0.f, 10000.f) / 100.f;
@@ -240,7 +238,7 @@ soundVolume = 80
     std::string Describe() const override {
         std::string keys;
         for (int t = 0; t < kTiers; t++) keys += (t ? "/" : "") + keyNames_[t];
-        return "Soul Whip " + Num(whipDps_) + " dps, " + Num(whipRange_ / 100.f) + " m, " + Num(burstRadius_ / 100.f) + " m burst of " + Num(burstDamage_) + "; " + Num(maxSouls_) +
+        return "Soul Whip " + Num(whipDps_) + " dps, " + Num(whipRange_ / 100.f) + " m, " + Num(burstRadius_ / 100.f) + " m burst of " + Num(whipDps_ / whipFireRate_) + "; " + Num(maxSouls_) +
                " souls; raise " + Num(cost_[0]) + "/" + Num(cost_[1]) + "/" + Num(cost_[2]) + "/" + Num(cost_[3]) +
                " on " + keys;
     }
@@ -368,11 +366,42 @@ soundVolume = 80
         return per * float(n);
     }
 
-    // The whip's own hits: the bolt's base hit is set so a crack (hit and burst) does whipDps a second, and the
-    // game's damage buffs go on top of it.
+    // The whip's hits, for its stats. (The bolt never hits directly: its burst does all of its damage.)
     void OnOutgoingDamageBase(void* ps, void* info) override {
-        if (!Holds(ps) || At<uint8_t>(info, off::DamageInfo_Type) != 0) return;
-        At<float>(info, off::DamageInfo_Damage) = std::max(0.f, whipDps_ / whipFireRate_ - burstDamage_);
+        if (!Holds(ps)) return;
+        stats_.in = stats_.set = At<float>(info, off::DamageInfo_Damage);
+    }
+
+    // What the whip really does, in the log every few seconds of use: shots a second and each kind of hit's damage
+    // (as the game made it, as the whip set it, and after the player's buffs).
+    struct Stats {
+        double since = 0.0;
+        int shots = 0;
+        float in = 0.f, set = 0.f;
+        struct Hit {
+            int n = 0;
+            float in = 0.f, set = 0.f, out = 0.f;
+        } hits[16];
+    } stats_;
+    void StatsTick() {
+        double now = Now();
+        if (stats_.since == 0.0) stats_.since = now;
+        if (now - stats_.since < 5.0) return;
+        double secs = now - stats_.since;
+        std::string text;
+        float total = 0.f;
+        for (int t = 0; t < 16; t++)
+            if (const Stats::Hit& h = stats_.hits[t]; h.n) {
+                char part[160];
+                snprintf(part, sizeof part, "; type %d x%d: game %.1f, whip %.1f, buffed %.1f", t, h.n, h.in / h.n,
+                         h.set / h.n, h.out / h.n);
+                text += part;
+                total += h.out;
+            }
+        CRAB_LOG("necromancer: whip stats over %.1f s: %d shots (%.2f a second), %.1f damage a second%s", secs,
+                 stats_.shots, stats_.shots / secs, total / secs, text.c_str());
+        stats_ = Stats{};
+        stats_.since = now;
     }
 
     // The whip's loot that works on hits.
@@ -381,6 +410,7 @@ soundVolume = 80
         uint8_t type = At<uint8_t>(info, off::DamageInfo_Type);
         float& damage = At<float>(info, off::DamageInfo_Damage);
         void* victim = At<void*>(info, off::DamageInfo_DamagedActor);
+        if (Stats::Hit& h = stats_.hits[type & 15]; true) h.n++, h.in += stats_.in, h.set += stats_.set, h.out += damage;
         if (!victim || IsUndead(victim)) return;
         if (Tagged(victim)) damage *= 1.f + loot::Total(ps, loot::DeathMark) / 100.f;
         if (type == 3) lastMelee_[victim] = ps;
@@ -396,6 +426,7 @@ soundVolume = 80
     // --- Shots (the shooter's machine): where a crack lands is tagged ---------------------------------------
 
     void OnShot(void* weapon, void* ps, Vec3& start, Vec3& dir) override {
+        if (whip_ && At<void*>(weapon, off::Weapon_WeaponDA) == whip_) stats_.shots++, StatsTick();
         if (!whip_ || At<void*>(weapon, off::Weapon_WeaponDA) != whip_ || Now() - lastTagSent_ < 0.1) return;
         void* c = At<void*>(weapon, off::Weapon_OwningC);
         void* pc = At<void*>(weapon, off::Weapon_OwningPC);
@@ -1073,7 +1104,7 @@ private:
             At<float>(projDA_, off::ProjDA_Lifetime) = whipRange_ / kBoltSpeed;
             At<int32_t>(projDA_, off::ProjDA_MaxPiercings) = 0;  // stops at the first enemy, and bursts
             At<float>(projDA_, off::ProjDA_ExplosionRadius) = burstRadius_;
-            At<float>(projDA_, off::ProjDA_ExplosionDamage) = burstDamage_;
+            At<float>(projDA_, off::ProjDA_ExplosionDamage) = whipDps_ / whipFireRate_;  // the bolt's only damage
         }
     }
 
@@ -2005,7 +2036,7 @@ private:
 
     // Settings
     bool enabled_ = true;
-    float whipDps_ = 100.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f, burstDamage_ = 20.f;
+    float whipDps_ = 100.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f;
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
