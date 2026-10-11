@@ -60,6 +60,8 @@ public:
     // A player's hit, after the game applied their damage buffs, crits (DamageInfo_Tags gets 1) and elemental
     // perks to it (host, inside TakeDamage, after OnTakeDamage). Changes to info's damage and debuffs apply.
     virtual void OnOutgoingDamage(void* ps, void* info) {}
+    // The same hit before the game applies those (host). Changes to info's damage get the buffs on top.
+    virtual void OnOutgoingDamageBase(void* ps, void* info) {}
     // Loot rolls (host): how much more likely da is to be offered to this player, as a factor on its
     // SpawnWeight. 1 = unchanged, 0 = never. The factors of all items are multiplied.
     virtual float LootWeight(void* ps, void* da) { return 1.f; }

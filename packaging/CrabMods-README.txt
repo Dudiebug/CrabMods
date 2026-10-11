@@ -40,6 +40,8 @@ Items (all bonuses are per level, and stack):
   Fire/Ice/Lightning/Poison/Critical/Damage/Luck Specialist (Epic relics):
     that kind of pickup is offered 3x as often and can come out of any of
     your chests, not only its own pool's (Damage and Luck: islands too).
+  Summoner Specialist (Epic relic, Soul Whip holders only): the Soul Whip's
+    pickups are offered 3x as often and can come out of any of your chests.
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
   Bandolier / Tool Belt / Scabbard / Backpack (Legendary weapon mod / ability
     mod / melee mod / perk): +5 slots in that inventory group per level. The

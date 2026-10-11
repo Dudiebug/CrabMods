@@ -150,6 +150,7 @@ constexpr uintptr_t SnapToGround = 0x140d30df0;
 // void(ACrabDestructible*, FCrabDamageInfo*, uint8 HitType): its health component was hit; HitType 5 (Elimination)
 // breaks it (Explode). The player who broke it is Info->DamagingC if a player, else the last player who hit it.
 constexpr uintptr_t ACrabDestructible_OnHCDamaged = 0x140cc64a0;
+constexpr uintptr_t ACrabDestructible_StaticClass = 0x140d73b50;
 
 // Going down (host): void(ACrabPC*), inside the killing hit, before the player's character is swapped for a
 // spectator. The PC's pawn (+0x250) is still the downed ACrabPlayerC, with its player state.
@@ -329,7 +330,10 @@ constexpr uintptr_t ACrabEnemyAIC_SelectTarget = 0x140ca0570;
 constexpr uintptr_t ACrabEnemyC_SetBestEnemy = 0x140caa5b0;  // void(ACrabEnemyC*, ACrabC*): the replicated +0x800
 constexpr uintptr_t ACrabEnemyAIC_FocusBestEnemy = 0x140ca1bd0;  // void(ACrabEnemyAIC*)
 // void(ACrabPlayerC*, const FVector_NetQuantize*): the ServerAbility RPC arriving at the host.
-constexpr uintptr_t ACrabPlayerC_ServerAbility_Impl = 0x140d1a430;
+constexpr uintptr_t ACrabPlayerC_ServerAbility_Impl = 0x140d1a430;  // only calls MulticastAbility (others' telegraph)
+// void(ACrabPlayerC*): the "Ability" input action on the owning machine (any key): spends a charge, starts the
+// cooldown, plays the telegraph, sends ServerAbility and sets the timer that spawns the ability (0x140d1bd10).
+constexpr uintptr_t ACrabPlayerC_AbilityPressed = 0x140d10c00;
 // void(UCrabGI*): builds the lobby's weapon, ability and melee lists from SpawnablesDA (once, guarded by GI+0x248).
 constexpr uintptr_t UCrabGI_BuildLoadoutLists = 0x140cda5c0;
 }  // namespace va
@@ -416,6 +420,9 @@ constexpr int HC_BaseMaxHealth = 0xC0;  // float, the class default's
 // ACrabDestructible
 constexpr int Destructible_LastPlayer = 0x340;  // ACrabC*: the last player who damaged it
 constexpr int Destructible_bExploded = 0x398;
+constexpr int Destructible_HC = 0x238;                    // UCrabHC*
+constexpr int Destructible_NestEnemies = 0x350;           // TArray: a nest's enemies, spawned when it breaks
+constexpr int Destructible_ChallengeEnemies = 0x3D0;      // TArray: a spawner's (Resin Hornet nest, challenge crystal)
 // Player-spawned destructibles (UCrabSpawnablesDA classes): Landmine, HomingBarrel, SporeMushroom, UltraMushroom
 constexpr int Spawnables_PlayerDestructibles = 0x270;
 constexpr int Spawnables_NumPlayerDestructibles = 4;
@@ -488,6 +495,9 @@ constexpr int Totem_Type = 0x298;                  // ECrabTotemType: 3 = Key
 constexpr int Totem_UniqueIDInteractions = 0x2D8;  // TArray<FString>: who has used it
 constexpr int Pawn_Controller = 0x258;
 constexpr int World_GameInstance = 0x180;
+constexpr int GI_SettingsSG = 0x240;              // UCrabSettingsSG*: the settings menu's values
+constexpr int SettingsSG_MasterVolume = 0x138;    // float
+constexpr int SettingsSG_GameplayVolume = 0x13C;  // float: sound effects
 constexpr int GI_SaveGame = 0x228;  // UCrabSG*
 constexpr int SceneComponent_Rotation = 0x1C0;  // FQuat of ComponentToWorld (x, y, z, w)
 constexpr int SceneComponent_Scale = 0x1E0;     // FVector of ComponentToWorld
@@ -623,6 +633,8 @@ constexpr int ProjDA_ExplosionSound = 0x110;
 constexpr int Weapon_Mesh = 0x220;            // UStaticMeshComponent*
 constexpr int Weapon_TimesFired = 0x338;      // int32, replicated: counts every shot on every machine
 constexpr int Enemy_MeshDMI = 0x728;          // UMaterialInstanceDynamic*
+constexpr int Enemy_bIsExplosiveEnemy = 0x760;  // EnemySpawnSettings (0x748) + 0x18: slugs and pufferfish, which blow up
+constexpr int Character_Mesh = 0x280;         // USkeletalMeshComponent*
 constexpr int Enemy_OwningAIC = 0x770;
 constexpr int Enemy_Category = 0x778;         // ECrabEnemyCategory: 1 Easy, 2 Medium, 3 Hard, 4 Elite, 5 Boss
 constexpr int Enemy_EnemyName = 0x780;        // FString

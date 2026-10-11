@@ -4,6 +4,21 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.1
+
+- **The Soul Whip's sounds follow the game's volume.** They play through CrabMods' own mixer, so the game's sliders didn't reach them. They now go with the game's **Master** and **Gameplay** volume (times `soundVolume`).
+- **The Soul Whip does 100 damage a second** to one enemy (each crack's hit plus its burst), before your damage items and crits, which go on top. It was 0.7x the Sniper's hit. Set it with `whipDps` in `[necromancer]` (`whipDamage` is gone).
+- **Fixed souls and raisable kinds carrying over into the next run.** They were meant to clear in the lobby, but the check ran before the game knew it was the lobby. They now clear as soon as you're back there.
+- New relic: **Summoner Specialist** (Epic). The Soul Whip's 20 pickups are offered 3x as often and can come out of all your chests. It only drops while you hold the whip.
+- **The Soul Whip's pickups come out of their own chests.** Before, they came out of every chest a whip holder opened. Each now has a loot pool that fits it (Sturdy Bones in Health chests, Soul Jar in Economy chests, ...), plus the any-pool chests. The Ring relics no longer count as Fire pickups. Plague Bearers is a Poison pickup.
+- **The game's own ability mods no longer drop for players holding the Soul Whip**, since it replaces the ability.
+- **Fixed the ability still firing while holding the Soul Whip.** The block was on the host's half, which only plays the effect for the other players. Your machine fires the ability itself. It's now blocked where the key is read, for any key or controller binding.
+- **Raising leaves out poor undead.** Barrel Skulls, the Immortal Snail, and enemies that blow themselves up (slugs, pufferfish) no longer join the raise list. The last other kind you killed of that rank stays.
+- **The Immortal Snail stays the players' problem.** Undead don't attack it, and it doesn't turn on them.
+- **Undead go for nests and spawners.** An undead with no enemy within 25 m (`nestRangeMeters`) walks to the nearest nest or spawner and breaks it (`nestDps`, 30 a second each).
+- **The undead's ghostly look works on every kind.** It only set the crabs' color names. It now sets every enemy material's color and glow names, on every material of the body, and keeps reapplying it.
+- **Fixed the soul bar not showing Soul Jar's bigger max** (or Soul Discount's cheaper costs) until your souls next changed.
+
 ### 0.10.0
 
 - New **weapon, the Soul Whip** (the Necromancer), in the lobby's weapon list. A lash with no ammo: each crack sends a purple soul bolt up to 45 m that bursts on an enemy, the floor or at its reach, hurting everything within 4 m and **tagging** enemies. While you hold it your ability becomes **raising the dead**: kills fill a soul bar, and **V / C / X / Z** spend souls to raise the last fodder (a pack of 3), medium, hard or elite enemy you killed this run as an **undead** that fights for you. Undead go after tagged enemies first, never hurt players, cost a trickle of souls while they fight, and crumble when the island's fight ends. It stands on its **own pedestal left of the Crossbow** (the whip itself turning there in a violet glow), and has its own **model** (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, with a soul glow pulsing down it), **sounds**, and **HUD**: a soul bar above your health and the four raise pictures, with keys and costs, where the ability was, left of the melee slot. Every number is in `[necromancer]`. The raise keys (`raiseKeyFodder` ...) and `soundVolume` are **your own**: joining someone's game never changes them.

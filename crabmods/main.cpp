@@ -43,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.10.0";
+constexpr const char kVersion[] = "0.10.1";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -121,6 +121,7 @@ using OutgoingDamageFn = void (*)(void*, void*);
 OutgoingDamageFn oOutgoingDamage;
 
 void HkOutgoingDamage(void* ps, void* info) {
+    if (ps && info) ForEachEnabled([&](Item* i) { i->OnOutgoingDamageBase(ps, info); });
     oOutgoingDamage(ps, info);
     if (ps && info) ForEachEnabled([&](Item* i) { i->OnOutgoingDamage(ps, info); });
 }

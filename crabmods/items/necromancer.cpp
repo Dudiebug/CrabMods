@@ -123,8 +123,9 @@ enabled = true
 # --- Soul Whip ---
 # Each crack sends a soul bolt toward your aim. It stops at the first enemy it hits, or the ground, or its
 # reach, and bursts there, hurting every enemy around.
-# The bolt's hit, as a multiple of the Sniper's.
-whipDamage = 0.7
+# Damage a second to one enemy, before your damage items, crits and the like: each crack's hit plus its
+# burst add up to this (the hit is whipDps / whipFireRate - burstDamage).
+whipDps = 100
 # Cracks a second.
 whipFireRate = 1.25
 # Reach in meters.
@@ -169,6 +170,9 @@ eliteHealth = 0.5
 eliteDamage = 0.5
 # Enemies go after an undead instead of a player when it is this many times closer.
 aggroBias = 1.5
+# Undead with no enemy near go for nests and spawners within this many meters, each doing this much damage a second.
+nestRangeMeters = 25
+nestDps = 30
 
 # --- Yours ---
 # Each player's own: the host's settings never change these. Raise keys: A letter or digit, F1-F24, Mouse3-Mouse5, Num0-Num9,
@@ -178,7 +182,8 @@ raiseKeyFodder = V
 raiseKeyMedium = C
 raiseKeyHard = X
 raiseKeyElite = Z
-# The kit's sounds (the whip, souls, raising), in percent. Also your own.
+# The kit's sounds (the whip, souls, raising), in percent, on top of the game's Master and Gameplay volume.
+# Also your own.
 soundVolume = 80
 )";
     }
@@ -186,7 +191,7 @@ soundVolume = 80
     void Set(const std::string& k, const std::string& v) override {
         auto num = [&](float lo, float hi) { return std::clamp(ParseFloat(v), lo, hi); };
         if (k == "enabled") enabled_ = ParseBool(v);
-        else if (k == "whipDamage") whipDamage_ = num(0.f, 100.f);
+        else if (k == "whipDps") whipDps_ = num(0.f, 100000.f);
         else if (k == "whipFireRate") whipFireRate_ = num(0.1f, 20.f);
         else if (k == "whipRangeMeters") whipRange_ = num(1.f, 200.f) * 100.f;
         else if (k == "burstRadiusMeters") burstRadius_ = num(0.f, 50.f) * 100.f;
@@ -214,6 +219,8 @@ soundVolume = 80
         else if (k == "eliteHealth") eliteHealth_ = num(0.01f, 10.f);
         else if (k == "eliteDamage") eliteDamage_ = num(0.f, 10.f);
         else if (k == "aggroBias") aggroBias_ = num(0.f, 100.f);
+        else if (k == "nestRangeMeters") nestRange_ = num(0.f, 500.f) * 100.f;
+        else if (k == "nestDps") nestDps_ = num(0.f, 1e6f);
         else if (k == "soundVolume") mixer_.SetVolume(num(0.f, 200.f) / 100.f);
         else
             for (int t = 0; t < kTiers; t++)
@@ -233,7 +240,7 @@ soundVolume = 80
     std::string Describe() const override {
         std::string keys;
         for (int t = 0; t < kTiers; t++) keys += (t ? "/" : "") + keyNames_[t];
-        return "Soul Whip x" + Num(whipDamage_) + " damage, " + Num(whipRange_ / 100.f) + " m, " + Num(burstRadius_ / 100.f) + " m burst of " + Num(burstDamage_) + "; " + Num(maxSouls_) +
+        return "Soul Whip " + Num(whipDps_) + " dps, " + Num(whipRange_ / 100.f) + " m, " + Num(burstRadius_ / 100.f) + " m burst of " + Num(burstDamage_) + "; " + Num(maxSouls_) +
                " souls; raise " + Num(cost_[0]) + "/" + Num(cost_[1]) + "/" + Num(cost_[2]) + "/" + Num(cost_[3]) +
                " on " + keys;
     }
@@ -245,7 +252,7 @@ soundVolume = 80
         Hook(va::UCrabGI_BuildLoadoutLists, &HkBuildLists, &oBuildLists, "UCrabGI lobby lists");
         Hook(va::DamageInfo_CanDamage, &HkCanDamage, &oCanDamage, "DamageInfo::CanDamage");
         Hook(va::ACrabEnemyAIC_SelectTarget, &HkSelectTarget, &oSelectTarget, "ACrabEnemyAIC::SelectTarget");
-        Hook(va::ACrabPlayerC_ServerAbility_Impl, &HkServerAbility, &oServerAbility, "ACrabPlayerC::ServerAbility");
+        Hook(va::ACrabPlayerC_AbilityPressed, &HkAbilityPressed, &oAbilityPressed, "ACrabPlayerC ability pressed");
     }
 
     // --- Level start ---------------------------------------------------------------------------------------
@@ -266,12 +273,6 @@ soundVolume = 80
         harvest_.clear();
         phylacteryUsed_.clear();
         hud_ = nullptr;
-        void* gs = GameStateOf(lm);
-        if (gs && At<uint8_t>(gs, off::Actor_Role) == ROLE_Authority &&
-            At<uint8_t>(gs, off::GS_CurrentIslandType) == uint8_t(IslandType::Lobby) && !players_.empty()) {
-            CRAB_LOG("necromancer: back in the lobby, souls and rosters cleared");
-            players_.clear();
-        }
         // The pedestal, once the lobby's pickups are there (tried each tick for a few seconds).
     }
 
@@ -315,12 +316,12 @@ soundVolume = 80
         if (tagged)
             if (int n = int(loot::Total(ps, loot::SoulBrand) + 0.5f); n > 0) SpreadTag(enemy, n);
         // Harvester: a claw kill on fodder or medium can rise for free (raised on the next tick, not mid-death).
-        if (byClaw && (category == 1 || category == 2))
+        if (byClaw && (category == 1 || category == 2) && CanRaise(enemy))
             if (int lv = loot::Level(ps, loot::Harvester); lv && Roll(loot::Amount(loot::Harvester) / 100.f, lv)) {
                 Vec3 at;
                 if (LocationOf(enemy, at)) harvest_.push_back({ps, category - 1, At<void*>(enemy, off::Object_Class), at});
             }
-        if (category >= 1 && category <= kTiers) {
+        if (category >= 1 && category <= kTiers && CanRaise(enemy)) {
             int t = category - 1;
             d.roster[t] = At<void*>(enemy, off::Object_Class);
             d.names[t] = FStringOf(enemy, off::Enemy_EnemyName);
@@ -367,13 +368,19 @@ soundVolume = 80
         return per * float(n);
     }
 
-    // The whip's own hits: the Sniper's damage times whipDamage. And the whip's loot that works on hits.
+    // The whip's own hits: the bolt's base hit is set so a crack (hit and burst) does whipDps a second, and the
+    // game's damage buffs go on top of it.
+    void OnOutgoingDamageBase(void* ps, void* info) override {
+        if (!Holds(ps) || At<uint8_t>(info, off::DamageInfo_Type) != 0) return;
+        At<float>(info, off::DamageInfo_Damage) = std::max(0.f, whipDps_ / whipFireRate_ - burstDamage_);
+    }
+
+    // The whip's loot that works on hits.
     void OnOutgoingDamage(void* ps, void* info) override {
         if (!Holds(ps)) return;
         uint8_t type = At<uint8_t>(info, off::DamageInfo_Type);
         float& damage = At<float>(info, off::DamageInfo_Damage);
         void* victim = At<void*>(info, off::DamageInfo_DamagedActor);
-        if (whipDamage_ != 1.f && type == 0) damage *= whipDamage_;
         if (!victim || IsUndead(victim)) return;
         if (Tagged(victim)) damage *= 1.f + loot::Total(ps, loot::DeathMark) / 100.f;
         if (type == 3) lastMelee_[victim] = ps;
@@ -478,6 +485,16 @@ soundVolume = 80
         // the lobby is (each machine its own stone; the host the pickup, which the game removes everywhere).
         bool lobby = At<uint8_t>(gs, off::GS_CurrentIslandType) == uint8_t(IslandType::Lobby);
         if (!lobby) pedestalTries_ = 0;
+        // Back in the lobby (the islands stream into its world, so this is seen here, not at BeginPlay): a new
+        // run, with no souls and no kinds to raise. The host forgets them; every machine its HUD's copy.
+        if (lobby && !wasLobby_) {
+            if (At<uint8_t>(gs, off::Actor_Role) == ROLE_Authority && !players_.empty()) {
+                CRAB_LOG("necromancer: back in the lobby, souls and rosters cleared");
+                players_.clear();
+            }
+            view_ = View{};
+        }
+        wasLobby_ = lobby;
         if (!pedestal_.empty() && !lobby) {
             static void* pickupClass = ui::FindObject(L"/Script/CrabChampions.CrabInteractPickup");
             static void* meshActorClass = ui::FindObject(L"/Script/Engine.StaticMeshActor");
@@ -503,6 +520,7 @@ soundVolume = 80
     // The raise keys, on the player's machine.
     void OnFrame(void* world, float dt) override {
         world_ = world;
+        FollowGameVolume(world);
         UpdateLashes(world, dt);
         UpdatePickups(world);
         void* lm = LevelManagerOf(world);
@@ -536,6 +554,7 @@ private:
         std::wstring names[kTiers];
         bool dirty = true;
         int sentUndead = -1;
+        float sentMax = -1.f, sentCost[kTiers] = {};  // what the HUD was told, to resend when loot changes them
     };
     struct UndeadInfo {
         void* owner;  // ACrabPS*
@@ -1224,7 +1243,7 @@ private:
             it = present.count(it->first) && it->second > Now() ? std::next(it) : tags_.erase(it);
         hostiles_.clear();
         for (void* e : enemies)
-            if (!undead_.count(e) && Alive(e)) hostiles_.push_back(e);
+            if (!undead_.count(e) && Alive(e) && !IsSnail(e)) hostiles_.push_back(e);
 
         if (!fight && !undead_.empty()) {
             CRAB_LOG("necromancer: the fight is over, %zu undead crumble", undead_.size());
@@ -1244,6 +1263,12 @@ private:
             }
         harvest_.clear();
         if (fight && !hostiles_.empty()) Upkeep();
+        if (fight && !undead_.empty()) HitNests(world);
+        else nests_.clear();
+        if (Now() >= nextGhost_) {  // again now and then: some meshes aren't ready at spawn, and buffs re-tint
+            nextGhost_ = Now() + 1.0;
+            for (auto& [u, info] : undead_) Ghost(u);
+        }
 
         // Undead chase tagged enemies first, and anything when their target is gone; hostiles turn on undead
         // that come close (once a second).
@@ -1268,6 +1293,9 @@ private:
             int count = 0;
             for (auto& [u, info] : undead_) count += info.owner == ps;
             if (count != d.sentUndead) d.sentUndead = count, d.dirty = true;
+            if (float m = MaxSouls(ps); m != d.sentMax) d.sentMax = m, d.dirty = true;  // Soul Jar
+            for (int t = 0; t < kTiers; t++)
+                if (float c = Cost(ps, t); c != d.sentCost[t]) d.sentCost[t] = c, d.dirty = true;  // Soul Discount
             if (!d.dirty) return;
             d.dirty = false;
             void* pc = At<void*>(ps, off::Actor_Owner);
@@ -1461,6 +1489,20 @@ private:
         At<int32_t>(e, 4) = stacks;
     }
 
+    // Our sounds don't go through the engine, so they follow the game's Master and Gameplay volume sliders here.
+    void FollowGameVolume(void* world) {
+        void* gi = world ? At<void*>(world, off::World_GameInstance) : nullptr;
+        void* sg = gi && IsA(gi, StaticClass(va::UCrabGI_StaticClass)) ? At<void*>(gi, off::GI_SettingsSG) : nullptr;
+        if (!sg) return;
+        auto unit = [](float v) { return std::clamp(v > 1.001f ? v / 100.f : v, 0.f, 1.f); };  // 0..1 or percent
+        float master = At<float>(sg, off::SettingsSG_MasterVolume), gameplay = At<float>(sg, off::SettingsSG_GameplayVolume);
+        mixer_.SetGameVolume(unit(master) * unit(gameplay));
+        if (master != loggedVolume_[0] || gameplay != loggedVolume_[1]) {
+            loggedVolume_[0] = master, loggedVolume_[1] = gameplay;
+            CRAB_LOG("necromancer: following the game's volume (master %g, gameplay %g)", master, gameplay);
+        }
+    }
+
     // This machine's player (ACrabPS*), or null.
     void* LocalPlayer() const {
         void* lm = world_ ? LevelManagerOf(world_) : nullptr;
@@ -1511,6 +1553,95 @@ private:
         undead_.erase(u);
     }
 
+    // --- Kinds of enemy -------------------------------------------------------------------------------------
+
+    enum KindBits { kBarrel = 1, kSnail = 2 };
+    int KindOf(void* e) {
+        void* cls = At<void*>(e, off::Object_Class);
+        auto it = kinds_.find(cls);
+        if (it != kinds_.end()) return it->second;
+        std::string name = ObjectName(cls);
+        int k = (name.find("Barrel") != std::string::npos ? kBarrel : 0) |
+                (name.find("ImmortalSnail") != std::string::npos ? kSnail : 0);
+        return kinds_[cls] = k;
+    }
+    // The Immortal Snail hunts players only: undead leave it be, and it them.
+    bool IsSnail(void* e) { return e && (KindOf(e) & kSnail); }
+    // Kinds that make poor undead don't join the raise list: barrel skulls, the snail, and the ones that blow
+    // themselves up (slugs, pufferfish).
+    bool CanRaise(void* e) { return !(KindOf(e) & (kBarrel | kSnail)) && !(At<uint8_t>(e, off::Enemy_bIsExplosiveEnemy) & 1); }
+
+    // --- Nests (host) --------------------------------------------------------------------------------------
+    //
+    // Nests and spawners are destructibles, not enemies, so the enemy AI can't aim at them. An undead with no enemy
+    // within nestRange walks to the nearest one, and hurts it while next to it.
+
+    static bool IsNest(void* d) {
+        return At<int32_t>(d, off::Destructible_NestEnemies + 8) > 0 || At<int32_t>(d, off::Destructible_ChallengeEnemies + 8) > 0;
+    }
+    static bool Standing(void* d) {
+        void* hc = At<void*>(d, off::Destructible_HC);
+        return hc && !(At<uint8_t>(d, off::Destructible_bExploded) & 1) && At<float>(hc, off::HC_CurrentHealth) > 0.f;
+    }
+    bool IsNestActor(void* d) const { return std::find(nests_.begin(), nests_.end(), d) != nests_.end(); }
+
+    void HitNests(void* world) {
+        double now = Now();
+        if (now >= nextNests_) {
+            nextNests_ = now + 1.0;
+            nests_.clear();
+            if (void* cls = StaticClass(va::ACrabDestructible_StaticClass))
+                for (void* d : AllActorsOf(world, cls))
+                    if (IsNest(d) && Standing(d)) nests_.push_back(d);
+        }
+        if (nests_.empty() || nestDps_ <= 0.f) return;
+        float dt = 0.25f;  // HostTick runs at the game's tick; damage is dealt four times a second
+        if (now < nextNestHit_) return;
+        nextNestHit_ = now + dt;
+        for (auto& [u, info] : undead_) {
+            Vec3 at;
+            if (!Alive(u) || !LocationOf(u, at)) continue;
+            // An enemy near enough to fight comes first.
+            bool busy = false;
+            for (void* e : hostiles_) {
+                Vec3 p;
+                if (Alive(e) && LocationOf(e, p) && DistanceSquared(at, p) < nestRange_ * nestRange_) { busy = true; break; }
+            }
+            if (busy) continue;
+            void* best = nullptr;
+            float d = nestRange_ * nestRange_;
+            for (void* n : nests_) {
+                Vec3 p;
+                if (Standing(n) && LocationOf(n, p) && DistanceSquared(at, p) < d) d = DistanceSquared(at, p), best = n;
+            }
+            if (!best) continue;
+            void* aic = At<void*>(u, off::Enemy_OwningAIC);
+            if (std::sqrt(d) > 350.f) {
+                if (aic) {
+                    struct {
+                        void* goal;
+                        float radius;
+                        bool stopOnOverlap, pathfinding, strafe;
+                        void* filter;
+                        bool partial;
+                        uint8_t result;
+                    } m{best, 150.f, true, true, false, nullptr, true, 0};
+                    ui::Call(aic, L"MoveToActor", &m);
+                }
+                continue;
+            }
+            void* hc = At<void*>(best, off::Destructible_HC);
+            alignas(8) uint8_t hit[off::DamageInfo_Size] = {};
+            At<void*>(hit, off::DamageInfo_DamagedActor) = best;
+            At<void*>(hit, off::DamageInfo_DamagingC) = u;
+            float m = undeadDamage_ * (info.tier == 3 ? eliteDamage_ : 1.f) * (1.f + loot::Total(info.owner, loot::RingOfTheGrave) / 100.f);
+            At<float>(hit, off::DamageInfo_Damage) = nestDps_ * m * dt;
+            LocationOf(best, At<Vec3>(hit, off::DamageInfo_Location));
+            if (void* owner = info.owner ? PawnOf(info.owner) : nullptr) At<void*>(best, off::Destructible_LastPlayer) = owner;
+            Fn<void (*)(void*, void*)>(va::UCrabHC_TakeDamage)(hc, hit);
+        }
+    }
+
     // --- Targeting (host) ----------------------------------------------------------------------------------
 
     void* PickForUndead(void* u) const {
@@ -1553,8 +1684,34 @@ private:
 
     // --- Looks (every machine) -----------------------------------------------------------------------------
 
-    // A pale, glowing ghost of the enemy.
+    // A pale, glowing ghost of the enemy. Each kind's material names its colors its own way (crabs SkinTintA,
+    // skulls Tint_Inner, grubs Body_Tint, ...), so all of them are set, on every material of the body; a name a
+    // material doesn't have is ignored.
     static void Ghost(void* e) {
+        if (void* mesh = At<void*>(e, off::Character_Mesh)) {
+            static const wchar_t* const light[] = {L"SkinTintA", L"Tint", L"Tint_Outer", L"Base_Tint", L"Body_Tint",
+                                                   L"BodyTint", L"PrimaryTint", L"AltTint", L"Emissive_Tint",
+                                                   L"CrystalFresnel_Tint"};
+            static const wchar_t* const dark[] = {L"SkinTintB", L"Tint_Inner", L"SecondaryTint", L"StemTint"};
+            static const wchar_t* const glow[] = {L"Emissive_Brightness", L"Brightness", L"Emissive_Amount",
+                                                  L"CrystalFresnel_Amount", L"Fresnel_Brightness"};
+            struct {
+                uint64_t name;
+                Vec3 color;
+            } v{};
+            v.color = {0.35f, 0.95f, 0.75f};
+            for (const wchar_t* p : light) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+            v.color = {0.1f, 0.45f, 0.4f};
+            for (const wchar_t* p : dark) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+            v.color = {0.6f, 1.f, 0.85f};
+            v.name = ui::Name(L"Eyes_Tint");
+            ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+            struct {
+                uint64_t name;
+                float value;
+            } s{0, 2.f};
+            for (const wchar_t* p : glow) s.name = ui::Name(p), ui::Call(mesh, L"SetScalarParameterValueOnMaterials", &s);
+        }
         void* dmi = At<void*>(e, off::Enemy_MeshDMI);
         if (!dmi) return;
         struct {
@@ -1585,6 +1742,11 @@ private:
             if (!Alive(e) && crumbled_.insert(e).second)
                 if (Vec3 at; LocationOf(e, at)) PlayAt("A_Undead_Crumble_", at);
         double now = Now();
+        if (now >= nextMarkGhost_) {
+            nextMarkGhost_ = now + 1.0;
+            for (void* e : marked_)
+                if (Alive(e)) Ghost(e);
+        }
         for (auto it = pending_.begin(); it != pending_.end();) {
             void* best = nullptr;
             float d = 400.f * 400.f;
@@ -1786,11 +1948,11 @@ private:
     using BuildListsFn = void (*)(void*);
     using CanDamageFn = bool (*)(void*, void*);
     using SelectTargetFn = void (*)(void*);
-    using ServerAbilityFn = void (*)(void*, void*);
+    using AbilityPressedFn = void (*)(void*);
     static inline BuildListsFn oBuildLists;
     static inline CanDamageFn oCanDamage;
     static inline SelectTargetFn oSelectTarget;
-    static inline ServerAbilityFn oServerAbility;
+    static inline AbilityPressedFn oAbilityPressed;
     static inline Necromancer* self_;
 
     // Before the lobby's lists are built from SpawnablesDA: the whip joins its weapons.
@@ -1809,6 +1971,8 @@ private:
                 void* other = su ? victim : src;
                 if (!other) return oCanDamage(info, victim);
                 if (At<void*>(other, off::Pawn_PlayerState)) return false;  // players and undead leave each other be
+                if (su && self.IsNestActor(other)) return true;             // undead break nests
+                if (self.IsSnail(other)) return false;                      // the snail is the players' problem
                 return IsA(other, self.enemyClass_);                        // undead and hostile enemies fight
             }
         }
@@ -1822,25 +1986,33 @@ private:
         void* c = At<void*>(aic, off::EnemyAIC_OwnedC);
         if (!c) return;
         if (self.undead_.count(c)) Retarget(aic, c, self.PickForUndead(c));
+        else if (self.IsSnail(c)) return;
         else if (void* u = self.UndeadInReach(c)) Retarget(aic, c, u);
     }
 
-    // The whip replaces the ability: its key does nothing (the raise keys raise).
-    static void HkServerAbility(void* c, void* loc) {
+    // The whip replaces the ability: its action does nothing, whatever key it's on (the raise keys raise). Each
+    // player's own machine fires their ability, so it's stopped there, before any charge or RPC.
+    static void HkAbilityPressed(void* c) {
         if (c && self_->enabled_ && self_->Holds(At<void*>(c, off::Pawn_PlayerState))) return;
-        oServerAbility(c, loc);
+        oAbilityPressed(c);
+    }
+
+    // The game's own ability mods do nothing while the whip is held: they don't drop for its holders.
+    float LootWeight(void* ps, void* da) override {
+        if (!da || !Holds(ps) || loot::IsNecroItem(da)) return 1.f;
+        return IsA(da, StaticClass(va::UCrabAbilityModDA_StaticClass)) ? 0.f : 1.f;
     }
 
     // Settings
     bool enabled_ = true;
-    float whipDamage_ = 0.7f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f, burstDamage_ = 20.f;
+    float whipDps_ = 100.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f, burstDamage_ = 20.f;
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
     float cost_[kTiers] = {5.f, 15.f, 40.f, 100.f};
     int fodderPack_ = 3;
     float raiseRange_ = 4000.f, upkeep_ = 0.0025f, undeadDamage_ = 1.f, undeadHealth_ = 2.f, starve_ = 0.04f, eliteHealth_ = 0.5f, eliteDamage_ = 0.5f;
-    float aggroBias_ = 1.5f;
+    float aggroBias_ = 1.5f, nestRange_ = 2500.f, nestDps_ = 30.f;
     std::string keyNames_[kTiers];
     int keys_[kTiers] = {};
 
@@ -1849,6 +2021,7 @@ private:
     void* world_ = nullptr;   // this frame's
     double nextPedestalCheck_ = 0.0;
     int pedestalTries_ = 0;
+    bool wasLobby_ = false;
     std::string pedestalWhy_;
     void* stone_ = nullptr;  // our copy of the stone (compared, never touched unless still in the world)
     bool stoneWarned_ = false;
@@ -1885,11 +2058,15 @@ private:
     };
     std::vector<Harvest> harvest_;                         // host: Harvester's free raises, for the next tick
     std::unordered_set<std::string> phylacteryUsed_;       // host: players whose Phylactery went off this island
-    bool fightOver_ = false;                               // host: crumbling everyone at the fight's end
+    bool fightOver_ = false;
+    float loggedVolume_[2] = {-1.f, -1.f};                               // host: crumbling everyone at the fight's end
     std::vector<void*> hostiles_;                          // host: living enemies that aren't undead, this tick
     std::unordered_set<void*> marked_;                     // players' machines: enemies the host raised
     std::vector<Pending> pending_;                         // raised, not yet matched to an enemy here
     int tick_ = 0;
+    double nextGhost_ = 0.0, nextMarkGhost_ = 0.0, nextNests_ = 0.0, nextNestHit_ = 0.0;
+    std::vector<void*> nests_;                             // host: nests and spawners, refreshed once a second
+    std::unordered_map<void*, int> kinds_;                 // enemy class -> Kind bits, by its name
     double lastTagSent_ = 0.0;
     bool keyDown_[kTiers] = {};
     View view_;

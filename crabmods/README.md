@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 57 items and a new weapon (the Soul Whip, with 20 items of its own): perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 58 items and a new weapon (the Soul Whip, with 20 items of its own): perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -41,6 +41,7 @@
 |---|---|---|---|
 | **Fire / Ice / Lightning / Poison / Critical Specialist** | relics | Epic | Pickups with that tag are offered **3×** as often to you, and can also come out of your chests of every other loot pool. |
 | **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you and can also come out of your other chests, and Damage (or Luck) islands are offered 3× as often to the team. |
+| **Summoner Specialist** | relic | Epic | The Soul Whip's 20 pickups are offered **3×** as often to you, and can come out of all your chests. Only drops while you hold the Soul Whip. |
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
 | **Cursed Lottery** | Greed relic | Greed | **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain. It **can't be dropped**. Rare (spawn weight 0.15). |
 | **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
@@ -58,11 +59,11 @@
 
 | Item | Type | Effect |
 |---|---|---|
-| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (0.7x the Sniper's damage on a direct hit). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 5 / 15 / 40 / 100). Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
+| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second to one enemy, hit and burst together, before your damage items). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 5 / 15 / 40 / 100). Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
 
 ### Soul Whip loot
 
-These only drop for players **holding the Soul Whip**, and for them from **any chest**. Numbers are per level.
+These only drop for players **holding the Soul Whip**, from chests of their loot pool (Damage: Death Mark, Army of the Dead, Ring of the Grave; Health: Sturdy Bones, Phylactery; Luck: Twin Rising, Harvester; Elemental: Plague Bearers, a Poison pickup; Skill: Long Lash, Branding Iron, Soul Brand, Mass Grave; Economy: the rest) and from any-pool chests (Random, Epic, Legendary, Spiked). The **Summoner Specialist** brings them to every chest. The game's own ability mods don't drop for whip holders, since the whip replaces the ability. Numbers are per level.
 
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
@@ -185,7 +186,7 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
-| `[necromancer]` | `whipDamage` | `0.7` | Soul Whip damage on a direct hit, as a multiple of the Sniper's. |
+| `[necromancer]` | `whipDps` | `100` | Soul Whip damage a second to one enemy (each crack's hit plus its burst), before damage items and crits. |
 | | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
 | | `burstRadiusMeters`, `burstDamage` | `4`, `20` | The bolt's purple burst: its reach and its damage. |
 | | `tagRadiusMeters`, `tagSeconds` | `6`, `8` | Who a crack tags, and for how long. |
@@ -201,10 +202,10 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `eliteHealth`, `eliteDamage` | `0.5`, `0.5` | Raised elites' health and damage, on top of that, as a multiple of a real one's. |
 | | `aggroBias` | `1.5` | Enemies turn on an undead when it is this many times closer than the nearest player. |
 | | `raiseKeyFodder`, `raiseKeyMedium`, `raiseKeyHard`, `raiseKeyElite` | `V`, `C`, `X`, `Z` | **Your own keys**: the host's settings never change them. A letter or digit, `F1`-`F24`, `Mouse3`-`Mouse5`, `Num0`-`Num9`, `Tab`, `Shift`, `Ctrl`, `Alt`, `Space`, `CapsLock`, `Enter`, `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, or the arrows (`Up`, ...). |
-| | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They don't follow the game's volume slider. |
+| | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They also follow the game's Master and Gameplay volume sliders. |
 | `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
 | `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
-| `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
+| `[fireSpecialist]` ... `[summonerSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 
 All percentages and amounts are per level of the item. `[meleeMods]` and `[keyTotem]` have only `enabled` besides the settings above; switching `meleeMods` off puts the game's values back.

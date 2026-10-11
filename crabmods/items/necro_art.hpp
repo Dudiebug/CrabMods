@@ -285,6 +285,8 @@ public:
         if (voices_.size() < 48) voices_.push_back(v);
     }
     void SetVolume(float v) { volume_ = v; }
+    // The game's own volume (Master x Gameplay), which our sounds follow on top of SetVolume's.
+    void SetGameVolume(float v) { game_ = v; }
 
 private:
     struct Voice {
@@ -348,7 +350,7 @@ private:
 
     void Mix(float* out) {
         std::fill(out, out + kBlock * 2, 0.f);
-        float vol = volume_;
+        float vol = volume_ * game_;
         std::lock_guard<std::mutex> lock(mutex_);
         for (auto it = voices_.begin(); it != voices_.end();) {
             Voice& v = *it;
@@ -373,6 +375,7 @@ private:
     std::atomic<bool> running_{false};
     bool failed_ = false;
     std::atomic<float> volume_{0.8f};
+    std::atomic<float> game_{1.f};
     std::thread thread_;
     HWAVEOUT out_ = nullptr;
     HANDLE event_ = nullptr;

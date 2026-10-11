@@ -1,13 +1,15 @@
-// The Specialists, seven relics: each makes one kind of pickup more likely to be offered to you.
+// The Specialists, eight relics: each makes one kind of pickup more likely to be offered to you.
 //   Fire, Ice, Lightning, Poison and Critical Specialist: pickups with that tag. The relic carries the tag
 //   itself, so it also counts for pickups that need one of that tag to drop (Fire Ring, Mega Crit, ...).
 //   Damage and Luck Specialist: pickups from that loot pool, and islands rewarding it (for the whole team).
+//   Summoner Specialist: the Soul Whip's 20 pickups (necro_loot); like them, it only drops for whip holders.
 // The weight goes on top of the game's own SpawnWeight for every loot roll made for the holder. Those pickups
 // can also come out of the holder's chests of every other loot pool (Damage, Critical, Elemental, Speed, Luck,
 // Health, Economy, Skill), where the game would never offer them.
 #include <string>
 
 #include "../item.hpp"
+#include "necro_loot.hpp"
 #include "../world.hpp"
 
 namespace crabmods {
@@ -23,6 +25,7 @@ struct SpecialistDef {
     uint8_t type;
     uint8_t tag;   // tag:: the boosted pickups have, or tag::None
     uint8_t pool;  // pool:: the boosted pickups and island rewards come from, when tag is None
+    bool necro = false;  // boosts the Soul Whip's pickups instead (pool is only the relic's own)
 };
 
 const SpecialistDef kDefs[] = {
@@ -48,6 +51,9 @@ const SpecialistDef kDefs[] = {
      L"Luck pickups and Luck islands are offered more often",
      L"Luck pickups and Luck island rewards are PrimaryBuff times as likely", "Luck pickups and Luck islands", 206,
      tag::None, pool::Luck},
+    {"summonerSpecialist", L"DA_Relic_SummonerSpecialist", L"Summoner Specialist",
+     L"Soul Whip pickups are offered more often", L"Soul Whip pickups are PrimaryBuff times as likely to be offered",
+     "Soul Whip pickups", 215, tag::None, pool::Skill, true},
 };
 
 void* g_specialists[std::size(kDefs)];  // every Specialist's asset, so none of them boosts another
@@ -70,7 +76,8 @@ public:
 
     std::string DefaultIni() const override {
         std::string s = std::string("# ") + Title() + ", a relic: " + def_.what + " are offered 3 times as often";
-        s += def_.tag == tag::None ? " (islands for the whole team).\n" : ".\n";
+        s += def_.necro ? " (it only drops while you hold the Soul Whip).\n"
+             : def_.tag == tag::None ? " (islands for the whole team).\n" : ".\n";
         return s + R"(enabled = true
 
 # How many times as likely.
@@ -100,6 +107,7 @@ rarity = epic
     }
 
     float LootWeight(void* ps, void* da) override {
+        if (def_.necro && da && da == da_ && !HoldsSoulWhip(ps)) return 0.f;
         if (!Boosts(da) || !Level(ps)) return 1.f;
         return mult_;
     }
@@ -111,7 +119,7 @@ rarity = epic
 
     // Damage and Luck: island rewards, if anyone in the game holds it.
     float PortalRewardWeight(void* lm, uint8_t lootPool) override {
-        if (def_.tag != tag::None || lootPool != def_.pool || !da_) return 1.f;
+        if (def_.necro || def_.tag != tag::None || lootPool != def_.pool || !da_) return 1.f;
         bool held = false;
         ForEachPlayer(lm, [&](void* ps) { held |= Level(ps) > 0; });
         return held ? mult_ : 1.f;
@@ -128,6 +136,7 @@ private:
     }
     bool Boosts(void* da) const {
         if (!da || IsSpecialist(da)) return false;
+        if (def_.necro) return necro_loot::IsNecroItem(da);
         if (def_.tag != tag::None) return At<uint8_t>(da, off::DA_PickupTag) == def_.tag;
         return At<uint8_t>(da, off::DA_LootPool) == def_.pool;
     }
@@ -138,7 +147,7 @@ private:
     float other_ = 1.f;
 };
 
-Specialist g_fire(0), g_ice(1), g_lightning(2), g_poison(3), g_critical(4), g_damage(5), g_luck(6);
+Specialist g_fire(0), g_ice(1), g_lightning(2), g_poison(3), g_critical(4), g_damage(5), g_luck(6), g_summoner(7);
 
 }  // namespace
 }  // namespace crabmods

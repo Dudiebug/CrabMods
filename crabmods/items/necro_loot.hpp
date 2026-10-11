@@ -29,6 +29,8 @@ enum Id {
     kCount
 };
 
+// One of the 20 items' assets.
+bool IsNecroItem(void* da);
 // The player's level of the item (0: not held, or switched off).
 int Level(void* ps, Id id);
 // Its number per level, from CrabMods.ini.
