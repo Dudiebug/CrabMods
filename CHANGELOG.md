@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.8.2
+
+- **Pickups show their level.** The game's pickup card never showed one, so you couldn't see Lucky Charm work. A pickup above level 1 now has its level after its name on the card, like **"Vitality (Lv 2)"**. This shows for every player.
+
 ### 0.8.1
 
 - **Fixed a crash when opening a chest** (most likely with Lucky Charm in the game). After the game rolled a chest's loot, CrabMods looked up who opened it in a list the game had already freed, and Lucky Charm then read that leftover memory as the player. CrabMods now reads the opener before the roll, and checks it is a player.

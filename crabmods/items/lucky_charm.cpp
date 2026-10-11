@@ -3,7 +3,13 @@
 // Host: an opened chest rolls its loot for the opener into its PickupsToSpawn and spawns them right after
 // (main.cpp hands the list to OnChestLoot in between). Each level-1 weapon, ability or melee mod or perk in it
 // gets the chance; relics and weapons stay level 1.
+//
+// The game's pickup card never shows a level, so every machine adds it to the name of a pickup above level 1
+// ("Vitality (Lv 2)").
 #include <random>
+#include <string>
+
+#include <crab/hook.hpp>
 
 #include "../item.hpp"
 
@@ -57,10 +63,31 @@ rarity = legendary
         if (upgraded) CRAB_LOG("Lucky Charm: %d of %d chest items are level 2", upgraded, pickups.Num);
     }
 
+    void InstallHooks() override {
+        Hook(va::ACrabInteractPickup_SetupUI, &HkSetupUI, &oSetupUI, "ACrabInteractPickup::SetupUI");
+    }
+
 protected:
     float PrimaryBuff() const override { return chance_; }
 
 private:
+    using SetupUIFn = void (*)(void*);
+    static inline SetupUIFn oSetupUI;
+
+    // After the game fills the card from the DA, puts the pickup's level after its name.
+    static void HkSetupUI(void* pickup) {
+        oSetupUI(pickup);
+        void* card = At<void*>(pickup, off::Pickup_UI);
+        void* da = At<void*>(pickup, off::Pickup_PickupInfo + off::PickupInfo_DA);
+        uint8_t level = At<uint8_t>(pickup, off::Pickup_PickupInfo + off::PickupInfo_Level);
+        if (!card || !da || level < 2) return;
+        const auto& name = At<TArray<wchar_t>>(da, off::DA_Name);
+        std::wstring s = name.Data && name.Num > 1 ? std::wstring(name.Data, name.Num - 1) : L"";
+        s += L" (Lv " + std::to_wstring(level) + L")";
+        TArray<wchar_t> fs{s.data(), int(s.size()) + 1, int(s.size()) + 1};
+        Fn<void (*)(void*, const void*)>(va::InteractUI_SetName)(card, &fs);
+    }
+
     // Kinds of item that stack in levels.
     static bool Levels(void* da) {
         if (At<bool>(da, off::DA_bLimited)) return false;

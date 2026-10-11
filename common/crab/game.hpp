@@ -221,6 +221,9 @@ constexpr uintptr_t UCrabGI_StaticClass = 0x140d76320;
 constexpr uintptr_t ACrabLM_SpawnPickup = 0x140d00060;
 constexpr uintptr_t ACrabInteractPickup_Interact = 0x140d3cf00;
 constexpr uintptr_t ACrabInteractPickup_Deactivate = 0x140d3c0b0;
+// Fills the pickup's card (UI at Pickup_UI) from its PickupInfo: void(pickup). A virtual (slot 0x638) run when the
+// pickup appears and from OnRep_PickupInfo, so on every machine.
+constexpr uintptr_t ACrabInteractPickup_SetupUI = 0x140d3c800;
 
 // Buff lookups. InvArr_GetBuff: float(TArray<FCrabPerk/...>* Inventory, uint8 Type), the held item's buff (0 if not
 // held); 106 callers, told apart by return address. ACrabPS_GetWeaponModBuff: float(ACrabPS*, uint8 Type), the same
@@ -470,6 +473,8 @@ constexpr int Pickup_NumTimesPickedUp = 0x300;  // uint8
 constexpr int Spawnables_Unlockables[8] = {0xD8, 0xE8, 0xF8, 0x108, 0x118, 0x128, 0x138, 0x148};
 constexpr int SG_Unlocked[8] = {0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0x100, 0x110, 0x120};
 // FCrabPickupInfo (0x50 bytes)
+constexpr int Pickup_UI = 0x238;          // ACrabInteractable.InteractUI (UCrabInteractUI*)
+constexpr int Pickup_PickupInfo = 0x290;  // ACrabInteractPickup.PickupInfo
 constexpr int PickupInfo_Size = 0x50;
 constexpr int PickupInfo_DA = 0x00;
 constexpr int PickupInfo_Level = 0x08;
