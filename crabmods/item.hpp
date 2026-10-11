@@ -67,11 +67,41 @@ public:
     // off::PlayerC_AbilityCooldown speeds it up; keep it above 0 (0.01 at least) so the tick finishes it and
     // gives the charge back.
     virtual void OnCooldownTick(void* c, void* ps) {}
+    // Extra max health multiplier for this player (0.03 = +3%), added beside Banana's when the game recomputes
+    // max health (ACrabPS::UpdateMaxHealth: on the host, whenever the player's items change).
+    virtual float MaxHealthMultiplierBonus(void* ps) { return 0.f; }
+    // Extra fire rate for this player's weapons (0.12 = one Rapid Fire level), added beside Rapid Fire's when
+    // the game recomputes a weapon's fire rate (on every machine). Call RefreshFireRate(ps) when it changes.
+    virtual float FireRateBonus(void* ps) { return 0.f; }
+    // Weapon fire, on the machine that controls the player (its shots deal the damage; the others see copies).
+    // true: this player's next shot falls from above the aim point, the way Ice Staff fires.
+    virtual bool ShotsFromAbove(void* ps) { return false; }
+    // One projectile of a player's shot is about to appear at start, flying along dir; items may change both.
+    // weapon: ACrabWeapon*.
+    virtual void OnShot(void* weapon, void* ps, Vec3& start, Vec3& dir) {}
+    // The player went down (host). c is their character, still in the world.
+    virtual void OnDown(void* c, void* ps) {}
+    // The player broke a destructible (pot, barrel, rock, crystal, nest, ...) during an island fight (host).
+    virtual void OnDestructibleBroken(void* ps) {}
+    // A player was healed past their max health by this much (on the host): the part of a heal that was lost.
+    virtual void OnOverheal(void* ps, float amount) {}
+    // A message from the host's CrabMods (SendToPlayer), on the player's machine. true: it was for this item.
+    virtual bool OnClientMessage(void* pc, const std::wstring& text) { return false; }
+    // Once at start, for items with hooks of their own (crab/hook.hpp), whether enabled or not.
+    virtual void InstallHooks() {}
+    // Four times a second on the game thread, on every machine. world: the game world (a UWorld).
+    virtual void OnTick(void* world) {}
 
 private:
     const char* section_;
     int order_;
 };
+
+// In main.cpp. true: this machine got the host's CrabMods settings through this player controller, so the host
+// runs CrabMods.
+bool HostHasCrabMods(void* pc);
+// In main.cpp (host): sends text to the player's machine, where CrabMods passes it to OnClientMessage.
+void SendToPlayer(void* pc, const std::wstring& text);
 
 inline Item* FindItem(const std::string& section) {
     for (Item* i : Items())

@@ -231,3 +231,44 @@ No new RPC is needed: `APlayerController::ClientMessage(FString S, FName Type, f
 - `AGameModeBase::K2_PostLogin` `0x1427e2de0` (`void(GM*, PC*)`, a BlueprintImplementableEvent stub) is called by `PostLogin` on the server for every player who joins, the host's own controller included. Hooking it gives each new player's controller.
 - To send: `UObject::FindFunctionChecked` (`0x1410c96b0`, `UFunction*(UObject*, FName)`) with the `ClientMessage` FName (a global at `0x14440f450`, set at startup), then `ProcessEvent` (vtable +0x220). Params: `FString S` at 0, `FName Type` at 0x10, `float` at 0x18; 0x20 bytes.
 - On the receiving side, `APlayerController::ClientMessage_Implementation` `0x14255c410` (`void(PC*, const FString*, FName, float)`, not overridden by `ACrabPC`) runs; hooking it lets a mod take its own tagged messages before they reach the console.
+
+## Healing (Overflow)
+
+- `UCrabHC::Heal` `0x140c9acc0` (`void(UCrabHC*, float)`): `Cur = min(Cur + Amount, Max)`, then OnRep. Health pickups, healing areas, Grave Dodger and Slow Recovery's pending pool (through `0x140d151c0`, which also applies Amber Resin's multiplier) reach it with their full amount.
+- `0x140d14930` `float(ACrabC*, float requested)` returns `Cur >= Max ? 0 : min(requested, Max - Cur)`. Regenerator, Grim Reaper, Endurance, Scavenger, Vampire, Ring of Parrying and Health Shot clamp through it first and skip the heal when it returns 0, so `Heal` never sees them at full health.
+- Hooking both gives all healing lost to the cap: `Cur + Amount − Max` in the first, `requested − result` in the second (no overlap). Every heal path runs on the host. `HC+0xB0` is the owning `ACrabC`; its player state is `C+0x240`.
+
+## Fire rate and max health (Community Support, Thick Shell)
+
+- `ACrabWeapon::UpdateFireRate` `0x140d69f70` runs on every machine when a player's items change: fire rate = 1 − buff(`0x1F`) + `ACrabPS::GetWeaponModBuff(PS, 0x20 RapidFire)` (`0x140d25fb0`, return address `0x140d69fdc`) + .... Adding to that call's result at that return address adds fire rate; calling `UpdateFireRate` on each of the pawn's weapons (`C+0x538`) applies a change.
+- `ACrabPS::UpdateMaxHealth` (host): multiplier = `PS+0x39C` + `InvArr_GetBuff(PS+0x428 perks, 6 Banana)` (`0x140d2df60`, return address `0x140d28ad3`) + ...; adding to that call's result adds a max health multiplier.
+- A perk's `FCrabPerk+0x20` (AccumulatedBuff, float) replicates with the perks and is saved and restored from island to island. `0x140d20f80` `void(PS, u8 PerkType, float)` adds to it and marks the array dirty.
+
+## Weapon fire (Bullet Rain, Hellshooter)
+
+- `ACrabWeapon::FireProjectiles` `0x140d6d280` runs on the machine that controls the player; it spawns each projectile through `0x140d37220` (`(info, owner, FVector* start, bool send)`; return address `0x140d6dcfd`) with the direction at `info+0x08`, then a cosmetic RPC sends start and direction to the others.
+- `WeaponDA+0x104` (`ShotSpawnType`) 1 makes the weapon fire from above the aim point (Ice Staff). Setting it for the call of `FireProjectiles` gives that to any weapon.
+- `ACrabPlayerC` camera trace `0x140d130c0` gives the aim point (`FHitResult`: `+0x18` ImpactPoint, `+0x48` TraceEnd, `+0x5D` bBlockingHit); `0x140d30df0` snaps a point to the ground.
+
+## Destructibles (Collateral Damage)
+
+- `ACrabDestructible::OnHCDamaged` `0x140cc64a0` (`void(self, FCrabDamageInfo*, u8 HitType)`, host): `HitType 5` breaks it (unless `+0x398` bExploded is set). The breaker is `info+0x40` DamagingC if a player, else `+0x340`, the last player who hit it.
+- `GS+0x278` MatchState 3 is an island's fight. Destructibles spawned by players' items are the classes at SpawnablesDA `+0x270..+0x288` (Landmine, HomingBarrel, SporeMushroom, UltraMushroom).
+
+## Explosions (Martyr)
+
+- `0x140d2dd20` `void(WorldCtx, TArray<AActor*> Ignore /*by value, freed by the callee*/, const FVector* Origin, float Radius, const FCrabDamageInfo* Info, bool bRequireLOS, AActor*)`: the game's radial damage. Flat damage (no damage buffs), falling off to 20% at the edge for radius > 250; only targets that `Info->DamagingC` may hurt (exactly one of the two has a player state).
+- Magnify: the core `0x140d2d380` multiplies the radius by `1 + GetPerkBuff(DamagingC's PS, 39)` (0.2 per level), except for Hazard damage; that is Magnify's only read.
+- `FCrabDamageInfo` (0x48): `+0x08` Damage, `+0x0C` type (1 Radial, 3 Melee, 4 Lesser: not throttled per enemy), `+0x10` Tags, `+0x20` Debuffs, `+0x30` location, `+0x3C` knockback, `+0x40` DamagingC.
+- `0x140d79d00` `(LM, FX, Sound, const FVector*)` is the multicast that plays an effect on every machine; SpawnablesDA `+0x88/+0x90` is the generic explosion (Explosive Armor's).
+- `0x140d0e720` (`void(ACrabPC*)`, host; see Downed players) still has the dead character at `PC+0x250` with its player state, so an explosion fired there is credited to the player.
+
+## Melee mods
+
+- Each `UCrabMeleeModDA` (SpawnablesDA `+0x128`) keeps its numbers in `BaseBuff` / `BaseDebuff`, which the game reads when it applies the mod and in its description. Types: Vampire 1, Big Claws 2, Sharp Claws 3, Iron Claws 4 (debuff = cooldown penalty), Time Claws 5, Blender 6, elemental claws 7..11, Brawler 12.
+
+## Key totem
+
+- Server: `ACrabTotem::Interact` `0x140cb5860` (Key type 3, `+0x298`) spends the keys, adds the player's id to `+0x2D8`, and calls the `ClientOnInteractedWithKeyTotem` RPC. On that player's machine `0x140d095f0` picks a locked item from its save (weapons first), unlocks it (`UCrabGI::UnlockPickup` `0x140ce45e0`) and calls `ServerSpawnKeyTotemPickup` (`0x140d7bb70`; implementation `ACrabPC` vtable `+0xE60`), which spawns any item it is given, unchecked, with no owner.
+- An item is locked when it is in a SpawnablesDA list (`+0xD8 ... +0x148`) but not in the save's matching unlocked list (`UCrabSG` `+0xB0 ... +0x120`; the save is `GI+0x228`, GI `World+0x180`).
+- `ACrabLM::SpawnPickup` `0x140d00060` spawns a pickup from an `FCrabPickupInfo` (`+0x38` OwningPS: only that player may take it). `ACrabInteractPickup` Interact `0x140d3cf00` (server) counts the take at `+0x300`; `0x140d3c0b0` deactivates a pickup (what a chest does to the rest of its ring).

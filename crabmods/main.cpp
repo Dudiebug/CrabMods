@@ -10,7 +10,13 @@
 //   LootRoll                every loot roll: items scale how likely each pickup is, per player
 //   SpawnPortals            the next islands' rewards
 //   ability cooldown tick   every 0.25 s while a player's ability recharges
-//   PostLogin, ClientMessage the host's settings, sent to every player who joins
+//   SpawnSpectator          a player going down
+//   destructible hits       a player breaking a pot, barrel, rock, ...
+//   weapon fire             where each shot of a player's weapon starts and where it flies
+//   heals                   healing lost to the max health cap
+//   GetBuff lookups         max health and fire rate, as the game recomputes them
+//   UGameEngine::Tick       four times a second
+//   PostLogin, ClientMessage the host's settings, sent to every player who joins, and items' messages
 #include <windows.h>
 
 #include <chrono>
@@ -31,7 +37,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.3.3";
+constexpr const char kVersion[] = "0.4.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -350,6 +356,168 @@ void HkTickCooldowns(void* c) {
     oTickCooldowns(c);
 }
 
+// --- Healing -----------------------------------------------------------------------------------------------
+//
+// Every heal ends in UCrabHC::Heal, which caps health at max. Most item heals (perks, relics, Vampire, Health
+// Shot) are first cut to the missing health by ClampHealToMissing, and skipped at full health. Between them, the
+// two see every bit of healing that was lost to the cap (on the host, where all healing happens).
+
+using HealFn = void (*)(void*, float);
+using ClampHealFn = float (*)(void*, float);
+HealFn oHeal;
+ClampHealFn oClampHeal;
+
+void Overheal(void* ps, float amount) {
+    if (amount > 0.f && ps) ForEachEnabled([&](Item* i) { i->OnOverheal(ps, amount); });
+}
+
+void HkHeal(void* hc, float amount) {
+    float over = 0.f;
+    if (hc && amount > 0.f) over = At<float>(hc, off::HC_CurrentHealth) + amount - At<float>(hc, off::HC_CurrentMaxHealth);
+    oHeal(hc, amount);
+    if (over > 0.f) Overheal(PlayerOfHealth(hc), over);
+}
+
+float HkClampHeal(void* c, float requested) {
+    float r = oClampHeal(c, requested);
+    if (c && requested > r && At<uint8_t>(c, off::Actor_Role) == ROLE_Authority) {
+        void* ps = At<void*>(c, off::Pawn_PlayerState);
+        if (IsA(ps, StaticClass(va::ACrabPS_StaticClass))) Overheal(ps, requested - (r > 0.f ? r : 0.f));
+    }
+    return r;
+}
+
+// --- Destructibles ------------------------------------------------------------------------------------------
+//
+// On the host, a destructible's health component reports each hit; the one with hit type 5 breaks it. Only breaks
+// during an island's fight count (not the clean-up when it is cleared), and not the landmines, homing barrels and
+// mushrooms players' own items spawn.
+
+using DestructibleHitFn = void (*)(void*, void*, uint8_t);
+DestructibleHitFn oDestructibleHit;
+
+void HkDestructibleHit(void* d, void* info, uint8_t hitType) {
+    void* ps = nullptr;
+    if (d && info && hitType == 5 && !At<uint8_t>(d, off::Destructible_bExploded)) {
+        void* gs = GameStateOf(d);
+        if (gs && At<uint8_t>(gs, off::GS_MatchState) == 3) {
+            void* playerC = StaticClass(va::ACrabPlayerC_StaticClass);
+            void* c = At<void*>(info, off::DamageInfo_DamagingC);
+            if (!IsA(c, playerC)) c = At<void*>(d, off::Destructible_LastPlayer);
+            bool own = false;
+            if (void* lm = At<void*>(gs, off::GS_LM); lm && At<void*>(lm, off::LM_SpawnablesDA)) {
+                void* sp = At<void*>(lm, off::LM_SpawnablesDA);
+                for (int i = 0; i < off::Spawnables_NumPlayerDestructibles; i++)
+                    own |= At<void*>(d, off::Object_Class) == At<void*>(sp, off::Spawnables_PlayerDestructibles + 8 * i);
+            }
+            if (!own && IsA(c, playerC)) {
+                ps = At<void*>(c, off::Pawn_PlayerState);
+                if (!IsA(ps, StaticClass(va::ACrabPS_StaticClass))) ps = nullptr;
+            }
+        }
+    }
+    oDestructibleHit(d, info, hitType);
+    if (ps) ForEachEnabled([&](Item* i) { i->OnDestructibleBroken(ps); });
+}
+
+// --- Going down -----------------------------------------------------------------------------------------
+//
+// On the host, a player who goes down gets a spectator; just before that their character still has its player
+// state, so whatever happens there (Martyr's blast) is credited to them.
+
+using SpawnSpectatorFn = void (*)(void*);
+SpawnSpectatorFn oSpawnSpectator;
+
+void HkSpawnSpectator(void* pc) {
+    if (pc && At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority) {
+        void* c = At<void*>(pc, off::Controller_Pawn);
+        void* ps = IsA(c, StaticClass(va::ACrabPlayerC_StaticClass)) ? At<void*>(c, off::Pawn_PlayerState) : nullptr;
+        if (IsA(ps, StaticClass(va::ACrabPS_StaticClass))) ForEachEnabled([&](Item* i) { i->OnDown(c, ps); });
+    }
+    oSpawnSpectator(pc);
+}
+
+// --- Weapon fire -------------------------------------------------------------------------------------------
+//
+// Only on the machine that controls the player (OwningPC is set there): its projectiles deal the damage, and the
+// game sends the others a copy with the same start and direction, so changing them here shows for everyone.
+
+using FireProjectilesFn = void (*)(void*, void*, void*, uint8_t);
+using SpawnProjectileFn = void* (*)(void*, void*, Vec3*, bool);
+FireProjectilesFn oFireProjectiles;
+SpawnProjectileFn oSpawnProjectile;
+uintptr_t g_retSpawnShot;
+
+void* ShooterOf(void* weapon) {
+    if (!weapon || !At<void*>(weapon, off::Weapon_OwningPC) || !At<void*>(weapon, off::Weapon_WeaponDA)) return nullptr;
+    void* ps = At<void*>(weapon, off::Weapon_OwningPS);
+    return IsA(ps, StaticClass(va::ACrabPS_StaticClass)) ? ps : nullptr;
+}
+
+// The weapon's ShotSpawnType is switched to AboveCrosshair for the length of the shot (the asset is shared by
+// everyone with that weapon, so it is put back at once).
+void HkFireProjectiles(void* weapon, void* formation, void* projectile, uint8_t lesser) {
+    void* ps = ShooterOf(weapon);
+    uint8_t* type = ps ? &At<uint8_t>(At<void*>(weapon, off::Weapon_WeaponDA), off::WeaponDA_ShotSpawnType) : nullptr;
+    bool above = false;
+    if (type && *type == 0) ForEachEnabled([&](Item* i) { above |= i->ShotsFromAbove(ps); });
+    if (above) *type = 1;
+    oFireProjectiles(weapon, formation, projectile, lesser);
+    if (above) *type = 0;
+}
+
+void* HkSpawnProjectile(void* info, void* owner, Vec3* start, bool send) {
+    if (send && info && start && reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retSpawnShot)
+        if (void* ps = ShooterOf(owner)) {
+            Vec3& dir = At<Vec3>(info, off::ProjInfo_Dir);
+            ForEachEnabled([&](Item* i) { i->OnShot(owner, ps, *start, dir); });
+        }
+    return oSpawnProjectile(info, owner, start, send);
+}
+
+// --- Buff lookups ------------------------------------------------------------------------------------------
+//
+// The game asks for an item's buff (by type) from 100+ places; these hooks add the items' bonuses at the one call
+// each cares about, told apart by return address.
+
+using GetBuffFn = float (*)(void*, uint8_t);
+GetBuffFn oGetBuff, oWeaponModBuff;
+uintptr_t g_retBanana, g_retRapidFire;
+
+// UpdateMaxHealth: max health multiplier += GetBuff(Perks, Banana).
+float HkGetBuff(void* inventory, uint8_t type) {
+    float r = oGetBuff(inventory, type);
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retBanana && inventory) {
+        void* ps = static_cast<char*>(inventory) - off::PS_Perks;
+        ForEachEnabled([&](Item* i) { r += i->MaxHealthMultiplierBonus(ps); });
+    }
+    return r;
+}
+
+// UpdateFireRate: fire rate += GetWeaponModBuff(RapidFire).
+float HkWeaponModBuff(void* ps, uint8_t type) {
+    float r = oWeaponModBuff(ps, type);
+    if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retRapidFire && ps)
+        ForEachEnabled([&](Item* i) { r += i->FireRateBonus(ps); });
+    return r;
+}
+
+// --- Tick --------------------------------------------------------------------------------------------------
+
+using EngineTickFn = void (*)(void*, float, bool);
+EngineTickFn oEngineTick;
+float g_sinceTick = 0.f;
+
+void HkEngineTick(void* engine, float dt, bool idle) {
+    oEngineTick(engine, dt, idle);
+    g_sinceTick += dt;
+    if (g_sinceTick < 0.25f) return;
+    g_sinceTick = 0.f;
+    void* viewport = engine ? At<void*>(engine, off::Engine_GameViewport) : nullptr;
+    void* world = viewport ? At<void*>(viewport, off::Viewport_World) : nullptr;
+    if (world && GameStateOf(world)) ForEachEnabled([&](Item* i) { i->OnTick(world); });
+}
+
 // --- Host settings -----------------------------------------------------------------------------------------
 //
 // In multiplayer everyone plays by the host's CrabMods.ini. When a player joins, the host sends its settings
@@ -358,14 +526,17 @@ void HkTickCooldowns(void* c) {
 // a game puts your own settings back after playing in someone else's. A player without CrabMods would just
 // get the text in their console.
 
+// Items' own messages go the same way, starting with kItemTag.
+
 constexpr wchar_t kSettingsTag[] = L"CrabMods settings\n";
 constexpr size_t kSettingsTagLen = std::size(kSettingsTag) - 1;
+constexpr wchar_t kItemTag[] = L"CrabMods item\n";
+constexpr size_t kItemTagLen = std::size(kItemTag) - 1;
 std::string g_ownSettings;  // this machine's CrabMods.ini, settings only
 std::string g_settings;     // what is in use now
+void* g_settingsPC;         // the player controller the host's settings last came through
 
-void SendSettings(void* pc) {
-    std::wstring msg = kSettingsTag;
-    for (char ch : g_ownSettings) msg.push_back(wchar_t(uint8_t(ch)));
+void SendClientMessage(void* pc, std::wstring msg) {
     struct {
         TArray<wchar_t> s;
         uint64_t type;  // FName None
@@ -384,14 +555,27 @@ using ClientMessageFn = void (*)(void*, TArray<wchar_t>*, uint64_t, float);
 PostLoginFn oPostLogin;
 ClientMessageFn oClientMessage;
 
+void SendSettings(void* pc) {
+    std::wstring msg = kSettingsTag;
+    for (char ch : g_ownSettings) msg.push_back(wchar_t(uint8_t(ch)));
+    SendClientMessage(pc, msg);
+}
+
 void HkPostLogin(void* gm, void* pc) {
     oPostLogin(gm, pc);
     if (pc) SendSettings(pc);
 }
 
 void HkClientMessage(void* pc, TArray<wchar_t>* s, uint64_t type, float lifeTime) {
+    if (s && s->Data && s->Num > int(kItemTagLen) && wcsncmp(s->Data, kItemTag, kItemTagLen) == 0) {
+        std::wstring text(s->Data + kItemTagLen);
+        for (Item* i : g_items)
+            if (i->Enabled() && i->OnClientMessage(pc, text)) break;
+        return;
+    }
     if (!s || !s->Data || s->Num <= int(kSettingsTagLen) || wcsncmp(s->Data, kSettingsTag, kSettingsTagLen) != 0)
         return oClientMessage(pc, s, type, lifeTime);
+    g_settingsPC = pc;
     std::string text;
     for (int i = int(kSettingsTagLen); i < s->Num && s->Data[i]; i++) text.push_back(char(s->Data[i]));
     if (text == g_settings) return;
@@ -436,8 +620,21 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::ACrabLM_SpawnPortals, &HkSpawnPortals, &oSpawnPortals, "ACrabLM::SpawnPortals");
     Hook(va::ACrabPortal_SetInfo, &HkSetPortalInfo, &oSetPortalInfo, "ACrabPortal::SetInfo");
     Hook(va::ACrabPlayerC_TickCooldowns, &HkTickCooldowns, &oTickCooldowns, "ACrabPlayerC cooldown tick");
+    Hook(va::UCrabHC_Heal, &HkHeal, &oHeal, "UCrabHC::Heal");
+    Hook(va::ACrabC_ClampHealToMissing, &HkClampHeal, &oClampHeal, "ACrabC::ClampHealToMissing");
+    Hook(va::ACrabDestructible_OnHCDamaged, &HkDestructibleHit, &oDestructibleHit, "ACrabDestructible::OnHCDamaged");
+    Hook(va::ACrabPC_SpawnSpectator, &HkSpawnSpectator, &oSpawnSpectator, "ACrabPC::SpawnSpectator");
+    g_retSpawnShot = Addr(va::Ret_FireProjectilesSpawn);
+    Hook(va::ACrabWeapon_FireProjectiles, &HkFireProjectiles, &oFireProjectiles, "ACrabWeapon::FireProjectiles");
+    Hook(va::SpawnProjectile, &HkSpawnProjectile, &oSpawnProjectile, "SpawnProjectile");
+    g_retBanana = Addr(va::Ret_MaxHealthMultiplierBanana);
+    g_retRapidFire = Addr(va::Ret_FireRateRapidFire);
+    Hook(va::InvArr_GetBuff, &HkGetBuff, &oGetBuff, "InvArr::GetBuff (max health)");
+    Hook(va::ACrabPS_GetWeaponModBuff, &HkWeaponModBuff, &oWeaponModBuff, "ACrabPS::GetWeaponModBuff (fire rate)");
+    Hook(va::UGameEngine_Tick, &HkEngineTick, &oEngineTick, "UGameEngine::Tick");
     Hook(va::AGameModeBase_K2_PostLogin, &HkPostLogin, &oPostLogin, "AGameModeBase::K2_PostLogin");
     Hook(va::APlayerController_ClientMessage_Impl, &HkClientMessage, &oClientMessage, "ClientMessage");
+    for (Item* i : g_items) i->InstallHooks();
     CRAB_LOG("CrabMods %s loaded", kVersion);
     for (Item* i : g_items)
         CRAB_LOG("  %s: %s", i->Section(), i->Enabled() ? i->Describe().c_str() : "off");
@@ -445,6 +642,10 @@ DWORD WINAPI Init(LPVOID) {
 }
 
 }  // namespace
+
+bool crabmods::HostHasCrabMods(void* pc) { return pc && pc == g_settingsPC; }
+
+void crabmods::SendToPlayer(void* pc, const std::wstring& text) { SendClientMessage(pc, kItemTag + text); }
 
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {

@@ -9,6 +9,10 @@ namespace crabmods {
 
 using namespace crab;
 
+struct Vec3 {
+    float x, y, z;
+};
+
 inline void SetFString(void* obj, int offset, const wchar_t* text) {
     auto& s = At<TArray<wchar_t>>(obj, offset);
     int n = int(wcslen(text)) + 1;
@@ -99,6 +103,15 @@ void ForEachItem(void* owner, int arrayOffset, F&& f) {
         uint8_t* e = a.Data + i * off::Item_Size;
         if (void* da = *reinterpret_cast<void**>(e)) f(da, int(e[off::Item_Level]));
     }
+}
+
+// The player's entry for da in an inventory array, or null if not held.
+inline uint8_t* EntryOf(void* owner, int arrayOffset, void* da) {
+    auto& a = At<TArray<uint8_t>>(owner, arrayOffset);
+    if (!a.Data || !da) return nullptr;
+    for (int i = 0; i < a.Num; i++)
+        if (uint8_t* e = a.Data + i * off::Item_Size; *reinterpret_cast<void**>(e) == da) return e;
+    return nullptr;
 }
 
 }  // namespace crabmods

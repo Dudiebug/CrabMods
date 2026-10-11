@@ -56,6 +56,8 @@ constexpr uintptr_t ACrabPS_RemoveMeleeMod = 0x140d29730;
 constexpr uintptr_t ACrabPS_RemovePerk = 0x140d29810;
 constexpr uintptr_t ACrabPS_RemoveRelic = 0x140d298f0;
 constexpr uintptr_t ACrabPS_BroadcastCrystals = 0x140d271e0;  // void(ACrabPS*): fires the crystals-changed delegate
+// void(ACrabPS*, uint8 PerkType, float Amount): the held perk's AccumulatedBuff += Amount, then OnInventoryChanged.
+constexpr uintptr_t ACrabPS_AddPerkAccumulatedBuff = 0x140d20f80;
 constexpr uintptr_t ACrabPS_UpdateMaxHealth = 0x140d28a30;    // void(ACrabPS*): recomputes pawn max health from items
 constexpr uintptr_t ACrabPS_RestoreAutoSave = 0x140d28ee0;    // void(ACrabPS*, FCrabAutoSave*)
 constexpr uintptr_t FCrabInventoryInfo_CopyConstruct = 0x140cc7220;  // FInvInfo*(FInvInfo* Dst, const FInvInfo* Src)
@@ -64,6 +66,11 @@ constexpr uintptr_t TArray28_ResizeGrow = 0x140840fd0;        // void(TArray<0x2
 // Health (UCrabHC, the character's health component)
 constexpr uintptr_t UCrabHC_TakeDamage = 0x140c9afe0;        // void(UCrabHC*, FCrabDamageInfo*): armor, protections, elimination
 constexpr uintptr_t UCrabHC_OnRep_HealthInfo = 0x140c9b4a0;  // void(UCrabHC*): broadcasts health changed, Previous = Current
+// void(UCrabHC*, float Amount): Current = min(Current + Amount, Max), then OnRep_HealthInfo. Every heal ends here
+// (host only); perk, relic and Vampire heals are cut to the missing health first, by ClampHealToMissing.
+constexpr uintptr_t UCrabHC_Heal = 0x140c9acc0;
+// float(ACrabC*, float Requested): Current >= Max ? 0 : min(Requested, Max - Current). Callers heal only if > 0.
+constexpr uintptr_t ACrabC_ClampHealToMissing = 0x140d14930;
 constexpr uintptr_t ACrabC_SetMaxHealth = 0x140cbd780;       // void(ACrabC*, float): sets HC max, clamps health down to it
 
 // Max health. UpdateMaxHealth computes it as
@@ -119,6 +126,67 @@ constexpr uintptr_t Ret_RewardChestsHighRoller = 0x140d029b0;
 constexpr uintptr_t ACrabPS_HasRelic = 0x140d23bb0;     // bool(ACrabPS*, uint8 RelicType)
 constexpr uintptr_t ACrabPS_ShowMessage = 0x140d26f40;  // void(ACrabPS*, const FString*): on that player's screen
 
+// Weapon fire, on the machine that controls the player (the owning client, or the host for its own crab). Its
+// projectiles deal the damage; everyone else gets cosmetic copies with the same start and direction.
+// void(ACrabWeapon*, const TArray<FVector>* Formation, UCrabProjectileDA*, uint8 LesserType): one shot of every
+// projectile in the formation. Reads WeaponDA ShotSpawnType (+0x104) each time.
+constexpr uintptr_t ACrabWeapon_FireProjectiles = 0x140d6d280;
+// ACrabProjectile*(FCrabProjectileInfo* Info, AActor* Owner, FVector* StartLoc, bool bSendToServer): takes a pooled
+// projectile, places it at StartLoc flying along Info->Dir, and sends the cosmetic copy. Return address of the call
+// in FireProjectiles:
+constexpr uintptr_t SpawnProjectile = 0x140d37220;
+constexpr uintptr_t Ret_FireProjectilesSpawn = 0x140d6dcfd;
+// void(ACrabPlayerC*, FHitResult* Out, float Range): line trace from the camera along its view.
+constexpr uintptr_t ACrabPlayerC_CameraTrace = 0x140d130c0;
+// void(UObject* Context, FVector* InOut): moves the point down onto the ground below it (WorldStatic), if any.
+constexpr uintptr_t SnapToGround = 0x140d30df0;
+
+// Destructibles (ACrabDestructible: pots, barrels, rocks, crystals, nests, landmines, ...), host only.
+// void(ACrabDestructible*, FCrabDamageInfo*, uint8 HitType): its health component was hit; HitType 5 (Elimination)
+// breaks it (Explode). The player who broke it is Info->DamagingC if a player, else the last player who hit it.
+constexpr uintptr_t ACrabDestructible_OnHCDamaged = 0x140cc64a0;
+
+// Going down (host): void(ACrabPC*), inside the killing hit, before the player's character is swapped for a
+// spectator. The PC's pawn (+0x250) is still the downed ACrabPlayerC, with its player state.
+constexpr uintptr_t ACrabPC_SpawnSpectator = 0x140d0e720;
+
+// Explosions (host). void(UObject* WorldCtx, TArray<AActor*> Ignore /*by value: the callee frees Data*/,
+// const FVector* Origin, float Radius, const FCrabDamageInfo* Info, bool bRequireLineOfSight, AActor* Filter):
+// flat damage to everything in the sphere that may be hurt by Info->DamagingC, falling off to 20% at the edge.
+// The radius grows with DamagingC's Magnify (perk 39) inside it, as for the game's own explosions.
+constexpr uintptr_t RadialDamage = 0x140d2dd20;
+constexpr uintptr_t ACrabC_GetCoreLocation = 0x140cbae30;           // FVector*(ACrabC*, FVector* out)
+constexpr uintptr_t ACrabLM_MulticastPlayOneShotFX = 0x140d79d00;   // void(ACrabLM*, FX, Sound, const FVector*): everyone
+
+// Lobby key totem. Server: ACrabTotem::Interact(totem, ACrabC*) spends the keys and calls the
+// ClientOnInteractedWithKeyTotem RPC; on that player's machine the game picks a locked item, unlocks it in the
+// save and asks the server (ServerSpawnKeyTotemPickup RPC) to spawn it in front of the totem. The server spawns
+// whatever it is asked for.
+constexpr uintptr_t ACrabTotem_Interact = 0x140cb5860;
+constexpr uintptr_t ACrabPC_ClientOnInteractedWithKeyTotem_Impl = 0x140d095f0;  // void(ACrabPC*, ACrabTotem*)
+constexpr uintptr_t ACrabPC_ServerSpawnKeyTotemPickup = 0x140d7bb70;  // RPC: void(ACrabPC*, ACrabTotem*, DA*)
+constexpr uintptr_t ACrabPC_VTable = 0x143244480;
+constexpr int ACrabPC_ServerSpawnKeyTotemPickup_Slot = 0xE60;  // its implementation (too short for a hook)
+constexpr uintptr_t UCrabGI_UnlockPickup = 0x140ce45e0;           // void(UCrabGI*, UCrabPickupDA*): adds and saves
+constexpr uintptr_t UCrabGI_StaticClass = 0x140d76320;
+// Pickups. ACrabLM::SpawnPickup: ACrabInteractPickup*(ACrabLM*, const FCrabPickupInfo*, FVector* loc /*put on
+// the ground*/). Interact: void(pickup, ACrabC*) when a player takes it (server). Deactivate: void(pickup).
+constexpr uintptr_t ACrabLM_SpawnPickup = 0x140d00060;
+constexpr uintptr_t ACrabInteractPickup_Interact = 0x140d3cf00;
+constexpr uintptr_t ACrabInteractPickup_Deactivate = 0x140d3c0b0;
+
+// Buff lookups. InvArr_GetBuff: float(TArray<FCrabPerk/...>* Inventory, uint8 Type), the held item's buff (0 if not
+// held); 106 callers, told apart by return address. ACrabPS_GetWeaponModBuff: float(ACrabPS*, uint8 Type), the same
+// for PS.WeaponMods (add rcx, 0x3E0; jmp).
+constexpr uintptr_t InvArr_GetBuff = 0x140d2df60;
+constexpr uintptr_t ACrabPS_GetWeaponModBuff = 0x140d25fb0;
+// ACrabPS::UpdateMaxHealth adds GetBuff(Perks, Banana) to the max health multiplier; return address of that call.
+constexpr uintptr_t Ret_MaxHealthMultiplierBanana = 0x140d28ad3;
+// void(ACrabWeapon*): FireRate (+0x2C0) = 1 - (debuffs) + GetWeaponModBuff(RapidFire) + ..., then the shot interval.
+// Called when the inventory changes, on every machine. Return address of the Rapid Fire lookup:
+constexpr uintptr_t ACrabWeapon_UpdateFireRate = 0x140d69f70;
+constexpr uintptr_t Ret_FireRateRapidFire = 0x140d69fdc;
+
 // The Spiked island's portal description, a 77-character literal ("... costs 25% of your base max health to
 // open"). The portal UI (0x140d5ed80, on every machine) copies exactly 78 wchar_t of it, NUL included, so a
 // replacement must keep that length.
@@ -139,6 +207,8 @@ constexpr int Object_Flags = 0x08;
 constexpr int Object_Class = 0x10;
 constexpr int Object_Name = 0x18;
 constexpr int Object_Outer = 0x20;
+constexpr int Actor_RootComponent = 0x130;     // USceneComponent*
+constexpr int SceneComponent_Location = 0x1D0;  // FVector, world (ComponentToWorld translation)
 constexpr int Class_DefaultObject = 0x118;  // UClass::ClassDefaultObject (UE 4.27); checked before use
 constexpr int Actor_Owner = 0xE0;
 constexpr int Actor_Role = 0xF0;  // ENetRole; 3 = ROLE_Authority
@@ -153,6 +223,7 @@ constexpr int LM_AllUnlockedPickups = 0x420;  // TArray<UCrabPickupDA*>: what ch
 // UCrabSpawnablesDA
 constexpr int Spawnables_WeaponMods = 0x108;  // TArray<UCrabWeaponModDA*>
 constexpr int Spawnables_AbilityMods = 0x118;  // TArray<UCrabAbilityModDA*>
+constexpr int Spawnables_MeleeMods = 0x128;    // TArray<UCrabMeleeModDA*>
 constexpr int Spawnables_Perks = 0x138;       // TArray<UCrabPerkDA*>
 constexpr int Spawnables_Relics = 0x148;      // TArray<UCrabRelicDA*>
 constexpr int Spawnables_SpikedChest = 0x580;  // TSubclassOf<ACrabChest>: BP_Chest_Spiked (Cost 25, MaxHealth)
@@ -182,6 +253,7 @@ constexpr int PS_OnInventoryChanged = 0x520;  // native FMulticastDelegate
 // Inventory items (FCrabWeaponMod, FCrabPerk, ...): 0x28 bytes, DA at +0, level (stack count) at +8
 constexpr int Item_Size = 0x28;
 constexpr int Item_Level = 0x08;
+constexpr int Item_AccumulatedBuff = 0x20;  // float (FCrabInventoryInfo+0x18): replicated and kept across islands
 // APawn
 constexpr int Pawn_PlayerState = 0x240;
 // ACrabChest
@@ -191,6 +263,30 @@ constexpr int Chest_bIsChestOpened = 0x300;
 
 // ACrabC (any character)
 constexpr int C_HC = 0x4C0;             // UCrabHC*
+// ACrabDestructible
+constexpr int Destructible_LastPlayer = 0x340;  // ACrabC*: the last player who damaged it
+constexpr int Destructible_bExploded = 0x398;
+// Player-spawned destructibles (UCrabSpawnablesDA classes): Landmine, HomingBarrel, SporeMushroom, UltraMushroom
+constexpr int Spawnables_PlayerDestructibles = 0x270;
+constexpr int Spawnables_NumPlayerDestructibles = 4;
+// AGameStateBase match state (ECrabMatchState): 3 = StartedIsland (fighting), 4 = ClearedIsland
+constexpr int GS_MatchState = 0x278;
+// ACrabWeapon
+constexpr int Weapon_OwningPS = 0x240;
+constexpr int Weapon_WeaponDA = 0x260;
+constexpr int Weapon_OwningC = 0x268;
+constexpr int Weapon_OwningPC = 0x270;  // only on the machine that controls the player
+constexpr int Weapon_Spread = 0x2A0;    // float, degrees
+constexpr int WeaponDA_ShotSpawnType = 0x104;  // 0 Muzzle, 1 AboveCrosshair (Ice Staff: falls from 2500 above the aim)
+// FCrabProjectileInfo
+constexpr int ProjInfo_Dir = 0x08;  // FVector
+// FHitResult (0x88)
+constexpr int Hit_Size = 0x88;
+constexpr int Hit_Time = 0x04;
+constexpr int Hit_ImpactPoint = 0x18;
+constexpr int Hit_TraceEnd = 0x48;
+constexpr int Hit_bBlockingHit = 0x5D;  // bit 0
+constexpr int C_Weapons = 0x538;        // TArray<ACrabWeapon*>
 constexpr int C_bIsEliminated = 0x668;  // bit 0
 // ACrabPlayerC
 constexpr int PlayerC_AbilityDA = 0x7D0;
@@ -225,6 +321,37 @@ constexpr int DA_bGetBuffAsMultiplier = 0xCE;  // BaseBuff is a percentage
 constexpr int DA_BaseDebuff = 0xD0;
 constexpr int DA_bGetDebuffAsMultiplier = 0xD5;
 constexpr int DA_ItemType = 0xD8;  // per-category type enum (WeaponModType, PerkType, ...)
+constexpr int Controller_Pawn = 0x250;
+constexpr int C_LM = 0x518;
+// UCrabSpawnablesDA: the explosion effect and sound Explosive Armor uses
+constexpr int Spawnables_GenericExplosionFX = 0x88;
+constexpr int Spawnables_GenericExplosionSound = 0x90;
+// ACrabTotem
+constexpr int Totem_Type = 0x298;                  // ECrabTotemType: 3 = Key
+constexpr int Totem_UniqueIDInteractions = 0x2D8;  // TArray<FString>: who has used it
+constexpr int Pawn_Controller = 0x258;
+constexpr int World_GameInstance = 0x180;
+constexpr int GI_SaveGame = 0x228;  // UCrabSG*
+constexpr int SceneComponent_Rotation = 0x1C0;  // FQuat of ComponentToWorld (x, y, z, w)
+constexpr int Pickup_NumTimesPickedUp = 0x300;  // uint8
+// UCrabSpawnablesDA lists and the save's unlocked lists (UCrabSG), in the same order: weapons, abilities,
+// melee weapons, weapon mods, ability mods, melee mods, perks, relics. An item is locked when it is in the
+// first and not the second.
+constexpr int Spawnables_Unlockables[8] = {0xD8, 0xE8, 0xF8, 0x108, 0x118, 0x128, 0x138, 0x148};
+constexpr int SG_Unlocked[8] = {0xB0, 0xC0, 0xD0, 0xE0, 0xF0, 0x100, 0x110, 0x120};
+// FCrabPickupInfo (0x50 bytes)
+constexpr int PickupInfo_Size = 0x50;
+constexpr int PickupInfo_DA = 0x00;
+constexpr int PickupInfo_Level = 0x08;
+constexpr int PickupInfo_MaxPickups = 0x28;
+constexpr int PickupInfo_SalvageReward = 0x30;
+constexpr int PickupInfo_OwningPS = 0x38;  // only this player may take it
+constexpr int PickupInfo_CosmeticSpawnLoc = 0x40;  // where it is seen flying from
+// FCrabDamageInfo (0x48 bytes)
+constexpr int DamageInfo_Size = 0x48;
+constexpr int DamageInfo_Type = 0x0C;       // uint8: 1 Radial, 3 Melee, 4 Lesser (not throttled per enemy)
+constexpr int DamageInfo_Location = 0x30;   // FVector
+constexpr int DamageInfo_Knockback = 0x3C;  // float
 // FCrabDamageInfo
 constexpr int DamageInfo_DamagedActor = 0x00;
 constexpr int DamageInfo_Damage = 0x08;  // float
@@ -268,6 +395,8 @@ constexpr uint8_t WeaponMod_StreakShot = 27;  // ECrabWeaponModType; the enum en
 constexpr uint8_t WeaponMod_HeavyShot = 30;   // PickupTag Bounce: only drops once you hold Bouncing Shot
 constexpr uint8_t Perk_Collector = 72;        // ECrabPerkType; the enum ends at FlashSale = 121
 constexpr uint8_t AbilityMod_HeatSink = 11;   // ECrabAbilityModType
+constexpr uint8_t Perk_Banana = 6;            // max health multiplier +20%
+constexpr uint8_t Perk_Magnify = 39;          // area of effect +20%
 constexpr uint8_t Relic_RingOfDefense = 21;   // ECrabRelicType
 constexpr uint8_t Relic_RingOfFury = 27;
 constexpr uint8_t Relic_FireRing = 31;        // ECrabRelicType; the enum ends at RushedRing = 67

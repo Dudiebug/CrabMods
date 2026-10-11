@@ -78,4 +78,27 @@ inline void* PlayerOfHealth(void* hc) {
     return IsA(ps, StaticClass(va::ACrabPS_StaticClass)) ? ps : nullptr;
 }
 
+// Where an actor is in the world; false if it has no root component.
+inline bool LocationOf(void* actor, Vec3& out) {
+    void* root = actor ? At<void*>(actor, off::Actor_RootComponent) : nullptr;
+    if (!root) return false;
+    out = At<Vec3>(root, off::SceneComponent_Location);
+    return true;
+}
+
+inline float DistanceSquared(const Vec3& a, const Vec3& b) {
+    float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+    return dx * dx + dy * dy + dz * dz;
+}
+
+// Recomputes the fire rate of every weapon the player's character holds (items' FireRateBonus).
+inline void RefreshFireRate(void* ps) {
+    void* c = PawnOf(ps);
+    if (!c) return;
+    auto& weapons = At<TArray<void*>>(c, off::C_Weapons);
+    for (int i = 0; i < weapons.Num; i++)
+        if (void* w = weapons.Data[i]; w && At<void*>(w, off::Weapon_WeaponDA))
+            Fn<void (*)(void*)>(va::ACrabWeapon_UpdateFireRate)(w);
+}
+
 }  // namespace crabmods

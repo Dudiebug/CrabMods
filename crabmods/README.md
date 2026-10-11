@@ -1,8 +1,8 @@
 # CrabMods
 
-**New items for Crab Champions.** 19 items: perks, relics, a weapon mod and an ability mod. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 25 items: perks, relics, weapon mods and an ability mod, plus stronger melee mods and a key totem that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
-> **Status: early (0.3.3), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
+> **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
 ## Items
 
@@ -18,8 +18,19 @@
 | **Jack of All Trades** | perk | Legendary | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
 | **Greed Is Power** | Greed perk | Greed | +5% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
 | **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
-| **Martyr** | relic | Epic | While you are down, each teammate deals +15% damage. |
+| **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
+| **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
+| **Martyr** | relic | Epic | When you go down, you **explode** for 150 damage to the enemies around you (25 m). **Magnify** makes the explosion bigger, as it does the game's own explosions. |
+| **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +10% damage. |
+| **Hellshooter** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +10% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
+
+### Health and fire rate
+
+| Item | Type | Rarity | Effect |
+|---|---|---|---|
+| **Thick Shell** | perk | Epic | +3% max health multiplier for each perk level you have (this one included). Collector for health. |
+| **Community Support** | perk | Epic | You and every player within 20 m fire faster: one Rapid Fire level (+12%) for each player in range who has Community Support, you included. It stacks when your friends have it too. |
 
 ### Loot
 
@@ -40,6 +51,8 @@
 
 | Change | Effect |
 |---|---|
+| **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
+| **Key totem** | The lobby's key totem lets you **choose** what it unlocks: a row of 3 locked items comes out, only you can take one, and the one you take is unlocked. Once everything is unlocked, it offers 3 of any weapon mods, ability mods, melee mods, perks and relics instead. Needs CrabMods on the host as well as on your machine; otherwise the game's own totem is used. |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 
 
@@ -87,15 +100,33 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | `[jackOfAllTrades]` | `damagePercent` | `3` | Per different pickup tag. |
 | `[greedIsPower]` | `damagePercent` | `5` | Per Greed perk level. |
 | `[purist]` | `damagePercent` | `10` | |
-| `[martyr]` | `damagePercent` | `15` | For each teammate, while you are down. |
+| `[collateralDamage]` | `damagePercent` | `5` | Per destructible broken this island. |
+| `[overflow]` | `damagePercent` | `3` | Per stack. |
+| | `healthPerStack` | `100` | Healing past max health one stack takes. |
+| `[martyr]` | `damage` | `150` | Explosion damage. It falls off to 20% at the edge. |
+| | `radiusMeters` | `25` | Before Magnify. |
+| | `knockback` | `2500` | |
 | `[lastCrabStanding]` | `perDownedPercent` | `25` | Per downed teammate. |
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
 | `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many island reward chests; otherwise none. |
 | `[recharge]` | `secondsPerKill` | `0.1` | |
 | `[spikedChest]` | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
+| `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
+| `[communitySupport]` | `fireRatePercent` | `12` | Per Community Support in range (Rapid Fire's is 12). |
+| | `rangeMeters` | `20` | |
+| `[bulletRain]`, `[hellshooter]` | `damagePercent` | `10` | |
+| `[meleeMods]` | `sharpClawsPercent` | `200` | Game: 100. |
+| | `timeClawsPercent` | `300` | Game: 150. |
+| | `ironClawsPercent` | `500` | Game: 300. |
+| | `ironClawsCooldownPercent` | `20` | Game: 40. |
+| | `bigClawsPercent` | `40` | Game: 20. |
+| | `blenderPercent` | `30` | Game: 20. |
+| | `vampireHealth` | `15` | Game: 5. |
+| | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
+| `[keyTotem]` | `choices` | `3` | How many items to choose from (1 to 8). |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
 
-All percentages and amounts are per level of the item.
+All percentages and amounts are per level of the item. `[meleeMods]` and `[keyTotem]` have only `enabled` besides the settings above; switching `meleeMods` off puts the game's values back.
 
 ### Multiplayer: the host's settings
 
@@ -119,6 +150,13 @@ The effects:
  "only offer me to a player who holds Bouncing Shot". CrabMods clears that flag in memory. Heavy Shot's effect was never tied to a weapon, so nothing else needs changing:
   - The game applies Heavy Shot to every projectile: gravity = (the bullet's own gravity + 2) × (1 + its 15% weight), plus its +50% damage.
   - So even bullets that normally fly dead straight (most guns) start to drop.
+- **Collateral Damage**: on the host, every destructible reports the hit that breaks it, with the player who dealt it (or the last player who hit it, for explosions). Breaks only count during an island's fight, and not the landmines, homing barrels and mushrooms players' own items spawn. The bonus is kept in the perk's own counter, which the game sends to every player.
+- **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
+- **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
+- **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot.
+- **Martyr** uses the game's own explosion code (Explosive Armor's), fired just before the downed player becomes a spectator, so Magnify, the enemy-only filter and kill credit all work as they do for the game's explosions.
+- **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
+- **Key totem**: the game picks the unlock on your machine and asks the host to spawn it. CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took, which unlocks it in your save.
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.
 
 ## Known limitations
@@ -128,7 +166,10 @@ The effects:
 - Heavy Shot still needs to be unlocked in your save before it can drop.
 - On very fast guns (Sniper, Marksman Rifle, Laser Cannons) the bullet reaches its target before it can drop much, so Heavy Shot is mostly its damage there.
 - Recharge only counts kills made while your ability is recharging, so kills while it is ready are not saved up.
-- With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr** and **Last Crab Standing** rarely do anything there. Turn off `syncHealth` in `CrabSync.ini` if you want them.
+- With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr** explodes only when the whole team goes down, and **Last Crab Standing** rarely does anything. Turn off `syncHealth` in `CrabSync.ini` if you want them.
+- **Key totem**: your keys are spent when you use the totem, but the unlock happens when you take one of the items. If you walk away without taking one, nothing is unlocked. A new unlock joins the loot on the next level, as in the game.
+- **Hellshooter** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
+- **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 

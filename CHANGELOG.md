@@ -4,6 +4,22 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.4.0
+
+6 new items, stronger melee mods, a key totem that lets you choose, and a new Martyr.
+
+- Perks:
+  - **Collateral Damage** (Epic): +5% damage for every destructible you break during an island's fight. It resets each island, like Tasty Orange.
+  - **Overflow** (Epic): every 100 health healed while at full health gives +3% damage for the rest of the run.
+  - **Thick Shell** (Epic): +3% max health multiplier per perk level you have.
+  - **Community Support** (Epic): you and every player within 20 m fire faster, one Rapid Fire level (+12%) for each player in range who has it, you included.
+- Weapon mods:
+  - **Bullet Rain** (Epic): your shots fall from the sky onto where you aim. +10% damage.
+  - **Hellshooter** (Epic): your shots fire up out of the ground under where you aim. +10% damage.
+- **Martyr** is new: when you go down you explode for 150 damage to the enemies around you (25 m), and **Magnify** makes it bigger. It no longer boosts teammates. Its settings are now `damage`, `radiusMeters` and `knockback`.
+- **Melee mods** are stronger (`[meleeMods]`): Sharp Claws 200% (was 100), Time Claws 300% (150), Iron Claws 500% (300) with a 20% cooldown penalty (40), Big Claws 40% (20), Blender 30% (20), Vampire 15 health per kill (5), and the elemental claws apply twice the stacks.
+- **Key totem** (`[keyTotem]`): the lobby's key totem offers 3 locked items to choose from, and the one you take is unlocked. Once everything is unlocked, it offers 3 of any weapon mods, ability mods, melee mods, perks and relics. It needs CrabMods on the host too.
+
 ### 0.3.3
 
 - **Double or Nothing** now works on chests instead of loot choices: at the end of each island you get **twice as many reward chests, or none** (50/50, `doubleChancePercent`). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls just before High Roller, so High Roller still works on what is left. You see "Double or Nothing doubled your chests!" or "Double or Nothing took all your chests!". Chests you open now always offer their normal choices.

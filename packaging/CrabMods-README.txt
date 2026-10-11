@@ -10,7 +10,16 @@ Items (all bonuses are per level, and stack):
   Jack of All Trades (Legendary perk): +3% damage per different pickup tag.
   Greed Is Power (Greed perk): +5% damage per Greed perk level.
   Purist (Epic relic): +10% damage while all your elemental pickups are one element.
-  Martyr (Epic relic): while you are down, each teammate deals +15% damage.
+  Collateral Damage (Epic perk): +5% damage per destructible broken this island.
+  Overflow (Epic perk): every 100 health healed at full health gives a
+    permanent +3% damage.
+  Thick Shell (Epic perk): +3% max health multiplier per perk level.
+  Community Support (Epic perk): you and players within 20 m fire faster, one
+    Rapid Fire level for each player in range who has it, you included.
+  Bullet Rain (Epic weapon mod): shots fall from the sky onto where you aim.
+  Hellshooter (Epic weapon mod): shots fire up out of the ground where you aim.
+  Martyr (Epic relic): when you go down, you explode for 150 damage to the
+    enemies around you. Magnify makes it bigger.
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
   Double or Nothing (Greed relic): twice as many island reward chests, or none.
@@ -19,6 +28,10 @@ Items (all bonuses are per level, and stack):
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.
+  Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,
+    Iron Claws +500%, Vampire 15 health per kill ([meleeMods]).
+  Key totem (the lobby's): choose which of 3 locked items to unlock; once
+    everything is unlocked, choose from any mods, perks and relics.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 
