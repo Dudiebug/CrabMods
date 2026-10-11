@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.10.3
+
+- **CrabMods' version shows in game**, after the game's own version in the corner of the HUD ("CrabMods 0.10.3").
+
 ### 0.10.2
 
 - **The Soul Whip does 100 damage a second.** 0.10.1 meant to, but it was still doing 25: the bolt never hits directly, so only its 20-damage burst counted (and `whipDamage` did nothing). The burst now does all of it, 80 per crack at 1.25 cracks a second, to every enemy in it. Set it with `whipDps` in `[necromancer]`; `whipDamage` and `burstDamage` are gone.

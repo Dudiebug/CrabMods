@@ -43,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.10.2";
+constexpr const char kVersion[] = "0.10.3";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -557,6 +557,25 @@ float HkWeaponModBuff(void* ps, uint8_t type) {
 
 // --- Tick --------------------------------------------------------------------------------------------------
 
+// CrabMods' version after the game's, where the HUD shows it. Put back whenever the game rewrites the text.
+void ShowVersion(void* world) {
+    void* lm = LevelManagerOf(world);
+    void* c = lm ? At<void*>(lm, off::LM_LocalC) : nullptr;
+    void* pc = c ? At<void*>(c, off::Pawn_Controller) : nullptr;
+    void* hud = pc ? At<void*>(pc, off::PC_HUD) : nullptr;
+    void* text = hud ? At<void*>(hud, off::GameplayUI_VersionText) : nullptr;
+    if (!text) return;
+    struct {
+        ui::Text ret;
+    } p{};
+    if (!ui::Call(text, L"GetText", &p)) return;
+    std::wstring now = ui::TextToString(&p.ret);
+    if (now.find(L"CrabMods") != std::wstring::npos) return;
+    std::wstring tag = L"CrabMods ";
+    for (const char* v = kVersion; *v; v++) tag.push_back(wchar_t(*v));
+    ui::SetText(text, (now.empty() ? tag : now + L"  |  " + tag).c_str());
+}
+
 using EngineTickFn = void (*)(void*, float, bool);
 EngineTickFn oEngineTick;
 float g_sinceTick = 0.f;
@@ -571,6 +590,7 @@ void HkEngineTick(void* engine, float dt, bool idle) {
     if (g_sinceTick < 0.25f) return;
     g_sinceTick = 0.f;
     if (game) ForEachEnabled([&](Item* i) { i->OnTick(world); });
+    if (game) ShowVersion(world);
 }
 
 // --- Enemy elimination -------------------------------------------------------------------------------------

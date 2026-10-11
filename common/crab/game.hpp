@@ -646,6 +646,7 @@ constexpr int EnemyAIC_OwnedC = 0x358;
 constexpr int EnemyAIC_BestEnemyC = 0x368;
 constexpr int GameStateUI_ChatInput = 0x358;  // UEditableTextBox*
 constexpr int PC_GameStateUI = 0x690;
+constexpr int GameplayUI_VersionText = 0x398;  // UTextBlock*: the game's version, in the corner
 constexpr int GameplayUI_AbilityKeyText = 0x3F0;
 constexpr int GameplayUI_AbilityIcon = 0x400;
 constexpr int GameplayUI_AbilityCooldownText = 0x408;
