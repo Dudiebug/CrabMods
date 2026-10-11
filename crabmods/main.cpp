@@ -39,7 +39,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.5.1";
+constexpr const char kVersion[] = "0.6.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 

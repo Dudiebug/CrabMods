@@ -35,9 +35,9 @@ Items (all bonuses are per level, and stack):
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,
     Iron Claws +500%, Vampire 15 health per kill ([meleeMods]).
-  Key totem (the lobby's): a menu lets you choose which of 3 locked items to
-    unlock; once everything is unlocked, choose from any mods, perks and
-    relics. Works with any host.
+  Key totem (the lobby's): a menu of every locked item, with category tabs
+    and a search box, lets you choose what to unlock; once everything is
+    unlocked, choose any item. Works with any host.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 

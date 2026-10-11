@@ -213,6 +213,13 @@ constexpr uintptr_t UButton_StaticClass = 0x141e8c4a0;
 constexpr uintptr_t UBackgroundBlur_StaticClass = 0x141e8af80;
 constexpr uintptr_t UUniformGridPanel_StaticClass = 0x141ea55c0;
 constexpr uintptr_t UScrollBox_StaticClass = 0x141e9cfe0;
+constexpr uintptr_t USizeBox_StaticClass = 0x141e9bc90;
+constexpr uintptr_t UWrapBox_StaticClass = 0x141eb7500;
+constexpr uintptr_t UHorizontalBox_StaticClass = 0x141e93e10;
+constexpr uintptr_t UTextBlock_StaticClass = 0x141ea1930;
+constexpr uintptr_t UEditableTextBox_StaticClass = 0x141e8f4c0;
+// UKismetTextLibrary's default object: Conv_StringToText / Conv_TextToString (FText from and to FString).
+constexpr const wchar_t* KismetTextLibraryPath = L"/Script/Engine.Default__KismetTextLibrary";
 // The game's UI (UCrabUI and its menus, UCrabFocusMenuUI)
 constexpr uintptr_t UI_SetTextFromString = 0x140d602f0;  // void(unused, UTextBlock*, const FString*)
 constexpr uintptr_t UI_SetShown = 0x140d60400;           // void(UWidget*, bool): Visible or Hidden
@@ -229,6 +236,9 @@ constexpr int FocusMenu_Init_Slot = 0x478;
 constexpr int FocusMenu_Refresh_Slot = 0x480;
 constexpr int FocusMenu_PressSound_Slot = 0x4a0;
 constexpr int FocusMenu_CanClose_Slot = 0x4c0;
+// 0x4a8 / 0x4b0: next / previous submenu (the player's Next / Previous Submenu keys, via ACrabPC+0x718).
+constexpr int FocusMenu_NextSubmenu_Slot = 0x4a8;
+constexpr int FocusMenu_PreviousSubmenu_Slot = 0x4b0;
 // The pickup card shown over a pickup (UCrabInteractUI; class at DA+0x90). Setters as the pickup uses them.
 constexpr uintptr_t InteractUI_SetIcon = 0x140d59310;     // void(UI, UTexture2D*)
 constexpr uintptr_t InteractUI_SetType = 0x140d59480;     // void(UI, const FString*)
@@ -431,6 +441,32 @@ constexpr int PC_OpenMenu = 0x718;
 constexpr int DA_InteractUIClass = 0x90;
 constexpr int InteractUI_InteractMessageText = 0x2F8;  // "PICK UP" (its row is the card's bottom border)
 constexpr int WidgetTree_RootWidget = 0x28;
+constexpr int InteractUI_NameText = 0x2C8;
+constexpr int TextBlock_Font = 0x188;             // FSlateFontInfo
+// UEditableTextBox: Text (FText, kept up to date as it's typed in), its look, OnTextChanged
+constexpr int EditableTextBox_Text = 0x108;
+constexpr int EditableTextBox_Style = 0x130;      // FEditableTextBoxStyle
+constexpr int EditableTextBox_MinWidth = 0x9E4;   // float MinimumDesiredWidth
+constexpr int EditableTextBox_OnTextChanged = 0xA08;
+// FEditableTextBoxStyle: background brushes (normal, hovered, focused), padding, font, text and background colours
+constexpr int TextBoxStyle_Brushes[3] = {0x8, 0x90, 0x118};
+constexpr int TextBoxStyle_Padding = 0x228;
+constexpr int TextBoxStyle_Font = 0x238;
+constexpr int TextBoxStyle_ForegroundColor = 0x290;  // FSlateColor
+constexpr int TextBoxStyle_BackgroundColor = 0x2B8;  // FSlateColor
+// FSlateBrush (0x88): tint (FSlateColor, an FLinearColor first), the renderer's resource handle (a TSharedPtr)
+constexpr int SlateBrush_Size = 0x88;
+constexpr int SlateBrush_Tint = 0x20;
+constexpr int SlateBrush_ResourceHandle = 0x70;
+constexpr int ButtonStyle_NormalBrush = 0x8;
+// FSlateFontInfo (0x58): its composite font (a TSharedPtr, unused with a font asset) and size
+constexpr int FontInfo_Size = 0x58;
+constexpr int FontInfo_FontObject = 0x0;
+constexpr int FontInfo_CompositeFont = 0x30;
+constexpr int FontInfo_PointSize = 0x48;
+// UWrapBox: wrap at WrapSize (when bExplicitWrapSize) instead of its width
+constexpr int WrapBox_WrapSize = 0x12C;
+constexpr int WrapBox_bExplicitWrapSize = 0x131;
 constexpr int InventoryUI_Grids[4] = {0x400, 0x408, 0x410, 0x418};  // weapon mod, ability mod, melee mod, perk grids
 constexpr int InventoryUI_OwningPS = 0x3E0;
 constexpr int InventorySlotUI_Button = 0x2F0;

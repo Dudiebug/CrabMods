@@ -4,6 +4,13 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.6.0
+
+- **Key totem menu** is now a full catalog instead of a choice of 3. It shows **every locked item**, or **every item** once everything is unlocked, as the game's own pickup cards, three to a row in a scrolling list sorted by kind, rarity and name.
+  - **Category tabs** at the top (All, Weapons, Abilities, Melee, Weapon Mods, Ability Mods, Melee Mods, Perks, Relics) look like the settings menu's tabs. Only kinds that have items get a tab. The Next / Previous Submenu keys (the gamepad bumpers) switch tabs too.
+  - A **search box** filters by name, type and description as you type. Several words must all match, e.g. `epic fire`.
+- `choices` now only sets how many items come out of the totem in row mode (`menu = false`).
+
 ### 0.5.1
 
 - **Key totem menu**: the item cards sit on a dark, nearly opaque plate, so they are no longer see-through over the blurred game. The plate lightens when you hover or press a card.

@@ -2,6 +2,7 @@
 // blueprint would. Everything here runs on the game thread, on the machine that shows the UI.
 #pragma once
 #include <cstdint>
+#include <cstring>
 #include <cwchar>
 #include <string>
 
@@ -166,12 +167,79 @@ struct AnchorData {
 };
 static_assert(sizeof(AnchorData) == 0x28);
 
+inline void* AddToHorizontalBox(void* box, void* child) {
+    struct {
+        void* child;
+        void* ret;
+    } p{child, nullptr};
+    Call(box, L"AddChildToHorizontalBox", &p);
+    return p.ret;
+}
+inline void* AddToWrapBox(void* box, void* child) {
+    struct {
+        void* child;
+        void* ret;
+    } p{child, nullptr};
+    Call(box, L"AddChildToWrapBox", &p);
+    return p.ret;
+}
+
 // --- UTextBlock, through the game's own helper (FText from the string) ---
 inline void SetText(void* textBlock, const wchar_t* text) {
     if (!textBlock) return;
     int n = int(wcslen(text)) + 1;
     TArray<wchar_t> s{const_cast<wchar_t*>(text), n, n};
     Fn<void (*)(void*, void*, const TArray<wchar_t>*)>(va::UI_SetTextFromString)(nullptr, textBlock, &s);
+}
+
+// A font (FSlateFontInfo) to pass to SetFont: a text block's own, at another size. Passed by value through
+// ProcessEvent, so the copy here is never destroyed (the engine copies it properly).
+struct Font {
+    alignas(8) uint8_t bytes[off::FontInfo_Size];
+};
+inline bool FontOf(void* textBlock, int size, Font& out) {
+    if (!textBlock) return false;
+    std::memcpy(out.bytes, &At<uint8_t>(textBlock, off::TextBlock_Font), sizeof out.bytes);
+    At<int32_t>(out.bytes, off::FontInfo_PointSize) = size;
+    return true;
+}
+inline void SetFont(void* textBlock, const Font& f) {
+    Font copy = f;
+    Call(textBlock, L"SetFont", copy.bytes);
+}
+// UButton / UUserWidget: tints the content
+inline void SetColorAndOpacity(void* w, LinearColor c) { Call(w, L"SetColorAndOpacity", &c); }
+
+// FText from a string (UKismetTextLibrary::Conv_StringToText). The text is kept (never freed): pass it by value
+// to blueprint functions (SetHintText, ...).
+struct Text {
+    alignas(8) uint8_t bytes[0x18];
+};
+inline bool MakeText(const wchar_t* s, Text& out) {
+    static void* lib = FindObject(va::KismetTextLibraryPath);
+    if (!lib) return false;
+    int n = int(wcslen(s)) + 1;
+    struct {
+        TArray<wchar_t> in;
+        Text ret;
+    } p{{const_cast<wchar_t*>(s), n, n}, {}};
+    if (!Call(lib, L"Conv_StringToText", &p)) return false;
+    out = p.ret;
+    return true;
+}
+// The string of an FText (UKismetTextLibrary::Conv_TextToString), e.g. what's typed in a UEditableTextBox.
+inline std::wstring TextToString(const void* text) {
+    static void* lib = FindObject(va::KismetTextLibraryPath);
+    struct {
+        Text in;
+        TArray<wchar_t> ret;
+    } p{};
+    std::memcpy(p.in.bytes, text, sizeof p.in.bytes);  // a reference parameter: not copied or freed by the call
+    if (!lib || !Call(lib, L"Conv_TextToString", &p)) return {};
+    std::wstring out;
+    for (int i = 0; p.ret.Data && i < p.ret.Num && p.ret.Data[i]; i++) out.push_back(p.ret.Data[i]);
+    if (p.ret.Data) Fn<void (*)(void*)>(va::FMemory_Free)(p.ret.Data);
+    return out;
 }
 
 }  // namespace crabmods::ui
