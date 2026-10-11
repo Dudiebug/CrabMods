@@ -28,12 +28,16 @@ Items (all bonuses are per level, and stack):
     that kind of pickup is offered 3x as often and can come out of any of
     your chests, not only its own pool's (Damage and Luck: islands too).
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
+  Bandolier / Tool Belt / Scabbard / Backpack (Legendary weapon mod / ability
+    mod / melee mod / perk): +5 slots in that inventory group per level. The
+    inventory menu scrolls when they don't fit.
   Heavy Shot (the game's own mod): drops for every weapon, not only with
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,
     Iron Claws +500%, Vampire 15 health per kill ([meleeMods]).
-  Key totem (the lobby's): choose which of 3 locked items to unlock; once
-    everything is unlocked, choose from any mods, perks and relics.
+  Key totem (the lobby's): a menu lets you choose which of 3 locked items to
+    unlock; once everything is unlocked, choose from any mods, perks and
+    relics. Works with any host.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 

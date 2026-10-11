@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 25 items: perks, relics, weapon mods and an ability mod, plus stronger melee mods and a key totem that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 29 items: perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -47,12 +47,23 @@
 |---|---|---|---|
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
 
+### Inventory slots
+
+One Legendary per inventory group. Each level gives that group **5 more slots**, so stacking one makes room for more. The inventory menu scrolls once the slots no longer fit.
+
+| Item | Type | Rarity | Effect |
+|---|---|---|---|
+| **Bandolier** | weapon mod | Legendary | +5 weapon mod slots per level. |
+| **Tool Belt** | ability mod | Legendary | +5 ability mod slots per level. |
+| **Scabbard** | melee mod | Legendary | +5 melee mod slots per level. |
+| **Backpack** | perk | Legendary | +5 perk slots per level. |
+
 ### Game changes
 
 | Change | Effect |
 |---|---|
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
-| **Key totem** | The lobby's key totem lets you **choose** what it unlocks: a row of 3 locked items comes out, only you can take one, and the one you take is unlocked. Once everything is unlocked, it offers 3 of any weapon mods, ability mods, melee mods, perks and relics instead. Needs CrabMods on the host as well as on your machine; otherwise the game's own totem is used. |
+| **Key totem** | The lobby's key totem opens a **menu** of 3 locked items, shown as the game's own pickup cards: the one you click (or select with a gamepad) is unlocked and comes out of the totem. Once everything is unlocked, it offers 3 of any weapon mods, ability mods, melee mods, perks and relics instead. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 
 
@@ -124,6 +135,8 @@ To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xin
 | | `vampireHealth` | `15` | Game: 5. |
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `choices` | `3` | How many items to choose from (1 to 8). |
+| | `menu` | `true` | `false`: a row of pickups comes out of the totem instead of the menu. |
+| `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
 | `[fireSpecialist]` ... `[luckSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 
@@ -157,7 +170,8 @@ The effects:
 - **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshooter** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshooter leaves every other shot alone, so they alternate between the sky and the ground.
 - **Martyr** uses the game's own explosion code (Explosive Armor's), fired just before the downed player becomes a spectator, so Magnify, the enemy-only filter and kill credit all work as they do for the game's explosions.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
-- **Key totem**: the game picks the unlock on your machine and asks the host to spawn it. CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took, which unlocks it in your save.
+- **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with the items' own pickup cards as buttons, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
+- **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.
 
 ## Known limitations
@@ -168,7 +182,9 @@ The effects:
 - On very fast guns (Sniper, Marksman Rifle, Laser Cannons) the bullet reaches its target before it can drop much, so Heavy Shot is mostly its damage there.
 - Recharge only counts kills made while your ability is recharging, so kills while it is ready are not saved up.
 - With [CrabSync](../crabsync/README.md)'s shared health pool, the whole team goes down together, so **Martyr** explodes only when the whole team goes down, and **Last Crab Standing** rarely does anything. Turn off `syncHealth` in `CrabSync.ini` if you want them.
-- **Key totem**: your keys are spent when you use the totem, but the unlock happens when you take one of the items. If you walk away without taking one, nothing is unlocked. A new unlock joins the loot on the next level, as in the game.
+- **Key totem**: the menu stays open until you choose (the keys are already spent). With `menu = false`, the unlock happens when you take one of the items, and walking away without taking one unlocks nothing. A new unlock joins the loot on the next level, as in the game.
+- **Scabbard** uses Big Claws' icon: the game has no plain melee mod icon.
+- **Slot items** are tested only by reading the game's code, not in play: if the inventory menu looks wrong with extra slots, please open an issue with your `CrabMods.log`.
 - **Hellshooter** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
 - **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.

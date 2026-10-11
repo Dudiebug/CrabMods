@@ -4,6 +4,17 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.5.0
+
+- **Key totem menu**: the lobby's key totem now opens a menu instead of dropping a row of items. It is the game's own confirmation prompt with the items' own pickup cards as buttons: click one (or select it with a gamepad) and it is unlocked and comes out of the totem. It works with **any host**, CrabMods or not. `menu = false` brings back the row.
+- 4 new **Legendary** items, one per inventory group, each giving **+5 slots per level** in its group (`slotsPerLevel`):
+  - **Bandolier** (weapon mod): weapon mod slots.
+  - **Tool Belt** (ability mod): ability mod slots.
+  - **Scabbard** (melee mod): melee mod slots.
+  - **Backpack** (perk): perk slots.
+- The **inventory menu** gets more slots when you have them, and scrolls once they don't fit.
+- New ability mods (Recharge, Tool Belt) use the game's plain ability mod icon for their rarity.
+
 ### 0.4.1
 
 - **Specialists** now also bring their pickups into your chests of **every other loot pool**: with Critical Specialist, critical pickups can come out of a Speed or Health chest too, not only Critical chests. There they are as likely as the chest's own pickups (`otherChests = 1`; `0` turns it off). This works for the regular pool chests (Damage, Critical, Elemental, Speed, Luck, Health, Economy, Skill). Random chests already offered everything, and Greed, Relic, Anvil and Spiked chests stay as they are. Rarity still applies, so an Epic critical pickup still only comes out of Epic chests.

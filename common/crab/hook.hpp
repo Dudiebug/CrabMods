@@ -21,4 +21,20 @@ inline bool Hook(uintptr_t staticVa, F detour, F* original, const char* name) {
     return s == MH_OK;
 }
 
+// Replaces one entry of a class's virtual table, for functions too short for a MinHook detour. The slot is a
+// static address (the table's address plus the slot's offset).
+template <class F>
+inline bool SwapVirtual(uintptr_t slotVa, F detour, F* original, const char* name) {
+    auto* slot = reinterpret_cast<F*>(Addr(slotVa));
+    DWORD old;
+    bool ok = VirtualProtect(slot, sizeof *slot, PAGE_READWRITE, &old);
+    if (ok) {
+        *original = *slot;
+        *slot = detour;
+        VirtualProtect(slot, sizeof *slot, old, &old);
+    }
+    CRAB_LOG("hook %s (virtual table) @ %p: %s", name, static_cast<void*>(slot), ok ? "MH_OK" : "failed");
+    return ok;
+}
+
 }  // namespace crab

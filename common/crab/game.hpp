@@ -195,6 +195,59 @@ constexpr int kSpikedChestDescriptionLen = 77;
 // UEngine::GetWorldFromContextObject(GEngine, Object, 1 = LogAndReturnNull) -> UWorld*, as LootRoll does it.
 constexpr uintptr_t GEngine = 0x1443fe458;  // UEngine*
 constexpr uintptr_t UEngine_GetWorldFromContextObject = 0x142709ab0;
+
+// --- UMG (widgets), all static. Most widget work goes through ProcessEvent with the function found by name:
+// UClass::FindFunctionByName(UClass*, FName, int IncludeSuper) -> UFunction* or null (never fatal).
+constexpr uintptr_t UClass_FindFunctionByName = 0x140f66a80;
+// StaticFindObject(UClass* or null, UObject* Outer (null with a full path), const wchar_t* Name, bool Exact).
+constexpr uintptr_t StaticFindObject = 0x1410d96f0;
+// CreateWidget(APlayerController* Owner, UClass* WidgetClass, FName Name) -> UUserWidget*, initialized.
+constexpr uintptr_t CreateWidget = 0x141e20e60;
+// Binds a dynamic multicast delegate: void(FMulticastScriptDelegate*, UObject* Target, void* unused, FName
+// Function). Function must exist on Target's class; adding the same pair twice does nothing.
+constexpr uintptr_t AddUniqueDynamic = 0x140c9f390;
+// UUserWidget::CancelLatentActions' exec thunk, void(UObject* Context, FFrame*, void* Result): CrabMods binds
+// button clicks to it on its own widgets (the hook tells its widgets from the game's).
+constexpr uintptr_t UUserWidget_execCancelLatentActions = 0x141ea93f0;
+constexpr uintptr_t UButton_StaticClass = 0x141e8c4a0;
+constexpr uintptr_t UBackgroundBlur_StaticClass = 0x141e8af80;
+constexpr uintptr_t UUniformGridPanel_StaticClass = 0x141ea55c0;
+constexpr uintptr_t UScrollBox_StaticClass = 0x141e9cfe0;
+// The game's UI (UCrabUI and its menus, UCrabFocusMenuUI)
+constexpr uintptr_t UI_SetTextFromString = 0x140d602f0;  // void(unused, UTextBlock*, const FString*)
+constexpr uintptr_t UI_SetShown = 0x140d60400;           // void(UWidget*, bool): Visible or Hidden
+// Player controller menus. The open menu is ACrabPC+0x718 (off::PC_OpenMenu); input follows it.
+constexpr uintptr_t ACrabPC_UpdateInputMode = 0x140d0a510;  // void(ACrabPC*): UI input + cursor while a menu is open
+constexpr uintptr_t ACrabPC_CloseMenuRestoreGame = 0x140d0d000;  // void(ACrabPC*): game input, OpenMenu = null, HUD shown
+// UCrabConfirmationPromptUI ("ARE YOU SURE?" with YES / NO), its blueprint and its virtual table. Focus menus'
+// slots: 0x478 init (owner, focus button), 0x480 refresh (key texts, gamepad focus), 0x4a0 press sound,
+// 0x4c0 bool CanClose (Escape closes the menu only if true).
+constexpr uintptr_t UCrabConfirmationPromptUI_StaticClass = 0x140d72160;
+constexpr const wchar_t* ConfirmationPromptClassPath = L"/Game/UI/Menu/UI_ConfirmationPrompt.UI_ConfirmationPrompt_C";
+constexpr uintptr_t UCrabConfirmationPromptUI_VTable = 0x1432517d8;
+constexpr int FocusMenu_Init_Slot = 0x478;
+constexpr int FocusMenu_Refresh_Slot = 0x480;
+constexpr int FocusMenu_PressSound_Slot = 0x4a0;
+constexpr int FocusMenu_CanClose_Slot = 0x4c0;
+// The pickup card shown over a pickup (UCrabInteractUI; class at DA+0x90). Setters as the pickup uses them.
+constexpr uintptr_t InteractUI_SetIcon = 0x140d59310;     // void(UI, UTexture2D*)
+constexpr uintptr_t InteractUI_SetType = 0x140d59480;     // void(UI, const FString*)
+constexpr uintptr_t InteractUI_SetName = 0x140d59420;     // void(UI, const FString*)
+constexpr uintptr_t InteractUI_SetDescription = 0x140d592d0;  // void(UI, const FString*)
+constexpr uintptr_t InteractUI_SetRarityColor = 0x140d59430;  // void(UI, const FLinearColor*)
+constexpr uintptr_t InteractUI_SetLootPool = 0x140d59390;     // void(UI, uint8 LootPool)
+constexpr uintptr_t PickupDA_GetRarityColor = 0x140d3f810;    // FLinearColor*(DA, FLinearColor* Out)
+// Inventory menu (UCrabInventoryUI). Refresh (its virtual 0x480) lays out every grid from the player's slot
+// counts and items: slot widget i of a grid shows item i (missing widgets are skipped), widgets past the slot
+// count show locked. Its init (0x478) collected every slot's button for gamepad focus; a slot widget's own
+// init (its virtual 0x478) binds its hover.
+constexpr uintptr_t UCrabInventoryUI_Refresh = 0x140d5d9a0;
+constexpr uintptr_t UCrabInventorySlotUI_StaticClass = 0x140d78bd0;
+constexpr int InventorySlotUI_Init_Slot = 0x478;
+// Inventory slot counts (ACrabPS, host): a new run sets 24 / 12 / 12 / 24, a challenge run sets 8 for all.
+constexpr uintptr_t ACrabPS_ResetForNewRun = 0x140d29e50;   // void(ACrabPS*): items cleared, slot counts reset
+constexpr uintptr_t ACrabPS_ApplyChallengeSlots = 0x140d28d10;  // void(ACrabPS*): slot counts 8 in a challenge
+constexpr uintptr_t UCrabMeleeModDA_StaticClass = 0x140d7a240;
 }  // namespace va
 
 namespace off {
@@ -358,6 +411,26 @@ constexpr int DamageInfo_Damage = 0x08;  // float
 constexpr int DamageInfo_DamagingC = 0x40;  // ACrabC*
 // FCrabPortalInfo
 constexpr int PortalInfo_RewardLootPool = 0x19;
+// UMG and the game's UI objects
+constexpr int Widget_Slot = 0x28;            // UPanelSlot*
+constexpr int UserWidget_WidgetTree = 0x1D8;
+constexpr int Button_WidgetStyle = 0x128;   // FButtonStyle (SetStyle's parameter)
+constexpr int Button_OnClicked = 0x3C8;     // FMulticastScriptDelegate
+constexpr int FocusMenu_Focusable = 0x2C8;  // TArray<UWidget*>: what gamepad focus moves between
+constexpr int FocusMenu_Canvas = 0x358;     // MenuCanvasPanel
+constexpr int Prompt_MessageText = 0x3E0;
+constexpr int Prompt_YesButton = 0x3E8;
+constexpr int Prompt_NoButton = 0x3F0;
+constexpr int PC_HUD = 0x6A0;               // the gameplay UI, hidden while a menu is open
+constexpr int PC_OpenMenu = 0x718;
+constexpr int DA_InteractUIClass = 0x90;
+constexpr int InteractUI_InteractMessageText = 0x2F8;  // "PICK UP" (its row is the card's bottom border)
+constexpr int WidgetTree_RootWidget = 0x28;
+constexpr int InventoryUI_Grids[4] = {0x400, 0x408, 0x410, 0x418};  // weapon mod, ability mod, melee mod, perk grids
+constexpr int InventoryUI_OwningPS = 0x3E0;
+constexpr int InventorySlotUI_Button = 0x2F0;
+constexpr int UniformGridSlot_Row = 0x3C;
+constexpr int UniformGridSlot_Column = 0x40;
 }  // namespace off
 
 enum class IslandType : uint8_t { None = 0, Lobby = 1, NewRun = 2, ContinueRun = 3 };  // ECrabIslandType, 0..16
@@ -395,6 +468,7 @@ constexpr uint8_t WeaponMod_StreakShot = 27;  // ECrabWeaponModType; the enum en
 constexpr uint8_t WeaponMod_HeavyShot = 30;   // PickupTag Bounce: only drops once you hold Bouncing Shot
 constexpr uint8_t Perk_Collector = 72;        // ECrabPerkType; the enum ends at FlashSale = 121
 constexpr uint8_t AbilityMod_HeatSink = 11;   // ECrabAbilityModType
+constexpr uint8_t MeleeMod_BigClaws = 2;      // ECrabMeleeModType; the enum ends at Brawler = 12
 constexpr uint8_t Perk_Banana = 6;            // max health multiplier +20%
 constexpr uint8_t Perk_Magnify = 39;          // area of effect +20%
 constexpr uint8_t Relic_RingOfDefense = 21;   // ECrabRelicType

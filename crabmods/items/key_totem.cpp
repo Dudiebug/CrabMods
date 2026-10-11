@@ -1,13 +1,17 @@
-// Key totem: the lobby's key totem lets you choose what to unlock. Instead of one random locked item, a row of
-// locked items comes out of the totem; the one you take is unlocked (and is yours to use, as the game's one is).
-// Once everything is unlocked it offers a choice of any weapon mods, ability mods, melee mods, perks and relics.
+// Key totem: the lobby's key totem lets you choose what to unlock. Using it opens a menu in the game's own style
+// (its confirmation prompt, with the pickups' own cards as buttons); the item you choose is unlocked and comes
+// out of the totem, as the game's own one does. Once everything is unlocked it offers a choice of any weapon
+// mods, ability mods, melee mods, perks and relics.
 //
-// The game picks the item on the player's own machine (from their save) and asks the server to spawn it, so:
+// The game picks the item on the player's own machine (from their save), unlocks it and asks the server to spawn
+// it. The menu only changes which item that is, so it works with any host.
+//
+// Without the menu (menu = false, or the game's prompt couldn't be found) a row of choices comes out of the
+// totem instead, which needs CrabMods on the host:
 //   player's machine  ClientOnInteractedWithKeyTotem: sends several items to spawn, then a null to end the list
 //   host              ServerSpawnKeyTotemPickup: spawns each one in a row that only that player can take
 //   host              a pickup taken: the rest of the row goes away; tells the player's machine which one
 //   player's machine  that message: unlocks it in the save
-// It needs CrabMods on the host and on the player's machine; otherwise the game's own totem is used.
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -17,6 +21,7 @@
 #include <crab/hook.hpp>
 
 #include "../item.hpp"
+#include "../ui.hpp"
 #include "../world.hpp"
 
 namespace crabmods {
@@ -34,36 +39,59 @@ public:
     KeyTotem() : Item("keyTotem", 190) { g_self = this; }
 
     std::string DefaultIni() const override {
-        return R"(# Key totem: the lobby's key totem lets you choose what it unlocks. A row of locked items comes out and
-# the one you take is unlocked. Once everything is unlocked, it offers any weapon mods, ability mods, melee
-# mods, perks and relics to choose from. Needs CrabMods on the host and on your machine.
+        return R"(# Key totem: the lobby's key totem lets you choose what it unlocks, from a menu of locked items. Once
+# everything is unlocked, it offers any weapon mods, ability mods, melee mods, perks and relics to choose from.
 enabled = true
 
 # How many items to choose from (1 to 8).
 choices = 3
+
+# true: choose from a menu (works with any host). false: a row of the items comes out of the totem and you
+# pick one up (needs CrabMods on the host too).
+menu = true
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
         if (k == "enabled") enabled_ = ParseBool(v);
         else if (k == "choices") choices_ = std::clamp(int(ParseFloat(v)), 1, kMaxChoices);
+        else if (k == "menu") menu_ = ParseBool(v);
     }
     bool Enabled() const override { return enabled_; }
-    std::string Describe() const override { return "choose from " + std::to_string(choices_) + " items"; }
+    std::string Describe() const override {
+        return "choose from " + std::to_string(choices_) + " items" + (menu_ ? ", in a menu" : ", in a row");
+    }
+
+    // Player's machine: keeps the menu up until a choice is made (something else may have closed it), and
+    // forgets it on a new level (its widgets are gone).
+    void OnTick(void* world) override {
+        if (!open_.widget) return;
+        if (LevelManagerOf(world) != open_.lm) {
+            open_ = {};
+            return;
+        }
+        void* pc = open_.pc;
+        if (At<void*>(pc, off::PC_OpenMenu)) return;
+        bool inViewport = false;
+        ui::Call(open_.widget, L"IsInViewport", &inViewport);
+        if (!inViewport) {
+            int32_t z = kMenuZOrder;
+            ui::Call(open_.widget, L"AddToViewport", &z);
+        }
+        Prepare();
+        Show(open_.widget, pc);
+    }
 
     void InstallHooks() override {
+        Hook(va::UUserWidget_execCancelLatentActions, &HkClicked, &oClicked, "UUserWidget::execCancelLatentActions");
+        SwapVirtual(va::UCrabConfirmationPromptUI_VTable + va::FocusMenu_CanClose_Slot, &HkCanClose, &oCanClose,
+                    "UCrabConfirmationPromptUI::CanClose");
         Hook(va::ACrabTotem_Interact, &HkTotemInteract, &oTotemInteract, "ACrabTotem::Interact");
         Hook(va::ACrabPC_ClientOnInteractedWithKeyTotem_Impl, &HkInteracted, &oInteracted,
              "ACrabPC::ClientOnInteractedWithKeyTotem");
         Hook(va::ACrabInteractPickup_Interact, &HkPickupInteract, &oPickupInteract, "ACrabInteractPickup::Interact");
         // ServerSpawnKeyTotemPickup's implementation is a few bytes: swap its virtual table slot instead.
-        auto** slot = reinterpret_cast<SpawnFn*>(Addr(va::ACrabPC_VTable + va::ACrabPC_ServerSpawnKeyTotemPickup_Slot));
-        DWORD old;
-        if (VirtualProtect(slot, sizeof *slot, PAGE_READWRITE, &old)) {
-            oSpawn = *slot;
-            *slot = &HkSpawn;
-            VirtualProtect(slot, sizeof *slot, old, &old);
-        }
-        CRAB_LOG("hook ACrabPC::ServerSpawnKeyTotemPickup (virtual table): %s", oSpawn ? "MH_OK" : "failed");
+        SwapVirtual(va::ACrabPC_VTable + va::ACrabPC_ServerSpawnKeyTotemPickup_Slot, &HkSpawn, &oSpawn,
+                    "ACrabPC::ServerSpawnKeyTotemPickup");
     }
 
     // Player's machine: the host said which of the row was taken.
@@ -117,12 +145,22 @@ private:
         return out;
     }
 
-    // The game's choice is replaced by a row of choices when the host runs CrabMods; otherwise the game's own.
+    // The game's choice is replaced by a menu, else by a row of choices when the host runs CrabMods, else it
+    // is the game's own.
     static void HkInteracted(void* pc, void* totem) {
-        if (!g_self->enabled_ || !HostHasCrabMods(pc) || !g_self->Offer(pc, totem)) oInteracted(pc, totem);
+        KeyTotem& self = *g_self;
+        if (!self.enabled_ || !pc || !totem) return oInteracted(pc, totem);
+        std::vector<void*> das;
+        bool unlocking = false;
+        if (!self.Pick(pc, das, unlocking)) return oInteracted(pc, totem);
+        if (self.menu_ && self.OpenMenu(pc, totem, das, unlocking)) return;
+        if (HostHasCrabMods(pc) && self.SendRow(pc, totem, das, unlocking)) return;
+        oInteracted(pc, totem);
     }
 
-    bool Offer(void* pc, void* totem) {
+    // Up to choices_ items: locked ones while there are any, else any weapon mods, ability mods, melee mods,
+    // perks and relics.
+    bool Pick(void* pc, std::vector<void*>& out, bool& unlocking) {
         void* lm = LevelManagerOf(pc);
         void* sp = lm ? At<void*>(lm, off::LM_SpawnablesDA) : nullptr;
         void* gi = GameInstanceOf(pc);
@@ -136,25 +174,195 @@ private:
                 void* da = all.Data[i];
                 if (!da) continue;
                 if (!Contains(mine, da)) locked.push_back(da);
-                else if (k >= 3) any.push_back(da);  // weapon mods, ability mods, melee mods, perks, relics
+                else if (k >= 3) any.push_back(da);
             }
         }
-        unlocking_ = !locked.empty();
-        std::vector<void*>& from = unlocking_ ? locked : any;
-        if (from.empty()) return false;
-        std::shuffle(from.begin(), from.end(), rng_);
-        from.resize(std::min<size_t>(from.size(), choices_));
-        offered_ = from;
-        auto spawn = Fn<void (*)(void*, void*, void*)>(va::ACrabPC_ServerSpawnKeyTotemPickup);
-        std::string names;
-        for (void* da : offered_) {
-            spawn(pc, totem, da);
-            names += (names.empty() ? "" : ", ") + Name(da);
-        }
-        spawn(pc, totem, nullptr);  // the end of the list
-        CRAB_LOG("keyTotem: offered %s%s", names.c_str(), unlocking_ ? "" : " (everything is unlocked)");
+        unlocking = !locked.empty();
+        out = unlocking ? locked : any;
+        if (out.empty()) return false;
+        std::shuffle(out.begin(), out.end(), rng_);
+        out.resize(std::min<size_t>(out.size(), choices_));
         return true;
     }
+
+    static std::string Names(const std::vector<void*>& das) {
+        std::string names;
+        for (void* da : das) names += (names.empty() ? "" : ", ") + Name(da);
+        return names;
+    }
+
+    bool SendRow(void* pc, void* totem, const std::vector<void*>& das, bool unlocking) {
+        offered_ = das;
+        unlocking_ = unlocking;
+        auto spawn = Fn<void (*)(void*, void*, void*)>(va::ACrabPC_ServerSpawnKeyTotemPickup);
+        for (void* da : offered_) spawn(pc, totem, da);
+        spawn(pc, totem, nullptr);  // the end of the list
+        CRAB_LOG("keyTotem: offered a row of %s%s", Names(das).c_str(), unlocking ? "" : " (everything is unlocked)");
+        return true;
+    }
+
+    // --- The menu (player's machine) ---
+    //
+    // The game's confirmation prompt with its YES / NO row hidden and the items' pickup cards as buttons under
+    // its message. It can't be closed without a choice (the keys are spent). A choice unlocks the item and asks
+    // the server for it, as the game's own key totem does.
+
+    static constexpr int32_t kMenuZOrder = 2;  // as the game's menus
+
+    struct Menu {
+        void* widget = nullptr;
+        void* pc = nullptr;
+        void* lm = nullptr;
+        void* totem = nullptr;
+        bool unlocking = false;
+        std::vector<void*> das, buttons, cards;
+    };
+
+    static void* VirtualOf(void* obj, int slot) { return (*reinterpret_cast<void***>(obj))[slot / 8]; }
+    static void CallVirtual(void* obj, int slot) { reinterpret_cast<void (*)(void*)>(VirtualOf(obj, slot))(obj); }
+
+    bool OpenMenu(void* pc, void* totem, const std::vector<void*>& das, bool unlocking) {
+        void* cls = ui::FindObject(va::ConfirmationPromptClassPath);
+        void* clsCls = cls ? At<void*>(cls, off::Object_Class) : nullptr;
+        if (!clsCls || ObjectName(clsCls) != "WidgetBlueprintGeneratedClass") {
+            CRAB_LOG("keyTotem: the game's prompt isn't loaded, no menu");
+            return false;
+        }
+        void* w = ui::CreateWidget(pc, cls);
+        if (!IsA(w, StaticClass(va::UCrabConfirmationPromptUI_StaticClass))) return false;
+        void* msg = At<void*>(w, off::Prompt_MessageText);
+        void* yes = At<void*>(w, off::Prompt_YesButton);
+        void* vbox = ui::Parent(msg);
+        void* canvas = At<void*>(w, off::FocusMenu_Canvas);
+        if (!msg || !yes || !vbox || !canvas) return false;
+
+        Menu m{w, pc, LevelManagerOf(pc), totem, unlocking, das, {}, {}};
+        int n = int(das.size());
+        int cols = n <= 4 ? n : (n + 1) / 2;  // at most 2 rows
+        void* grid = ui::NewWidget(w, va::UUniformGridPanel_StaticClass);
+        if (!grid) return false;
+        ui::Margin gap{8, 8, 8, 8};
+        ui::Call(grid, L"SetSlotPadding", &gap);
+        for (int i = 0; i < n; i++) {
+            void* btn = ui::NewWidget(w, va::UButton_StaticClass);
+            void* card = ui::CreateWidget(pc, At<void*>(das[i], off::DA_InteractUIClass));
+            if (!btn || !card) return false;
+            ui::Call(btn, L"SetStyle", &At<uint8_t>(yes, off::Button_WidgetStyle));  // the YES button's look
+            FillCard(card, das[i], n > 3);
+            ui::SetVisibility(card, ui::HitTestInvisible);  // the button takes the clicks
+            ui::SetPadding(ui::SetContent(btn, card), {6, 6, 6, 6});
+            ui::AddToGrid(grid, btn, i / cols, i % cols);
+            alignas(8) uint8_t unused[16]{};
+            Fn<void (*)(void*, void*, void*, uint64_t)>(va::AddUniqueDynamic)(
+                &At<uint8_t>(btn, off::Button_OnClicked), card, unused, ui::Name(L"CancelLatentActions"));
+            m.buttons.push_back(btn);
+            m.cards.push_back(card);
+        }
+        ui::SetVisibility(ui::Parent(yes), ui::Collapsed);  // YES / NO
+        void* gridSlot = ui::AddToVerticalBox(vbox, grid);
+        ui::SetPadding(gridSlot, {0, 25, 0, 0});
+        ui::SetHAlign(gridSlot, ui::Center);
+        // The game behind is blurred, as behind its other menus.
+        if (void* blur = ui::NewWidget(w, va::UBackgroundBlur_StaticClass)) {
+            float strength = 20.f;
+            ui::Call(blur, L"SetBlurStrength", &strength);
+            void* s = ui::AddToCanvas(canvas, blur);
+            ui::AnchorData fill{{0, 0, 0, 0}, 0, 0, 1, 1, 0, 0};
+            ui::Call(s, L"SetLayout", &fill);
+            int32_t z = -2;
+            ui::Call(s, L"SetZOrder", &z);
+        }
+
+        int32_t z = kMenuZOrder;
+        ui::Call(w, L"AddToViewport", &z);
+        Fn<void (*)(void*, bool)>(va::UI_SetShown)(w, true);
+        CallVirtual(w, va::FocusMenu_Init_Slot);
+        open_ = std::move(m);
+        Prepare();
+        Show(w, pc);
+        CRAB_LOG("keyTotem: menu of %s%s", Names(das).c_str(), unlocking ? "" : " (everything is unlocked)");
+        return true;
+    }
+
+    // The pickup's own card, filled as the game fills it over a pickup, without its "PICK UP" row.
+    static void FillCard(void* card, void* da, bool narrow) {
+        static const wchar_t* const kTypes[] = {L"",           L"Weapon",    L"Ability", L"Melee", L"Weapon Mod",
+                                                L"Ability Mod", L"Melee Mod", L"Perk",    L"Relic"};
+        static const wchar_t* const kRarities[] = {L"", L"Common", L"Epic", L"Legendary", L"Greed"};
+        uint8_t type = At<uint8_t>(da, off::DA_PickupType), rarity = At<uint8_t>(da, off::DA_Rarity);
+        std::wstring t = type < std::size(kTypes) ? kTypes[type] : L"";
+        if (type > 3 && rarity < std::size(kRarities) && *kRarities[rarity]) t = std::wstring(kRarities[rarity]) + L" " + t;
+        TArray<wchar_t> ts{t.data(), int(t.size()) + 1, int(t.size()) + 1};
+        Fn<void (*)(void*, void*)>(va::InteractUI_SetIcon)(card, At<void*>(da, off::DA_Icon));
+        Fn<void (*)(void*, const void*)>(va::InteractUI_SetType)(card, &ts);
+        Fn<void (*)(void*, const void*)>(va::InteractUI_SetName)(card, &At<TArray<wchar_t>>(da, off::DA_Name));
+        Fn<void (*)(void*, const void*)>(va::InteractUI_SetDescription)(card,
+                                                                        &At<TArray<wchar_t>>(da, off::DA_Description));
+        ui::LinearColor color{};
+        Fn<void* (*)(void*, ui::LinearColor*)>(va::PickupDA_GetRarityColor)(da, &color);
+        Fn<void (*)(void*, const ui::LinearColor*)>(va::InteractUI_SetRarityColor)(card, &color);
+        Fn<void (*)(void*, uint8_t)>(va::InteractUI_SetLootPool)(card, At<uint8_t>(da, off::DA_LootPool));
+        if (void* pickUp = At<void*>(card, off::InteractUI_InteractMessageText))
+            ui::SetVisibility(ui::Parent(ui::Parent(ui::Parent(pickUp))), ui::Collapsed);
+        void* tree = At<void*>(card, off::UserWidget_WidgetTree);
+        void* root = tree ? At<void*>(tree, off::WidgetTree_RootWidget) : nullptr;
+        if (narrow && root) {  // four cards to a row
+            float width = 400.f;
+            ui::Call(root, L"SetWidthOverride", &width);
+        }
+    }
+
+    // What the prompt's own setup would otherwise put back: its message, and gamepad focus moving between the
+    // cards instead of YES / NO.
+    void Prepare() {
+        void* w = open_.widget;
+        ui::SetText(At<void*>(w, off::Prompt_MessageText),
+                    open_.unlocking ? L"CHOOSE AN ITEM TO UNLOCK" : L"CHOOSE AN ITEM");
+        auto& focusable = At<TArray<void*>>(w, off::FocusMenu_Focusable);
+        focusable.Num = 0;
+        for (void* b : open_.buttons) Append(focusable, b);
+    }
+
+    // As the game opens a menu: shown, refreshed, the player's open menu (input and cursor follow it), the
+    // gameplay UI hidden.
+    static void Show(void* w, void* pc) {
+        Fn<void (*)(void*, bool)>(va::UI_SetShown)(w, true);
+        CallVirtual(w, va::FocusMenu_Refresh_Slot);
+        At<void*>(pc, off::PC_OpenMenu) = w;
+        Fn<void (*)(void*)>(va::ACrabPC_UpdateInputMode)(pc);
+        if (void* hud = At<void*>(pc, off::PC_HUD)) Fn<void (*)(void*, bool)>(va::UI_SetShown)(hud, false);
+    }
+
+    void Choose(size_t i) {
+        Menu m = std::move(open_);
+        open_ = {};
+        CallVirtual(m.widget, va::FocusMenu_PressSound_Slot);
+        ui::RemoveFromParent(m.widget);
+        if (At<void*>(m.pc, off::PC_OpenMenu) == m.widget)
+            Fn<void (*)(void*)>(va::ACrabPC_CloseMenuRestoreGame)(m.pc);
+        void* da = m.das[i];
+        void* gi = GameInstanceOf(m.pc);
+        if (m.unlocking && gi && !Unlocked(gi, da)) Fn<void (*)(void*, void*)>(va::UCrabGI_UnlockPickup)(gi, da);
+        // One item: the server spawns it as the game's own key totem item (a CrabMods host, for this player only).
+        Fn<void (*)(void*, void*, void*)>(va::ACrabPC_ServerSpawnKeyTotemPickup)(m.pc, m.totem, da);
+        CRAB_LOG("keyTotem: chose %s%s", Name(da).c_str(), m.unlocking ? " (unlocked)" : "");
+    }
+
+    // The cards' buttons call UUserWidget::CancelLatentActions on their card when clicked.
+    using ExecFn = void (*)(void*, void*, void*);
+    static inline ExecFn oClicked;
+    static void HkClicked(void* context, void* frame, void* result) {
+        oClicked(context, frame, result);
+        Menu& m = g_self->open_;
+        if (!m.widget || !context) return;
+        auto it = std::find(m.cards.begin(), m.cards.end(), context);
+        if (it != m.cards.end()) g_self->Choose(size_t(it - m.cards.begin()));
+    }
+
+    // Escape and the gamepad's back button close a menu only if it allows it.
+    using CanCloseFn = bool (*)(void*);
+    static inline CanCloseFn oCanClose;
+    static bool HkCanClose(void* w) { return w != g_self->open_.widget && oCanClose(w); }
 
     // --- Host ---
 
@@ -249,7 +457,9 @@ private:
     }
 
     bool enabled_ = true;
+    bool menu_ = true;
     int choices_ = 3;
+    Menu open_;
     std::mt19937 rng_{std::random_device{}()};
     // Player's machine: what was offered, in order, and whether taking one unlocks it.
     std::vector<void*> offered_;

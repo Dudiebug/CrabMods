@@ -144,21 +144,23 @@ inline std::string Num(float v) {
 // ---------------------------------------------------------------------------------------------------------
 // Inventory
 
-enum class Kind : uint8_t { WeaponMod, AbilityMod, Perk, Relic };
+enum class Kind : uint8_t { WeaponMod, AbilityMod, Perk, Relic, MeleeMod };
 
 struct KindInfo {
     uintptr_t staticClass;   // va:: StaticClass getter
     int spawnablesList;      // off::Spawnables_*: the game's full list of this kind
     int playerArray;         // off::PS_*: TArray<FCrab...> on ACrabPS, 0x28 per entry, DA at +0, level at +8
-    const char* iconPrefix;  // T_Icon_<Kind>_<Rarity>
+    const char* iconPrefix;  // T_Icon_<Kind>_<Rarity> (ability mods still use the grenade mod icons)
 };
 
 inline const KindInfo& Info(Kind k) {
     static const KindInfo info[] = {
         {va::UCrabWeaponModDA_StaticClass, off::Spawnables_WeaponMods, off::PS_WeaponMods, "T_Icon_WeaponMod_"},
-        {va::UCrabAbilityModDA_StaticClass, off::Spawnables_AbilityMods, off::PS_AbilityMods, "T_Icon_AbilityMod_"},
+        {va::UCrabAbilityModDA_StaticClass, off::Spawnables_AbilityMods, off::PS_AbilityMods, "T_Icon_GrenadeMod_"},
         {va::UCrabPerkDA_StaticClass, off::Spawnables_Perks, off::PS_Perks, "T_Icon_Perk_"},
         {va::UCrabRelicDA_StaticClass, off::Spawnables_Relics, off::PS_Relics, "T_Icon_Relic_"},
+        // No generic melee mod icons: the template's own stays.
+        {va::UCrabMeleeModDA_StaticClass, off::Spawnables_MeleeMods, off::PS_MeleeMods, "T_Icon_MeleeMod_"},
     };
     return info[int(k)];
 }
