@@ -1,4 +1,4 @@
-// Arsenal, a weapon mod: more damage for each other weapon mod you have.
+// Arsenal, a weapon mod: more damage for each level of the other weapon mods you have (Collector, for weapon mods).
 #include <windows.h>
 
 #include "../item.hpp"
@@ -12,34 +12,29 @@ public:
     Arsenal()
         : AssetItem("arsenal", 10,
                     {Kind::WeaponMod, L"DA_WeaponMod_Arsenal", L"Arsenal",
-                     L"Shots deal more damage for each weapon mod you have",
-                     L"Damage increased by PrimaryBuff% for each other weapon mod you have", 200,
+                     L"Shots deal more damage for each weapon mod level you have",
+                     L"Damage increased by PrimaryBuff% for each level of your other weapon mods", 200,
                      WeaponMod_StreakShot},
                     rarity::Epic) {}
 
     std::string DefaultIni() const override {
-        return R"(# Arsenal, a weapon mod: more damage for each other weapon mod you have.
+        return R"(# Arsenal, a weapon mod: more damage for each level of the other weapon mods you have (a x3 stack is 3).
 enabled = true
 
-# Damage bonus for each other weapon mod you hold, in percent. Each extra Arsenal stacks it again.
+# Damage bonus for each level of the other weapon mods you hold, in percent. Each extra Arsenal stacks it again.
 damagePerModPercent = 3
 
 # Which chests it drops from: common, epic or legendary.
 rarity = epic
 
-# true: a x3 stack of a mod counts as three mods (for Arsenal and Hoarder). false: each different mod
-# counts once.
-countStacks = false
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
         if (k == "damagePerModPercent") pct_ = ParseFloat(v);
-        else if (k == "countStacks") countStacks_ = ParseBool(v);
         else AssetItem::Set(k, v);
     }
     std::string Describe() const override {
-        return "+" + Num(pct_) + "% per other weapon mod, " + RarityName(rarity_) +
-               (countStacks_ ? ", stacks count" : "");
+        return "+" + Num(pct_) + "% per other weapon mod level, " + RarityName(rarity_);
     }
 
     // The old standalone Arsenal.dll makes the same asset; with both installed only it does.
@@ -52,13 +47,13 @@ countStacks = false
         AssetItem::OnBeginPlay(lm);
     }
 
-    // Arsenal level x other weapon mods.
+    // Arsenal level x the other weapon mods' levels.
     float DamageBonus(void* ps) override {
         if (!da_) return 0.f;
         int level = 0, others = 0;
         ForEachItem(ps, off::PS_WeaponMods, [&](void* da, int l) {
             if (da == da_) level += l;
-            else others += countStacks_ ? l : 1;
+            else others += l;
         });
         return level * others * pct_ * 0.01f;
     }
@@ -67,12 +62,10 @@ countStacks = false
         if (!da || da != da_) return {};
         int others = 0;
         ForEachItem(ps, off::PS_WeaponMods, [&](void* d, int l) {
-            if (d != da_) others += countStacks_ ? l : 1;
+            if (d != da_) others += l;
         });
-        return CountNote(ps, da, "Other weapon mods counted", others);
+        return CountNote(ps, da, "Other weapon mod levels counted", others);
     }
-
-    bool countStacks_ = false;
 
 protected:
     float PrimaryBuff() const override { return pct_; }
@@ -85,7 +78,5 @@ private:
 Arsenal g_item;
 
 }  // namespace
-
-bool ArsenalCountStacks() { return g_item.countStacks_; }
 
 }  // namespace crabmods

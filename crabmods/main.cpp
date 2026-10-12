@@ -393,8 +393,8 @@ void HookRewardChests() {
 //
 // SpawnPortals picks a reward pool for each Arena, Horde and Demolition portal, by weight and without repeats,
 // then calls SetInfo for the portal. When an item makes a pool more likely, the reward is picked again here
-// with the same weights times the items' factors. Anvil and Spiked rewards come with their own rules, so
-// those are left alone and never picked.
+// with the same weights times the items' factors, and so is one an item rules out (No Anvil Portals). Anvil and
+// Spiked rewards come with their own rules, so they are never picked here.
 
 using SpawnPortalsFn = void (*)(void*);
 using SetPortalInfoFn = void (*)(void*, void*);
@@ -428,9 +428,14 @@ void HkSpawnPortals(void* lm) {
 void HkSetPortalInfo(void* portal, void* info) {
     if (g_spawningPortals && info) {
         uint8_t& reward = At<uint8_t>(info, off::PortalInfo_RewardLootPool);
-        if (reward > 0 && reward < 16 && BaseRewardWeight(reward) > 0.f) {
+        // A reward an item weighs at 0 (No Anvil Portals) is always picked again, Anvil and Spiked included.
+        float own = 1.f;
+        if (reward > 0 && reward < 16)
+            ForEachEnabled([&](Item* i) { own *= i->PortalRewardWeight(g_spawningPortals, reward); });
+        bool banned = own <= 0.f;
+        if (reward > 0 && reward < 16 && (BaseRewardWeight(reward) > 0.f || banned)) {
             float w[16] = {}, total = 0.f;
-            bool boosted = false;
+            bool boosted = banned;
             for (uint8_t p = 1; p < 16; p++) {
                 if (g_rewardUsed[p] || BaseRewardWeight(p) == 0.f) continue;
                 float m = 1.f;

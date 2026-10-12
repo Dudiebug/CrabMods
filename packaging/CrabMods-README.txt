@@ -2,14 +2,14 @@ CrabMods - new items for Crab Champions.
 https://github.com/Dudiebug/CrabMods
 
 Items (all bonuses are per level, and stack):
-  Arsenal (Epic weapon mod): +3% damage per other weapon mod.
-  Hoarder (Legendary perk): +3% damage per weapon mod and per perk level.
+  Arsenal (Epic weapon mod): +3% damage per level of your other weapon mods.
+  Hoarder (Legendary perk): +3% damage per weapon mod level and per perk level.
   Minimalist (Epic perk): +40% damage, minus 4% per different pickup tag you hold.
   Underdog (Epic perk): +0.5% damage per 1% of health missing.
   Untouchable (Epic perk): +1% damage per second without being hit, up to +20%.
   Jack of All Trades (Epic perk): +3% damage per different pickup tag.
   Greed Is Power (Greed perk): +3% damage per Greed perk level.
-  Purist (Epic relic): +10% damage while all your elemental pickups are one element.
+  Purist (Epic relic): +100% damage while all your elemental pickups are one element.
   Collateral Damage (Epic perk): +3% damage per destructible broken this island.
   Overflow (Epic perk): every 100 health healed at full health gives
     +3% damage until the island ends.
@@ -26,8 +26,9 @@ Items (all bonuses are per level, and stack):
   Last Crab Standing (Epic relic): +25% damage per downed teammate, +25% more
     when you are the last one up. Never drops when you play alone.
   Double or Nothing (Greed relic): twice as many island reward chests, or none.
-  Cursed Lottery (Greed relic): 100,000 crystals, then only 0.01% of the
-    crystals you'd gain while you hold it. Can't be dropped.
+  Cursed Lottery (Greed relic): 15,000 crystals, more the later you find it,
+    then only 0.01% of the crystals you'd gain while you hold it, and Money
+    Is Power does nothing. Can't be dropped.
   Lucky Charm (Legendary relic): mods and perks in your chests have a 25%
     chance to be level 2.
   Combo Catalyst (Epic perk): +1 stack of each element your hits apply for
@@ -63,6 +64,8 @@ Items (all bonuses are per level, and stack):
     choose any item. Works with any host.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
+  No Anvil Portals: portals never lead to an Anvil island; they get another
+    reward instead ([noAnvilPortals] enabled).
 
 Soul Whip (a new weapon, on its own pedestal left of the Crossbow in the lobby):
   Each crack sends a purple soul bolt that bursts where it lands and tags
@@ -76,8 +79,9 @@ Soul Whip (a new weapon, on its own pedestal left of the Crossbow in the lobby):
       (Epic): ability mods for raising.
     Grave Claws (Common), Harvester (Legendary): melee mods for souls and free
       raises.
-    Soul Jar, Hungry Ghosts, Last Rites (Common), Plague Bearers, Grim
-      Harvest (Epic), Army of the Dead (Legendary): perks.
+    Soul Jar, Hungry Ghosts, Last Rites, Hollow Hunger (Common), Plague
+      Bearers, Grim Harvest, Legion (Epic), Army of the Dead (Legendary):
+      perks.
     Ring of Souls, Ring of the Grave (Epic), Phylactery (Legendary): relics.
 
 

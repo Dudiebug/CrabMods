@@ -1,4 +1,4 @@
-// The Soul Whip's loot: 20 pickups (whip and raise mods, claw mods, perks, relics) that only drop for players
+// The Soul Whip's loot: 22 pickups (whip and raise mods, claw mods, perks, relics) that only drop for players
 // holding the whip, from chests of their own loot pool (and any-pool chests: Random, Epic, Legendary, Spiked;
 // relics also Relic chests). The Summoner Specialist relic brings them to every chest. Each is an ordinary new pickup with one number per level in CrabMods.ini;
 // what it does is up to necromancer.cpp (necro_loot.hpp).
@@ -34,7 +34,7 @@ const Def kDefs[] = {
     {necro_loot::BrandingIron, "brandingIron",
      {Kind::WeaponMod, L"DA_WeaponMod_BrandingIron", L"Branding Iron", L"Bigger soul bursts and tags",
       L"Your soul bolt's burst and tags reach PrimaryBuff% farther", 232, WeaponMod_StreakShot, pool::Skill, tag::None, 1.f},
-     rarity::Common, "radiusPercent", 25.f, "the soul bolt's burst and its tags reach farther."},
+     rarity::Common, "radiusPercent", 15.f, "the soul bolt's burst and its tags reach farther."},
     {necro_loot::DeathMark, "deathMark",
      {Kind::WeaponMod, L"DA_WeaponMod_DeathMark", L"Death Mark", L"Tagged enemies take more damage from you",
       L"Tagged enemies take PrimaryBuff% more damage from you", 233, WeaponMod_StreakShot, pool::Damage, tag::None, 1.f},
@@ -98,15 +98,24 @@ const Def kDefs[] = {
      {Kind::Perk, L"DA_Perk_GrimHarvest", L"Grim Harvest", L"Tagged kills give more souls",
       L"Tagged kills give PrimaryBuff% more souls, on top of the tag's own", 235, Perk_Collector, pool::Economy, tag::None, 1.f},
      rarity::Epic, "soulsPercent", 50.f, "tagged kills give even more souls (on top of taggedSoulsPercent)."},
+    {necro_loot::Legion, "legion",
+     {Kind::Perk, L"DA_Perk_Legion", L"Legion", L"More undead at once",
+      L"You can have PrimaryBuff more undead at once", 236, Perk_Collector, pool::Skill, tag::None, 1.f},
+     rarity::Epic, "undead", 5.f, "you can have more undead at once (on top of the necromancer's maxUndead)."},
+    {necro_loot::HollowHunger, "hollowHunger",
+     {Kind::Perk, L"DA_Perk_HollowHunger", L"Hollow Hunger", L"Your undead cost less upkeep",
+      L"Your undead's upkeep is cut by PrimaryBuff% (never below an eighth)", 237, Perk_Collector, pool::Economy, tag::None, 1.f},
+     rarity::Common, "upkeepCutPercent", 50.f,
+     "your undead's upkeep costs fewer souls. Each level cuts it again (two levels at 50: a quarter\n# left), never below an eighth."},
 
     {necro_loot::RingOfSouls, "ringOfSouls",
      {Kind::Relic, L"DA_Relic_RingOfSouls", L"Ring of Souls", L"More souls from everything",
       L"PrimaryBuff% more souls from everything", 230, Relic_FireRing, pool::Economy, tag::None, 1.f},
-     rarity::Epic, "soulsPercent", 25.f, "more souls from everything."},
+     rarity::Epic, "soulsPercent", 40.f, "more souls from everything."},
     {necro_loot::RingOfTheGrave, "ringOfTheGrave",
      {Kind::Relic, L"DA_Relic_RingOfTheGrave", L"Ring of the Grave", L"Stronger undead",
       L"Your undead have PrimaryBuff% more health and damage", 231, Relic_FireRing, pool::Damage, tag::None, 1.f},
-     rarity::Epic, "percent", 25.f, "your undead have more health and damage."},
+     rarity::Epic, "percent", 40.f, "your undead have more health and damage."},
     {necro_loot::Phylactery, "phylactery",
      {Kind::Relic, L"DA_Relic_Phylactery", L"Phylactery", L"Your souls can save you",
       L"Once per island, a hit that would down you is cancelled. It spends all your souls (at least PrimaryBuff)",

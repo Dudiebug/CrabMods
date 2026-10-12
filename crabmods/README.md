@@ -10,8 +10,8 @@
 
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
-| **Arsenal** | weapon mod | Epic | +3% damage for each other weapon mod you have. |
-| **Hoarder** | perk | Legendary | +3% damage for each weapon mod **and** each perk level you have. Arsenal and Collector in one. |
+| **Arsenal** | weapon mod | Epic | +3% damage for each **level** of your other weapon mods (a x3 stack counts 3). Collector for weapon mods. |
+| **Hoarder** | perk | Legendary | +3% damage for each weapon mod level **and** each perk level you have. Arsenal and Collector in one. |
 | **Minimalist** | perk | Epic | +40% damage, minus 4% for each **different pickup tag** you hold (Jack of All Trades the other way round). |
 | **Underdog** | perk | Epic | +0.5% damage for every 1% of health you are missing (+25% at half health). |
 | **Untouchable** | perk | Epic | +1% damage for each second without taking damage, up to +20%. Getting hit resets it. |
@@ -20,7 +20,7 @@
 | **Combo Catalyst** | perk | Epic | Your hits apply **+1 stack of each element** they already apply for every combo level above 1 (+4 at combo 5). |
 | **Encore** | relic | Epic | Perks that go off by themselves have a **15% chance to go off twice**: Exploding / Freezing / Flammable / Electric / Poisonous Enemies, Explosive / Poisonous / Flammable Armor, and Grave Dodger (it can save you again that island). A failed Rigged Totems or Autoloader roll gets a second try, and Finishing Move's bonus can count twice. |
 | **Autoloader** | perk | Epic | Each kill has a **10% chance to reload your weapon instantly** (more levels: 16.7%, 23.1%, ...). |
-| **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
+| **Purist** | relic | Epic | +100% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +3% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives +3% damage until the island ends. It resets each island, like Collateral Damage. |
 | **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
@@ -43,7 +43,7 @@
 | **Damage / Luck Specialist** | relics | Epic | Damage (or Luck) pickups are offered 3× as often to you and can also come out of your other chests, and Damage (or Luck) islands are offered 3× as often to the team. |
 | **Summoner Specialist** | relic | Epic | The Soul Whip's 20 pickups are offered **3×** as often to you, and can come out of all your chests. Only drops while you hold the Soul Whip. |
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
-| **Cursed Lottery** | Greed relic | Greed | **100,000 crystals** when you pick it up, but while you hold it you only get **0.01%** of the crystals you'd gain. It **can't be dropped**. Rare (spawn weight 0.15). |
+| **Cursed Lottery** | Greed relic | Greed | **15,000 crystals** when you pick it up, plus 100% more for every 14 islands into the run (30,000 on island 14), but while you hold it you only get **0.01%** of the crystals you'd gain, and **Money Is Power does nothing** (its card says so). It **can't be dropped**. Rare (spawn weight 0.15). |
 | **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
 | **Finishing Move** | perk | Epic | Enemies you kill with a **critical hit** drop **+50% crystals**. |
 | **Rigged Totems** | perk | Epic | Health, Chance and Gamble totems are **25% more likely to go your way** (a 50% totem becomes 62.5%). |
@@ -61,17 +61,17 @@
 
 | Item | Type | Effect |
 |---|---|---|
-| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 100). Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
+| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 75). You can have up to 20 undead at once. Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. They get half your damage bonus. Their kills give you half the souls, and their crystals drop, but your on-kill perks and relics don't go off. Each costs 1% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give half their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
 
 ### Soul Whip loot
 
-These only drop for players **holding the Soul Whip**, from chests of their loot pool (Damage: Death Mark, Army of the Dead, Ring of the Grave; Health: Sturdy Bones, Phylactery; Luck: Twin Rising, Harvester; Elemental: Plague Bearers, a Poison pickup; Skill: Long Lash, Branding Iron, Soul Brand, Mass Grave; Economy: the rest) and from any-pool chests (Random, Epic, Legendary, Spiked). The **Summoner Specialist** brings them to every chest. The game's own ability mods don't drop for whip holders, since the whip replaces the ability. Numbers are per level.
+These only drop for players **holding the Soul Whip**, from chests of their loot pool (Damage: Death Mark, Army of the Dead, Ring of the Grave; Health: Sturdy Bones, Phylactery; Luck: Twin Rising, Harvester; Elemental: Plague Bearers, a Poison pickup; Skill: Long Lash, Branding Iron, Soul Brand, Mass Grave, Legion; Economy: the rest) and from any-pool chests (Random, Epic, Legendary, Spiked). The **Summoner Specialist** brings them to every chest. The game's own ability mods don't drop for whip holders, since the whip replaces the ability. Numbers are per level.
 
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Long Lash** | weapon mod | Common | Soul bolts fly **15%** farther. |
 | **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
-| **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **25%** farther. |
+| **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **15%** farther. |
 | **Death Mark** | weapon mod | Epic | Tagged enemies take **10%** more damage from you. |
 | **Soul Brand** | weapon mod | Epic | Killing a tagged enemy tags the **2** enemies nearest it. |
 | **Sturdy Bones** | ability mod | Common | Undead you raise have **15%** more health. |
@@ -83,11 +83,13 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 | **Soul Jar** | perk | Common | **+10** max souls. |
 | **Hungry Ghosts** | perk | Common | Kills give **10%** more souls. |
 | **Last Rites** | perk | Common | When one of your undead falls in a fight, **15%** of its raise cost comes back. |
-| **Army of the Dead** | perk | Legendary | **+4%** damage for each undead you have. |
+| **Army of the Dead** | perk | Legendary | **+4%** damage for each undead you have, weighed by rank: a fodder counts a quarter, a medium 1, a hard 2, an elite 4. |
 | **Plague Bearers** | perk | Epic | Your undead's attacks apply **3 poison**. |
 | **Grim Harvest** | perk | Epic | Tagged kills give **50%** more souls, on top of the tag's own +50%. |
-| **Ring of Souls** | relic | Epic | **25%** more souls from everything. |
-| **Ring of the Grave** | relic | Epic | Your undead have **25%** more health and damage. |
+| **Legion** | perk | Epic | **+5** undead you can have at once. |
+| **Hollow Hunger** | perk | Common | Undead upkeep is **halved** (each level halves it again, never below an eighth). |
+| **Ring of Souls** | relic | Epic | **40%** more souls from everything. |
+| **Ring of the Grave** | relic | Epic | Your undead have **40%** more health and damage. |
 | **Phylactery** | relic | Legendary | Once per island, a hit that would down you is cancelled and you're left at half health or more. It spends all your souls, and needs at least **50**. |
 
 ### Charms (inventory slots)
@@ -109,6 +111,7 @@ Charms are a kind of item of their own, and they're what give you more inventory
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
 | **Key totem** | While you still have **locked items**, the lobby's key totem works like the game's own but lets you **choose one of 3** random locked items from a menu (`choices`); closing the menu and reopening it shows the same three. Once everything is unlocked it opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
+| **No Anvil Portals** | The portals after an island never lead to an **Anvil** island. A portal the game would make an Anvil gets another reward instead, picked by the game's own weights. Host only: the host spawns the portals. |
 | **Parkour islands** (experimental) | Brings back the **Parkour island** the game dropped in 2025. On islands 1 to 3 the Demolition portal is sometimes (`chance`, 50%) a Parkour portal instead. Arctic runs get Arctic_Parkour_01, the other biomes Tropical_Parkour_01. **Needs the Parkour maps add-on on every player's game** (see [Parkour maps](#parkour-maps)); if anyone lacks it, Parkour isn't offered. |
 
 
@@ -162,9 +165,8 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 
 | Section | Setting | Default | |
 |---|---|---|---|
-| `[arsenal]` | `damagePerModPercent` | `3` | Per other weapon mod. |
-| | `countStacks` | `false` | `true` counts a x3 stack as three mods (for Arsenal and Hoarder). |
-| `[hoarder]` | `damagePercent` | `3` | Per weapon mod and per perk level. |
+| `[arsenal]` | `damagePerModPercent` | `3` | Per level of the other weapon mods. |
+| `[hoarder]` | `damagePercent` | `3` | Per weapon mod level and per perk level. |
 | `[heavyShot]` | `enabled` | `true` | Let Heavy Shot drop for every weapon (called `anyWeapon` before 0.9.0, still read). |
 | `[minimalist]` | `maxPercent`, `perTagPercent` | `40`, `4` | Bonus with no tags; taken off per different tag. |
 | `[underdog]` | `damagePercent` | `0.5` | Per 1% of health missing. |
@@ -172,7 +174,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `maxPercent` | `20` | The most it builds up to. |
 | `[jackOfAllTrades]` | `damagePercent` | `3` | Per different pickup tag. |
 | `[greedIsPower]` | `damagePercent` | `3` | Per Greed perk level. |
-| `[purist]` | `damagePercent` | `10` | |
+| `[purist]` | `damagePercent` | `100` | |
 | `[collateralDamage]` | `damagePercent` | `3` | Per destructible broken this island. |
 | `[overflow]` | `damagePercent` | `3` | Per stack. |
 | | `healthPerStack` | `100` | Healing past max health one stack takes. |
@@ -181,7 +183,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[lastCrabStanding]` | `perDownedPercent` | `25` | Per downed teammate. |
 | | `lastStandingPercent` | `25` | Extra when you are the only one up. |
 | `[doubleOrNothing]` | `doubleChancePercent` | `50` | The chance of twice as many island reward chests; otherwise none. |
-| `[cursedLottery]` | `crystals` | `100000` | Crystals when you pick it up. |
+| `[cursedLottery]` | `crystals`, `islandsToDouble` | `15000`, `14` | Crystals when you pick it up on island 0, and how many islands it takes to pay that much again (0: fixed). |
 | | `gainPercent` | `0.01` | The share of crystal gains you still get while holding it. |
 | `[luckyCharm]` | `chancePercent` | `25` | The chance for each mod or perk in your chests to be level 2. |
 | `[comboCatalyst]` | `stacksPerComboLevel` | `1` | Extra stacks of each element per combo level above 1 (rounded per hit). |
@@ -192,6 +194,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[recharge]` | `secondsPerKill` | `0.1` | |
 | `[spikedChest]` | `enabled` | `true` | Off: the Spiked Chest costs the game's own 25%. |
 | | `costPercent` | `35` | What the Spiked Chest costs, in percent of base max health (0 to 99; the game's own is 25). The portal text follows it. |
+| `[noAnvilPortals]` | `enabled` | `true` | Off: Anvil islands come up as in the game. |
 | `[thickShell]` | `healthPercent` | `3` | Max health multiplier per perk level. |
 | `[communitySupport]` | `fireRatePercent` | `12` | Per Community Support in range (Rapid Fire's is 12). |
 | | `rangeMeters` | `20` | |
@@ -214,17 +217,21 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `tagDamagePercent`, `taggedSoulsPercent` | `25`, `50` | More undead damage to tagged enemies; more souls for tagged kills. |
 | | `maxSouls` | `100` | |
 | | `soulsEasy` ... `soulsBoss` | `1`, `3`, `6`, `25`, `60` | Souls a kill gives, by the enemy's rank. |
-| | `costFodder`, `costMedium`, `costHard`, `costElite` | `10`, `15`, `40`, `100` | Souls a raise costs. |
+| | `costFodder`, `costMedium`, `costHard`, `costElite` | `10`, `15`, `40`, `75` | Souls a raise costs. |
 | | `fodderPack` | `3` | Fodder raised at once. |
+| | `maxUndead` | `20` | Undead you can have at once (Legion adds more). |
 | | `raiseRangeMeters` | `40` | |
-| | `upkeepPercent` | `0.25` | Of an undead's raise cost, each second while enemies are alive. |
+| | `upkeepPercent` | `1` | Of an undead's raise cost, each second while enemies are alive. |
+| | `survivorRefundPercent` | `50` | Of their raise cost, back as souls for undead still standing when the fight ends. |
 | | `starvePercent` | `4` | Out of souls, each undead loses this percent of its health a second. |
-| | `undeadHealth`, `undeadDamage` | `2`, `1` | Undead health and damage, as a multiple of the enemy's own (your damage bonuses multiply the damage too). |
-| | `eliteHealth`, `eliteDamage` | `0.5`, `0.5` | Raised elites' health and damage, on top of that, as a multiple of a real one's. |
+| | `undeadHealth`, `undeadDamage` | `2`, `1` | Undead health and damage, as a multiple of the enemy's own. |
+| | `ownerDamagePercent` | `50` | How much of your damage bonus your undead get (100: all of it). |
+| | `undeadKillSoulsPercent` | `50` | Souls from your undead's kills, in percent of yours. |
+| | `eliteHealth`, `eliteDamage` | `1`, `0.5` | Raised elites' health and damage, on top of that, as a multiple of a real one's. |
 | | `aggroBias` | `1.5` | Enemies turn on an undead when it is this many times closer than the nearest player. |
 | | `raiseKeyFodder`, `raiseKeyMedium`, `raiseKeyHard`, `raiseKeyElite` | `V`, `C`, `X`, `Z` | **Your own keys**: the host's settings never change them. A letter or digit, `F1`-`F24`, `Mouse3`-`Mouse5`, `Num0`-`Num9`, `Tab`, `Shift`, `Ctrl`, `Alt`, `Space`, `CapsLock`, `Enter`, `Insert`, `Delete`, `Home`, `End`, `PageUp`, `PageDown`, or the arrows (`Up`, ...). |
 | | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They also follow the game's Master and Gameplay volume sliders. |
-| `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
+| `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `undead`, `upkeepCutPercent`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
 | `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
 | `[fireSpecialist]` ... `[summonerSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
@@ -256,6 +263,7 @@ The effects:
 - **Rigged Totems**: the Health, Chance and Gamble totems decide with one roll (a percent chance of the good outcome) when a player uses them. For a player with the perk, CrabMods raises that chance before the roll.
 - **Recharge** reads each player's kill counter (which the game sends to everyone) whenever the ability cooldown ticks, and takes the kills since the last tick off the cooldown.
 - **Spiked Chest**: every spiked chest copies its cost from the chest's class defaults when it spawns, so CrabMods changes that one number. The host spawns the chests and takes the payment, so the host's setting is what you pay. The portal text is one fixed sentence in the game's own strings, which CrabMods rewrites in memory on every player's machine (padded to the same length, because the game copies exactly that many characters).
+- **No Anvil Portals**: the host picks each portal's reward when it spawns the portals. When the game picks Anvil, CrabMods picks again with the game's weights from the rewards no other portal has, the same way the Specialists' portal boost does.
 - **Heavy Shot**'s asset says
  "only offer me to a player who holds Bouncing Shot". CrabMods clears that flag in memory. Heavy Shot's effect was never tied to a weapon, so nothing else needs changing:
   - The game applies Heavy Shot to every projectile: gravity = (the bullet's own gravity + 2) × (1 + its 15% weight), plus its +50% damage.
@@ -275,7 +283,7 @@ The effects:
 - **Soul Whip**: a copy of the Sniper's weapon asset (with its own projectile: the Arcane Wand's purple orb, slowed so you can see it, which bursts on a hit or at the whip's reach) given the Lightning Scepter's swing, crosshair and aiming, added to the lobby's weapon list before the game builds it. The whip's damage multiplies the hit where the host totals a player's damage. The machine of the player who cracks it sends where the crack landed to the host, which tags the enemies there. Raise keys are read on your machine (only with the game window in front, no menu open and the chat closed) and sent to the host in the same hidden way, over the game's chat call. The host keeps everyone's souls and the kinds they can raise, spawns the undead through the game's own enemy spawn (outside the island's enemy count, so the island can still end), and tells every player where, so their machines tint them too. Who can hurt whom is one game function, which CrabMods answers for undead (enemies and undead: yes; players and undead: no); who an enemy goes after is another, which CrabMods follows with its own pick. An undead's death drops nothing, and its kills count as its owner's. The ability key does nothing while you hold the whip. Its pedestal is a copy of the Crossbow's stone, placed by every machine one gap left of it each time the lobby loads (and taken away on islands, which load into the lobby's world); the host spawns the pickup on it, which the game sends to everyone. Its looks and sounds come inside `CrabMods.dll`: on start, every machine builds the whip's meshes and the HUD's pictures from them through the engine's own run-time mesh and texture functions. The lash is a chain of mesh pieces drawn on each machine (no physics: a droop, a sway and a trail behind as you move), which cracks whenever the weapon's shot count (sent by the game) goes up: it unrolls out toward where the shot lands, holds, and falls back. The glow is the whip's palette at eight brightnesses, a material each, swapped on the pieces as a wave. The sounds play through a little mixer of CrabMods' own, since the engine can't load a sound at run time.
 - **Host settings** go out over the game's own `ClientMessage` call (the one that prints to the console), sent to each player as they join. CrabMods picks it up before it reaches the console.
 
-- **Soul Whip loot**: ordinary new pickups (like the other items) whose loot weight is 0 for anyone not holding the whip, and who can turn up in any of a whip holder's chests. What they do is all inside the whip's own code on the host: souls, raise costs and counts, undead health, damage and poison, tags. Long Lash and Branding Iron set the bolt's reach and burst on the shooter's machine as it fires. Army of the Dead's undead count comes from the host with the souls.
+- **Soul Whip loot**: ordinary new pickups (like the other items) whose loot weight is 0 for anyone not holding the whip, and who can turn up in any of a whip holder's chests. What they do is all inside the whip's own code on the host: souls, raise costs and counts, undead health, damage and poison, tags. Long Lash and Branding Iron set the bolt's reach and burst on the shooter's machine as it fires. Army of the Dead's weighted undead count comes from the host with the souls. **Undead kills**: the game drops crystals and sets off the killer's on-kill perks and relics in the same code, only for a player's kill. For an undead's kill the host names its owner as the killer (so the crystals drop) and hides the owner's perk and relic lists from that one call, putting them back right after.
 
 ## Known limitations
 

@@ -49,7 +49,6 @@ constexpr int kTiers = 4;               // fodder, medium, hard, elite: EnemyCat
 const wchar_t* const kTierNames[kTiers] = {L"Fodder", L"Medium", L"Hard", L"Elite"};
 const char* const kTierKeys[kTiers] = {"raiseKeyFodder", "raiseKeyMedium", "raiseKeyHard", "raiseKeyElite"};
 const char* const kTierKeyDefaults[kTiers] = {"V", "C", "X", "Z"};
-constexpr int kMaxUndeadPerPlayer = 40;  // a safety cap: upkeep is the real limit
 
 double Now() {
     using namespace std::chrono;
@@ -160,26 +159,33 @@ costFodder = 10
 fodderPack = 3
 costMedium = 15
 costHard = 40
-costElite = 100
+costElite = 75
 # Undead still standing when the fight ends crumble and give back this percent of their raise cost.
-survivorRefundPercent = 100
+survivorRefundPercent = 50
+# The most undead each player can have at once (Legion adds to it).
+maxUndead = 20
 # How far from you you can raise, in meters.
 raiseRangeMeters = 40
-# While enemies are alive, each undead costs this percent of its raise cost a second. When the souls run out,
-# your undead starve instead: each loses this percent of its health a second until you have souls again.
-upkeepPercent = 0.25
+# While enemies are alive, each undead costs this percent of its raise cost a second (Hollow Hunger cuts it).
+# When the souls run out, your undead starve instead: each loses this percent of its health a second until you have souls again.
+upkeepPercent = 1
 starvePercent = 4
-# Undead health and damage, as a multiple of the enemy's own (your damage bonuses multiply the damage too).
+# Undead health and damage, as a multiple of the enemy's own.
 undeadHealth = 2
 undeadDamage = 1
-# Raised elites are weaker than real ones: their health and damage as a multiple (on top of the above).
-eliteHealth = 0.5
+# This percent of your own damage bonus counts for your undead too (at 50, your +40% gives them +20%).
+ownerDamagePercent = 50
+# Raised elites' health and damage as a multiple (on top of the above).
+eliteHealth = 1
 eliteDamage = 0.5
 # Enemies go after an undead instead of a player when it is this many times closer.
 aggroBias = 1.5
 # Undead with no enemy near go for nests and spawners within this many meters, each doing this much damage a second.
 nestRangeMeters = 25
 nestDps = 30
+# Kills by your undead give this percent of the souls yours would. They drop crystals as your own kills do,
+# but don't set off your on-kill perks and relics (Scavenger, Exploding Enemies, Bounty Hunter, ...).
+undeadKillSoulsPercent = 50
 
 # --- Yours ---
 # Each player's own: the host's settings never change these. Raise keys: A letter or digit, F1-F24, Mouse3-Mouse5, Num0-Num9,
@@ -216,6 +222,7 @@ soundVolume = 80
         else if (k == "costFodder") cost_[0] = num(0.f, 1e6f);
         else if (k == "fodderPack") fodderPack_ = int(num(1.f, 10.f));
         else if (k == "survivorRefundPercent") refund_ = num(0.f, 100.f) / 100.f;
+        else if (k == "maxUndead") maxUndead_ = int(num(1.f, 200.f));
         else if (k == "costMedium") cost_[1] = num(0.f, 1e6f);
         else if (k == "costHard") cost_[2] = num(0.f, 1e6f);
         else if (k == "costElite") cost_[3] = num(0.f, 1e6f);
@@ -223,12 +230,14 @@ soundVolume = 80
         else if (k == "upkeepPercent") upkeep_ = num(0.f, 100.f) / 100.f;
         else if (k == "undeadDamage") undeadDamage_ = num(0.f, 1000.f);
         else if (k == "undeadHealth") undeadHealth_ = num(0.01f, 100.f);
+        else if (k == "ownerDamagePercent") ownerDamage_ = num(0.f, 1000.f) / 100.f;
         else if (k == "starvePercent") starve_ = num(0.f, 100.f) / 100.f;
         else if (k == "eliteHealth") eliteHealth_ = num(0.01f, 10.f);
         else if (k == "eliteDamage") eliteDamage_ = num(0.f, 10.f);
         else if (k == "aggroBias") aggroBias_ = num(0.f, 100.f);
         else if (k == "nestRangeMeters") nestRange_ = num(0.f, 500.f) * 100.f;
         else if (k == "nestDps") nestDps_ = num(0.f, 1e6f);
+        else if (k == "undeadKillSoulsPercent") undeadKillSouls_ = num(0.f, 1000.f) / 100.f;
         else if (k == "soundVolume") mixer_.SetVolume(num(0.f, 200.f) / 100.f);
         else
             for (int t = 0; t < kTiers; t++)
@@ -250,7 +259,7 @@ soundVolume = 80
         for (int t = 0; t < kTiers; t++) keys += (t ? "/" : "") + keyNames_[t];
         return "Soul Whip " + Num(whipDps_) + " dps, " + Num(whipRange_ / 100.f) + " m, " + Num(burstRadius_ / 100.f) + " m burst of " + Num(whipDps_ / whipFireRate_) + "; " + Num(maxSouls_) +
                " souls; raise " + Num(cost_[0]) + "/" + Num(cost_[1]) + "/" + Num(cost_[2]) + "/" + Num(cost_[3]) +
-               " on " + keys;
+               " on " + keys + ", up to " + std::to_string(maxUndead_) + " undead";
     }
     std::string Title() const override { return "Soul Whip (Necromancer)"; }
     static bool HoldsWhip(void* ps) { return self_ && self_->enabled_ && self_->Holds(ps); }
@@ -307,14 +316,24 @@ soundVolume = 80
         if (auto u = undead_.find(killer); killer && u != undead_.end()) {
             ps = u->second.owner;
             byUndead = true;
-            // Its owner gets the kill (crystals, kill count) as if they had landed it.
+            // Its owner's crystals drop: the game only drops them for a player's kill. (The kill count isn't
+            // touched: the game mode counts it from the hit, which was the undead's.)
             killer = PawnOf(ps);
         } else if (IsA(killer, StaticClass(va::ACrabPlayerC_StaticClass))) {
             ps = At<void*>(killer, off::Pawn_PlayerState);
         }
+        Credit(enemy, ps, byUndead);
+        // The owner's own on-kill perks and relics stay quiet: they're read in the same code as the crystals,
+        // so the owner's perks and relics are hidden from it (after the souls above, which read them) until
+        // OnEnemyEliminated.
+        if (byUndead && killer) HideKit(enemy, ps);
+    }
+    // Souls, Soul Brand, Harvester and the roster, for a kill by the player or one of their undead.
+    void Credit(void* enemy, void* ps, bool byUndead) {
         if (!Holds(ps) || (At<uint8_t>(enemy, off::Enemy_bIsLesserEnemy) & 1)) return;
         uint8_t category = At<uint8_t>(enemy, off::Enemy_Category);
         float gain = category < 6 ? souls_[category] : 0.f;
+        if (byUndead) gain *= undeadKillSouls_;
         bool tagged = Tagged(enemy);
         if (tagged) gain *= 1.f + taggedSouls_ + loot::Total(ps, loot::GrimHarvest) / 100.f;
         gain *= 1.f + loot::Total(ps, loot::HungryGhosts) / 100.f;
@@ -340,9 +359,40 @@ soundVolume = 80
         d.dirty = true;
     }
     void OnEnemyEliminated(void* enemy) override {
+        ShowKit(enemy);
         undead_.erase(enemy);
         tags_.erase(enemy);
         lastMelee_.erase(enemy);
+    }
+
+    // The game's elimination (ACrabEnemyC_OnEliminated) drops the crystals for a player's kill, then sets off
+    // that player's on-kill perks (Scavenger, Bounty Hunter, Rare Treasure, Exploding/Freezing/... Enemies) and
+    // relics (Lingering Fumes), each read from their perk and relic lists. For an undead's kill the lists look
+    // empty for that one call (their counts, put back right after; nothing replicates in between). The crystal
+    // drop itself reads neither.
+    struct Hidden {
+        void* enemy;
+        void* ps;
+        int perks, relics;
+    };
+    void HideKit(void* enemy, void* ps) {
+        if (!ps) return;
+        auto& perks = At<TArray<uint8_t>>(ps, off::PS_Perks);
+        auto& relics = At<TArray<uint8_t>>(ps, off::PS_Relics);
+        hidden_.push_back({enemy, ps, perks.Num, relics.Num});
+        perks.Num = relics.Num = 0;
+    }
+    void ShowKit(void* enemy) {
+        for (size_t i = hidden_.size(); i-- > 0;)  // the latest first: one elimination can run inside another
+            if (hidden_[i].enemy == enemy) {
+                Show(hidden_[i]);
+                hidden_.erase(hidden_.begin() + i);
+                return;
+            }
+    }
+    static void Show(const Hidden& h) {
+        At<TArray<uint8_t>>(h.ps, off::PS_Perks).Num = h.perks;
+        At<TArray<uint8_t>>(h.ps, off::PS_Relics).Num = h.relics;
     }
 
     // --- Damage (host) -------------------------------------------------------------------------------------
@@ -360,7 +410,9 @@ soundVolume = 80
         if (u == undead_.end()) return;
         float m = undeadDamage_;
         if (u->second.tier == 3) m *= eliteDamage_;
-        if (void* ps = u->second.owner; ps && PawnOf(ps)) m *= Fn<float (*)(void*)>(va::ACrabPS_GetDamageBuff)(ps);
+        // Part of the owner's damage bonus (ownerDamagePercent).
+        if (void* ps = u->second.owner; ps && PawnOf(ps))
+            m *= std::max(1.f + ownerDamage_ * (Fn<float (*)(void*)>(va::ACrabPS_GetDamageBuff)(ps) - 1.f), 0.f);
         if (Tagged(victim)) m *= 1.f + tagDamage_;
         void* owner = u->second.owner;
         m *= 1.f + loot::Total(owner, loot::RingOfTheGrave) / 100.f;
@@ -369,14 +421,14 @@ soundVolume = 80
         if (int stacks = int(loot::Total(owner, loot::PlagueBearers) + 0.5f); stacks > 0) AddDebuff(info, kPoison, stacks);
     }
 
-    // Army of the Dead: the host counts the player's undead; their own machine has the count the host sent.
+    // Army of the Dead: the host weighs the player's undead by tier (Army); their own machine has the weight the
+    // host sent.
     float DamageBonus(void* ps) override {
         float per = loot::Total(ps, loot::ArmyOfTheDead) / 100.f;
         if (per <= 0.f) return 0.f;
-        int n = 0;
-        for (auto& [u, info] : undead_) n += info.owner == ps;
-        if (!n && view_.known && LocalPlayer() == ps) n = view_.undead;
-        return per * float(n);
+        float n = Army(ps);
+        if (n <= 0.f && view_.known && LocalPlayer() == ps) n = view_.army;
+        return per * n;
     }
 
     // The whip's hits, for its stats. (The bolt never hits directly: its burst does all of its damage.)
@@ -489,6 +541,7 @@ soundVolume = 80
         Vec3 at;
         float souls, max, c[kTiers];
         int tier, undead = 0;
+        float army = -1.f;
         bool host = At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority;  // the host's own: it knows already
         wchar_t path[200];
         if (swscanf(s, L"rise %d %f %f %f %199ls", &tier, &at.x, &at.y, &at.z, path) == 5) {
@@ -507,8 +560,9 @@ soundVolume = 80
             }
         } else if (text.compare(kMsgLen, std::wstring::npos, L"denied") == 0) {
             Play("A_Necro_Raise_Denied_", 0.8f);
-        } else if (swscanf(s, L"souls %f %f %f %f %f %f %d", &souls, &max, &c[0], &c[1], &c[2], &c[3], &undead) >= 6) {
+        } else if (swscanf(s, L"souls %f %f %f %f %f %f %d %f", &souls, &max, &c[0], &c[1], &c[2], &c[3], &undead, &army) >= 6) {
             view_.undead = undead;
+            view_.army = army >= 0.f && army < 1e6f ? army : float(undead);  // an older host sends only the count
             if (view_.known && souls > view_.souls + 0.01f) {
                 if (souls >= max - 1e-3f && view_.souls < max - 1e-3f) Play("A_Necro_SoulBar_Full_", 0.9f);
                 else if (Now() - lastSoulSound_ > 0.08) Play("A_Soul_Pickup_", 0.55f), lastSoulSound_ = Now();
@@ -610,6 +664,7 @@ private:
         std::wstring names[kTiers];
         bool dirty = true;
         int sentUndead = -1;
+        float sentArmy = -1.f;
         float sentMax = -1.f, sentCost[kTiers] = {};  // what the HUD was told, to resend when loot changes them
     };
     struct UndeadInfo {
@@ -634,6 +689,7 @@ private:
         bool known = false;
         float souls = 0.f, max = 100.f, cost[kTiers] = {};
         int undead = 0;
+        float army = 0.f;  // Army of the Dead's weighted count
         std::wstring names[kTiers];
     };
 
@@ -1318,6 +1374,12 @@ private:
     // --- Host ----------------------------------------------------------------------------------------------
 
     void HostTick(void* world, void* gs) {
+        // Never left hidden past an elimination (ShowKit puts them back; this is only in case it didn't run).
+        for (size_t i = hidden_.size(); i-- > 0;) Show(hidden_[i]);
+        if (!hidden_.empty()) {
+            CRAB_LOG("necromancer: %zu hidden perk lists put back late", hidden_.size());
+            hidden_.clear();
+        }
         bool fight = At<uint8_t>(gs, off::GS_MatchState) == kFight;
         std::vector<void*> enemies = enemyClass_ ? AllActorsOf(world, enemyClass_) : std::vector<void*>{};
         std::unordered_set<void*> present(enemies.begin(), enemies.end());
@@ -1390,6 +1452,7 @@ private:
             int count = 0;
             for (auto& [u, info] : undead_) count += info.owner == ps;
             if (count != d.sentUndead) d.sentUndead = count, d.dirty = true;
+            if (float a = Army(ps); a != d.sentArmy) d.sentArmy = a, d.dirty = true;  // Army of the Dead
             if (float m = MaxSouls(ps); m != d.sentMax) d.sentMax = m, d.dirty = true;  // Soul Jar
             for (int t = 0; t < kTiers; t++)
                 if (float c = Cost(ps, t); c != d.sentCost[t]) d.sentCost[t] = c, d.dirty = true;  // Soul Discount
@@ -1399,9 +1462,9 @@ private:
             if (!pc) return;
             int mine = 0;
             for (auto& [u, info] : undead_) mine += info.owner == ps;
-            wchar_t buf[160];
-            swprintf(buf, std::size(buf), L"%lssouls %.2f %.0f %.0f %.0f %.0f %.0f %d", kMsg, d.souls, MaxSouls(ps),
-                     Cost(ps, 0), Cost(ps, 1), Cost(ps, 2), Cost(ps, 3), mine);
+            wchar_t buf[192];
+            swprintf(buf, std::size(buf), L"%lssouls %.2f %.0f %.0f %.0f %.0f %.0f %d %.2f", kMsg, d.souls, MaxSouls(ps),
+                     Cost(ps, 0), Cost(ps, 1), Cost(ps, 2), Cost(ps, 3), mine, Army(ps));
             std::wstring msg = buf;
             for (int t = 0; t < kTiers; t++) msg += L"\n" + (d.roster[t] ? d.names[t] : std::wstring());
             SendToPlayer(pc, msg);
@@ -1416,6 +1479,7 @@ private:
             PlayerData& d = players_[key];
             float drain = 0.f;
             for (void* u : list) drain += undead_[u].cost * upkeep_ * 0.25f;
+            drain *= UpkeepShare(undead_[list.front()].owner);  // Hollow Hunger
             if (drain <= 0.f) continue;
             if (d.souls >= drain) {
                 d.souls -= drain;
@@ -1448,7 +1512,7 @@ private:
         int mine = 0;
         for (auto& [u, info] : undead_) mine += info.owner == ps;
         for (const Rising& r : rising_) mine += r.ps == ps;
-        if (mine >= kMaxUndeadPerPlayer) return Deny(ps, L"Your army is as big as it gets");
+        if (mine >= MaxUndead(ps)) return Deny(ps, L"Your army is as big as it gets");
         Vec3 from;
         LocationOf(c, from);
         float dx = at.x - from.x, dy = at.y - from.y, dist = std::sqrt(dx * dx + dy * dy);
@@ -1594,6 +1658,21 @@ private:
     // --- The whip's loot (host unless said) -------------------------------------------------------------------
 
     float MaxSouls(void* ps) const { return maxSouls_ + loot::Total(ps, loot::SoulJar); }
+    // Legion.
+    int MaxUndead(void* ps) const { return maxUndead_ + int(loot::Total(ps, loot::Legion) + 0.5f); }
+    // Hollow Hunger: the share of upkeep left, cut again for each level, never below an eighth.
+    float UpkeepShare(void* ps) const {
+        float keep = 1.f - std::clamp(loot::Amount(loot::HollowHunger) / 100.f, 0.f, 1.f);
+        return std::max(std::pow(keep, float(loot::Level(ps, loot::HollowHunger))), 0.125f);
+    }
+    // Army of the Dead's count: each undead weighs by its tier.
+    float Army(void* ps) const {
+        static constexpr float weight[kTiers] = {0.25f, 1.f, 2.f, 4.f};
+        float n = 0.f;
+        for (auto& [u, info] : undead_)
+            if (info.owner == ps && info.tier >= 0 && info.tier < kTiers) n += weight[info.tier];
+        return n;
+    }
     // Soul Discount: hyperbolic, never below half.
     float Cost(void* ps, int tier) const {
         float cut = loot::Total(ps, loot::SoulDiscount) / 100.f;
@@ -2262,11 +2341,14 @@ private:
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
-    float cost_[kTiers] = {10.f, 15.f, 40.f, 100.f};
+    float cost_[kTiers] = {10.f, 15.f, 40.f, 75.f};
     int fodderPack_ = 3;
-    float refund_ = 1.f;  // share of a surviving undead's cost given back when the fight ends
-    float raiseRange_ = 4000.f, upkeep_ = 0.0025f, undeadDamage_ = 1.f, undeadHealth_ = 2.f, starve_ = 0.04f, eliteHealth_ = 0.5f, eliteDamage_ = 0.5f;
+    float refund_ = 0.5f;  // share of a surviving undead's cost given back when the fight ends
+    float raiseRange_ = 4000.f, upkeep_ = 0.01f, undeadDamage_ = 1.f, undeadHealth_ = 2.f, starve_ = 0.04f, eliteHealth_ = 1.f, eliteDamage_ = 0.5f;
     float aggroBias_ = 1.5f, nestRange_ = 2500.f, nestDps_ = 30.f;
+    int maxUndead_ = 20;            // per player, before Legion
+    float ownerDamage_ = 0.5f;      // share of the owner's damage bonus their undead get
+    float undeadKillSouls_ = 0.5f;  // share of a kill's souls when an undead lands it
     std::string keyNames_[kTiers];
     int keys_[kTiers] = {};
 
@@ -2304,6 +2386,7 @@ private:
     std::unordered_map<void*, double> tags_;               // host: tagged enemy -> until
     std::unordered_map<void*, void*> lastMelee_;           // host: enemy -> the player whose claw hit it last
     std::unordered_map<void*, double> siphoned_;           // host: enemy -> when Soul Siphon last paid for it
+    std::vector<Hidden> hidden_;                           // host: perk lists hidden during an undead's kill
     struct Harvest {
         void* ps;
         int tier;

@@ -3,9 +3,6 @@
 
 namespace crabmods {
 
-// [arsenal] countStacks: a x3 stack of a weapon mod counts as three mods (Arsenal and Hoarder).
-bool ArsenalCountStacks();
-
 // The number of different pickup tags (Fire, Critical, Speed, ...) among everything a player holds (Jack of All
 // Trades and Minimalist; jack_of_all_trades.cpp).
 int DistinctTags(void* ps);

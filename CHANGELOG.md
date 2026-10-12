@@ -14,12 +14,24 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 - **Collateral Damage gives +3% per destructible broken** (was +5%). Islands have dozens of pots, rocks and crystals, so it reached +100% and more on every island.
 - **Overflow now resets each island**, like Collateral Damage. Its bonus used to be permanent and uncapped, so healing at full health kept adding damage for the whole run.
 - **Community Support never drops when you play alone**, where it does nothing.
+- **Purist gives +100% damage** (was +40%) while you hold no relics.
+- **Cursed Lottery pays more the further the run has gone, and it turns off Money Is Power.** It gives 15,000 crystals on island 0, plus another 15,000 every 14 islands (30,000 on island 14). While you hold it, Money Is Power adds no damage, and Money Is Power's card says so. Before, the pile of crystals it gave made Money Is Power's bonus full for the rest of the run. The new settings are `crystals` and `islandsToDouble`.
+- **Arsenal and Hoarder count levels, not pickups.** A level 5 weapon mod counts 5, the same way the other collector items count. Their `countStacks` setting is gone.
+- **No Anvil Portals**, a new tweak that is on by default: the portals after an island never lead to an Anvil island. A portal that would have been an Anvil gets another reward instead. Turn it off with `enabled = false` in `[noAnvilPortals]`.
 - **Portal Shot is gone, and Pathfinder takes Portal Ring's place.** Portal Shot replaced the wrong relic: Portal Amulet (your shots fire from the nearest enemy) drops again as normal. Pathfinder is a new Common perk that replaces Portal Ring: one more portal choice after each island for every level, where the ring gives one and never levels. Portal Ring no longer drops while it's on. A `[portalShot]` section left in `CrabMods.ini` does nothing.
 - **Chance-based weapon mods trigger less often with the Soul Whip.** The whip kept the Sniper's 7× roll multiplier (Double Shot 56%, Triple Shot 49%), and every extra bolt is a whole burst. It now has 3×. Set it with `procRollMultiplier` in `[necromancer]`.
 - **Fodder raises cost 10 souls** (were 5). A pack of 3 fodder had about five times the health per soul of an elite, so cheap fodder walls beat everything else.
 - **Necromancer marks.** A raised undead climbs out of a turning circle of runes on the ground, which flares as it comes up and then fades. It replaces the enemy's own spawn effect, which was flat and cut into slopes. A tagged enemy has a rune brand on the ground under it and a ring of runes floating around its middle, which snaps in when the tag lands and disappears when the tag ends or the enemy dies. Every player sees them.
+- **Necromancer balance.**
+  - **Undead cost more to keep:** upkeep is 1% of their raise cost a second (was 0.25%), and undead still standing when the fight ends give back half their cost (was all of it).
+  - **At most 20 undead per player** (was 40 in total). The new Epic perk **Legion** adds 5 per level. Set it with `maxUndead`.
+  - **Hollow Hunger**, a new Common perk, halves upkeep per level, never below an eighth.
+  - **Elites cost 75 souls** (were 100) and are raised at full health (were half).
+  - **Undead get half your damage bonus** (they got all of it), set with `ownerDamagePercent`. Their kills give half the souls (`undeadKillSoulsPercent`), and drop crystals, but don't set off your on-kill perks and relics.
+  - **Army of the Dead weighs undead by rank:** a fodder counts a quarter, a medium 1, a hard 2, an elite 4. Fodder packs gave it too much.
+  - **Branding Iron** reaches 15% farther per level (was 25%). **Ring of Souls** and **Ring of the Grave** give 40% (were 25%).
 - **Undead no longer spawn with a shield or armor plates.** An enemy can roll the Shielded or Armored buff as it spawns, and raised undead kept it.
-- An existing `CrabMods.ini` keeps its old `rarity`, `damagePercent` and `costFodder` lines (Collateral Damage and Greed Is Power included), so these changes only show up with a fresh file or after you edit those lines (delete a section to get its new defaults back).
+- An existing `CrabMods.ini` keeps its old lines for the changed numbers (`rarity`, `damagePercent`, `crystals`, `costFodder`, `costElite`, `upkeepPercent`, `survivorRefundPercent`, `eliteHealth`, `radiusPercent`, `soulsPercent`, `percent` and so on), so these changes only show up with a fresh file or after you edit those lines (delete a section to get its new defaults back).
 
 ### 0.11.0
 

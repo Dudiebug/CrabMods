@@ -2,7 +2,7 @@
 //   Fire, Ice, Lightning, Poison and Critical Specialist: pickups with that tag. The relic carries the tag
 //   itself, so it also counts for pickups that need one of that tag to drop (Fire Ring, Mega Crit, ...).
 //   Damage and Luck Specialist: pickups from that loot pool, and islands rewarding it (for the whole team).
-//   Summoner Specialist: the Soul Whip's 20 pickups (necro_loot); like them, it only drops for whip holders.
+//   Summoner Specialist: the Soul Whip's 22 pickups (necro_loot); like them, it only drops for whip holders.
 // The weight goes on top of the game's own SpawnWeight for every loot roll made for the holder. Those pickups
 // can also come out of the holder's chests of every other loot pool (Damage, Critical, Elemental, Speed, Luck,
 // Health, Economy, Skill), where the game would never offer them.

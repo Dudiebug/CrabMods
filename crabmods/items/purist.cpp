@@ -21,7 +21,7 @@ public:
 enabled = true
 
 # Damage bonus in percent. Each extra Purist level stacks it again.
-damagePercent = 10
+damagePercent = 100
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -69,7 +69,7 @@ protected:
     float PrimaryBuff() const override { return pct_; }
 
 private:
-    float pct_ = 10.f;
+    float pct_ = 100.f;
 };
 
 Purist g_item;

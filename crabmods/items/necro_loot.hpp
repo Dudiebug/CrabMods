@@ -23,13 +23,15 @@ enum Id {
     ArmyOfTheDead,  // perk: damage per undead, percent
     PlagueBearers,  // perk: poison stacks per undead hit
     GrimHarvest,    // perk: more souls from tagged kills, percent
+    Legion,         // perk: more undead at once
+    HollowHunger,   // perk: undead upkeep cut, percent (multiplies per level, never below an eighth)
     RingOfSouls,    // relic: souls from everything, percent
     RingOfTheGrave, // relic: undead health and damage, percent
     Phylactery,     // relic: least souls it takes to cancel a death
     kCount
 };
 
-// One of the 20 items' assets.
+// One of the items' assets.
 bool IsNecroItem(void* da);
 // The player's level of the item (0: not held, or switched off).
 int Level(void* ps, Id id);
