@@ -41,8 +41,8 @@ constexpr int kRelicEnhancements = 0x10;
 
 class Charm : public AssetItem {
 public:
-    Charm(const char* section, int order, const AssetSpec& spec, int numSlots, const char* what)
-        : AssetItem(section, order, spec, rarity::Legendary), numSlots_(numSlots), what_(what) {
+    Charm(const char* section, int order, const AssetSpec& spec, int numSlots, const char* what, uint8_t rarity)
+        : AssetItem(section, order, spec, rarity), numSlots_(numSlots), what_(what) {
         g_charms.push_back(this);
     }
 
@@ -53,7 +53,7 @@ public:
                "# Slots for each level" +
                (IsRelic() ? std::string(" (on top of the game's 10)") : std::string()) +
                ".\nslotsPerLevel = 5\n\n"
-               "# Which chests it drops from: common, epic, legendary or greed (and relic chests).\nrarity = legendary\n";
+               "# Which chests it drops from: common, epic, legendary or greed (and relic chests).\nrarity = " + std::string(RarityName(rarity_)) + "\n";
     }
     void Set(const std::string& k, const std::string& v) override {
         if (k == "slotsPerLevel") perLevel_ = std::clamp(int(ParseFloat(v)), 1, 50);
@@ -440,23 +440,23 @@ private:
 Charm g_bandolier("bandolier", 175,
                   {Kind::Relic, L"DA_Charm_Bandolier", L"Bandolier", L"More weapon mod slots",
                    L"+PrimaryBuff weapon mod slots", 240, Relic_RingOfDefense},
-                  off::PS_NumWeaponModSlots, "weapon mod");
+                  off::PS_NumWeaponModSlots, "weapon mod", rarity::Epic);
 Charm g_toolBelt("toolBelt", 176,
                  {Kind::Relic, L"DA_Charm_ToolBelt", L"Tool Belt", L"More ability mod slots",
                   L"+PrimaryBuff ability mod slots", 241, Relic_RingOfDefense},
-                 off::PS_NumAbilityModSlots, "ability mod");
+                 off::PS_NumAbilityModSlots, "ability mod", rarity::Epic);
 Charm g_scabbard("scabbard", 177,
                  {Kind::Relic, L"DA_Charm_Scabbard", L"Scabbard", L"More melee mod slots",
                   L"+PrimaryBuff melee mod slots", 242, Relic_RingOfDefense},
-                 off::PS_NumMeleeModSlots, "melee mod");
+                 off::PS_NumMeleeModSlots, "melee mod", rarity::Epic);
 Charm g_backpack("backpack", 178,
                  {Kind::Relic, L"DA_Charm_Backpack", L"Backpack", L"More perk slots", L"+PrimaryBuff perk slots", 243,
                   Relic_RingOfDefense},
-                 off::PS_NumPerkSlots, "perk");
+                 off::PS_NumPerkSlots, "perk", rarity::Epic);
 Charm g_reliquary("reliquary", 179,
                   {Kind::Relic, L"DA_Charm_Reliquary", L"Reliquary", L"More relic slots", L"+PrimaryBuff relic slots",
                    244, Relic_RingOfDefense},
-                  0 /* kRelics */, "relic");
+                  0 /* kRelics */, "relic", rarity::Legendary);
 
 }  // namespace
 
