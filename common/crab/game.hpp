@@ -124,6 +124,17 @@ constexpr uintptr_t ACrabPS_GetPickups = 0x140d253a0;  // TArray<UCrabPickupDA*>
 constexpr uintptr_t ACrabChest_RollLoot = 0x140caf1c0; // void(ACrabChest*, ACrabPS* Opener): LootRoll for the opener
 constexpr uintptr_t ACrabLM_SpawnPortals = 0x140d00210;  // void(ACrabLM*): rolls every portal's reward, then SetInfo
 constexpr uintptr_t ACrabPortal_SetInfo = 0x140cb2cc0;   // void(ACrabPortal*, FCrabPortalInfo*), server only
+// ACrabPortal::CanInteract (vtable slot): bool(ACrabPortal*, ACrabC*). Refuses the Arcade and Holdout portals when
+// GS PlayerArray has more than 1 player, then defers to ACrabInteractable::CanInteract (alive + interact
+// cooldown). Checked by the server (ServerInteract) and by the interacting player's own machine.
+constexpr uintptr_t ACrabPortal_VTable = 0x143234668;
+constexpr int ACrabPortal_CanInteract_Slot = 0x650;
+constexpr uintptr_t ACrabInteractable_CanInteract = 0x140cb19c0;
+// Picks a map for an island (0x140cfad90 calls it for Arena, Horde, Parkour and Shop, host):
+// FCrabIsland* (ACrabLM*, FCrabIsland* out, const TArray<FCrabIsland>* islands, TArray<FName>* recent). FCrabIsland is
+// {FName map, float weight}, 12 bytes. For Parkour, islands is the biome DA's ParkourIslands and recent is
+// LM_RecentParkour. The current game's biomes list no Parkour maps.
+constexpr uintptr_t ACrabLM_PickIsland = 0x140cfa220;
 constexpr uintptr_t ACrabLM_SpawnPortalsSoon = 0x140cf9280;  // void(ACrabLM*): a short timer, then SpawnPortals
 // Island-end rewards (0x140d01610, host): for each player it fills a TArray<UClass*> of reward chests in its own
 // frame (Data at caller rsp+0x40, Num +0x48, Max +0x4C, kept in r12 / esi), adds bonus chests, Care Package and
@@ -389,6 +400,16 @@ constexpr int Spawnables_MeleeMods = 0x128;    // TArray<UCrabMeleeModDA*>
 constexpr int Spawnables_Perks = 0x138;       // TArray<UCrabPerkDA*>
 constexpr int Spawnables_Relics = 0x148;      // TArray<UCrabRelicDA*>
 constexpr int Spawnables_SpikedChest = 0x580;  // TSubclassOf<ACrabChest>: BP_Chest_Spiked (Cost 25, MaxHealth)
+// The portal classes SpawnPortals picks from (TSubclassOf<ACrabPortal>; the portal class sets its island type).
+// Demolition is offered on islands 1 to 3 only; nothing offers Parkour (BP_Portal_Parkour_C).
+constexpr int Spawnables_DemolitionPortal = 0x638;
+constexpr int Spawnables_ParkourPortal = 0x648;
+constexpr int LM_BiomeDA = 0x358;          // UCrabBiomeDA*: the run's current biome
+constexpr int LM_RecentParkour = 0x450;    // TArray<FName>: Parkour maps played lately
+constexpr int Biome_ParkourIslands = 0x58;  // TArray<FCrabIsland>: empty in the current game
+constexpr int World_StreamingLevels = 0x88;  // TArray<ULevelStreaming*>
+constexpr int LevelStreaming_PackageNameToLoad = 0x50;  // FName
+constexpr int LevelStreamingDynamic_Initially = 0x148;  // bInitiallyLoaded 0x01, bInitiallyVisible 0x02
 // APlayerState / ACrabPS
 constexpr int PS_PlayerId = 0x224;
 constexpr int PS_Pawn = 0x280;
@@ -553,6 +574,7 @@ constexpr int DamageInfo_Debuffs = 0x20;  // TArray<FCrabDebuff>: 8 bytes, uint8
 constexpr int Enemy_EliminatingC = 0x930;  // ACrabC*: who killed it
 // FCrabPortalInfo
 constexpr int PortalInfo_RewardLootPool = 0x19;
+constexpr int Portal_IslandType = 0x290;  // ACrabPortal.IslandType (ECrabIslandType)
 // UMG and the game's UI objects
 constexpr int Widget_Slot = 0x28;            // UPanelSlot*
 constexpr int UserWidget_WidgetTree = 0x1D8;
@@ -672,7 +694,7 @@ constexpr int GameplayUI_AbilityCooldownText = 0x408;
 constexpr int GameplayUI_AbilityStackText = 0x418;
 }  // namespace off
 
-enum class IslandType : uint8_t { None = 0, Lobby = 1, NewRun = 2, ContinueRun = 3 };  // ECrabIslandType, 0..16
+enum class IslandType : uint8_t { None = 0, Lobby = 1, NewRun = 2, ContinueRun = 3, Arcade = 15, Holdout = 16 };  // ECrabIslandType, 0..16
 
 inline const char* IslandTypeName(uint8_t t) {
     static const char* n[] = {"None",     "Lobby",   "NewRun", "ContinueRun", "Arena",  "Horde",

@@ -109,6 +109,7 @@ Charms are a kind of item of their own, and they're what give you more inventory
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
 | **Key totem** | The lobby's key totem opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
+| **Parkour islands** (experimental) | Brings back the **Parkour island** the game dropped in 2025. On islands 1 to 3 the Demolition portal is sometimes (`chance`, 50%) a Parkour portal instead. Arctic runs get Arctic_Parkour_01, the other biomes Tropical_Parkour_01. **Needs the Parkour maps add-on on every player's game** (see [Parkour maps](#parkour-maps)); if anyone lacks it, Parkour isn't offered. |
 
 
 - Extra copies stack: each level of an item adds its bonus again (two Minimalists give +10% per empty slot).
@@ -137,6 +138,23 @@ By hand:
 `CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch. When an update adds items, their sections are added to the end of your `CrabMods.ini`; your own values are kept.
 
 To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xinput1_3.dll` if no other mod uses it).
+
+### Parkour maps
+
+The Parkour maps are the game's own, from an older version, so they can't be shared here: you build the add-on from your own copy of that version.
+
+1. Download the build of 2025-04-03 with [DepotDownloader](https://github.com/SteamRE/DepotDownloader) (you need to own the game):
+   ```
+   DepotDownloader -app 774801 -depot 774803 -manifest 3380205502637293767 -username <you> -filelist files.txt
+   ```
+   with `files.txt` holding the line `regex:.*\.pak$`.
+2. Build the add-on (needs Python and [ooz](https://github.com/powzix/ooz) for the old pak's Oodle compression; set `LIBOOZ` to its library):
+   ```
+   python re/scripts/parkour_pak.py <download>/CrabChampions/Content/Paks/CrabChampions-WindowsNoEditor.pak out
+   ```
+3. Copy `out/pakchunk77-ParkourMaps_P.pak` (about 146 MB) into the game's `CrabChampions\Content\Paks\~mods` folder (make the folder if it isn't there).
+
+`CrabMods.log` says `parkour: added Arctic_Parkour_01` when the maps are found.
 
 ## Settings
 

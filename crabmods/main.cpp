@@ -43,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.10.6";
+constexpr const char kVersion[] = "0.11.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -409,7 +409,9 @@ float BaseRewardWeight(uint8_t p) {
 void HkSpawnPortals(void* lm) {
     for (bool& b : g_rewardUsed) b = false;
     g_spawningPortals = lm;
+    ForEachEnabled([&](Item* i) { i->OnSpawnPortals(lm); });
     oSpawnPortals(lm);
+    ForEachEnabled([&](Item* i) { i->OnPortalsSpawned(lm); });
     g_spawningPortals = nullptr;
 }
 

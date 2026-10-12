@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.11.0
+
+- **Parkour islands are back (experimental).** On islands 1 to 3 the Demolition portal is sometimes a Parkour portal instead. The maps come from the game's 2025-04-03 build, which every player builds into an add-on pak from their own download (`re/scripts/parkour_pak.py`, see the README). Parkour is only offered when every player has it. Settings in `[parkour]`.
+
 ### 0.10.6
 
 - **Fixed Collateral Damage running away to huge or negative damage in multiplayer with CrabSync** (the stats screen could show Global Damage at -1073741824%). Get CrabSync 1.0.6 too; it holds the actual fix. A client now also ignores a broken value instead of using it.
@@ -218,6 +222,10 @@ First release.
 - `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
+
+### 1.0.7
+
+- **Arcade and Holdout work in multiplayer.** The lobby's minigame portals were solo only; now the whole lobby can vote for them and play together, with one team score. Every player who votes for one needs CrabSync 1.0.7. Nothing is shared during a minigame: everyone has their own health, so in Holdout one hit only takes out the crab that was hit. Turn it off with `minigames = false`.
 
 ### 1.0.6
 

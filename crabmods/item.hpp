@@ -85,6 +85,10 @@ public:
     // Portal rewards (host): how much more likely an island is to reward this loot pool (pool::*). The game
     // picks Damage, Critical, ... for each Arena/Horde/Demolition portal; 1 = unchanged.
     virtual float PortalRewardWeight(void* lm, uint8_t lootPool) { return 1.f; }
+    // The next islands' portals are about to spawn (host, ACrabLM::SpawnPortals), then OnPortalsSpawned right
+    // after. Items may change the portal classes in the SpawnablesDA meanwhile and put them back after.
+    virtual void OnSpawnPortals(void* lm) {}
+    virtual void OnPortalsSpawned(void* lm) {}
     // A player's ability cooldown is about to count down by 0.25 s (every 0.25 s while one runs, on the
     // owner's machine and possibly the host). c: ACrabPlayerC*, ps: its ACrabPS*. Lowering
     // off::PlayerC_AbilityCooldown speeds it up; keep it above 0 (0.01 at least) so the tick finishes it and

@@ -5,7 +5,11 @@
 // changes into the team inventory (see ledger.hpp) and drives every player to it with the game's own
 // functions. Island travel is handled by the game's autosave: each client re-uploads its inventory
 // after the map loads, and the restore hook below treats that as a fresh baseline, not a pickup.
+//
+// CrabSync also opens the lobby's minigame portals (Arcade, Holdout) to multiplayer; see HkPortalCanInteract.
 #include <windows.h>
+
+#include <unordered_set>
 
 #include <crab/hook.hpp>
 #include <crab/log.hpp>
@@ -20,7 +24,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.6";
+constexpr const char kVersion[] = "1.0.7";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -58,6 +62,7 @@ using SetMaxHealthFn = void (*)(void*, float);
 using AddBaseMaxHealthFn = void (*)(void*, float);
 using AddBaseMaxHealthFromPerkFn = void (*)(void*, float, uint8_t);
 using ChestPayFn = void (*)(void*, void*);
+using CanInteractFn = bool (*)(void*, void*);
 TickFn oTick = nullptr;
 RestoreFn oRestore = nullptr;
 UpdateMaxHealthFn oUpdateMaxHealth = nullptr;
@@ -65,8 +70,12 @@ SetMaxHealthFn oSetMaxHealth = nullptr;
 AddBaseMaxHealthFn oAddBaseMaxHealth = nullptr;
 AddBaseMaxHealthFromPerkFn oAddBaseMaxHealthFromPerk = nullptr;
 ChestPayFn oChestPay = nullptr;
+CanInteractFn oPortalCanInteract = nullptr;
 PostLoginFn oPostLogin = nullptr;
 ClientMessageFn oClientMessage = nullptr;
+
+bool g_minigame = false;  // host: in Arcade or Holdout, where nothing is shared
+std::unordered_set<uintptr_t> g_holdoutBodies;  // characters Holdout has already set to 1 max health
 
 uint64_t g_frame = 0;  // engine ticks, to spot one team event reaching every player in the same frame
 uint64_t g_fortitudeFrame = ~0ull;
@@ -306,6 +315,44 @@ void WatchHost(void* gs, float dt) {
                        L"may not be shared");
 }
 
+// --- Minigames in multiplayer -----------------------------------------------------------------------------
+//
+// The game's only multiplayer block on Arcade and Holdout is in ACrabPortal::CanInteract: it refuses those two
+// portals while the game state lists more than one player. Everything after it (the vote, travel, the score,
+// the timer, waves and game over) already works with a team: the score is one replicated team score, and each
+// player saves their own high score. The check runs on the server and on the interacting player's own machine,
+// so a player without CrabSync still can't vote for these portals.
+
+bool IsMinigame(uint8_t island) {
+    return island == uint8_t(IslandType::Arcade) || island == uint8_t(IslandType::Holdout);
+}
+
+bool HkPortalCanInteract(void* portal, void* character) {
+    if (IsMinigame(At<uint8_t>(portal, off::Portal_IslandType)))
+        return Fn<CanInteractFn>(va::ACrabInteractable_CanInteract)(portal, character);
+    return oPortalCanInteract(portal, character);
+}
+
+// Host, in Holdout: the game sets every character to 1 max health when the fight starts. A character that
+// shows up later (a player joining mid-game) gets the same.
+void HoldoutLateJoiners(void* gs) {
+    static void* psClass = StaticClass(va::ACrabPS_StaticClass);
+    bool fighting = At<uint8_t>(gs, off::GS_MatchState) == 3;
+    bool first = g_holdoutBodies.empty();
+    auto& arr = At<TArray<void*>>(gs, off::GS_PlayerArray);
+    for (int i = 0; fighting && i < arr.Num; i++) {
+        if (!IsA(arr.Data[i], psClass)) continue;
+        Inventory inv;
+        ReadInventory(arr.Data[i], inv);
+        if (inv.life != Life::Alive || !g_holdoutBodies.insert(inv.body).second || first) continue;
+        if (inv.maxHealth > 1.f) {
+            Fn<SetMaxHealthFn>(va::ACrabC_SetMaxHealth)(reinterpret_cast<void*>(inv.body), 1.f);
+            CRAB_LOG("%s: joined Holdout late, set to 1 max health", PlayerName(arr.Data[i]).c_str());
+        }
+    }
+    if (fighting && first && g_holdoutBodies.empty()) g_holdoutBodies.insert(0);  // nobody alive yet
+}
+
 // Logs a line whenever what CrabSync is doing changes, so the log always says why it is (not) syncing.
 void SetStatus(const std::string& s) {
     if (s == g.status) return;
@@ -382,6 +429,28 @@ void OnTick(void* engine, float dt) {
         }
         if (g.runStarting && island != uint8_t(IslandType::None)) g.sinceLoad = 0.f;
         g.lastIsland = island;
+        g_holdoutBodies.clear();
+        if (IsMinigame(island)) {
+            // Everyone plays a minigame with their own health, as in the game: drop the pool's extra max health.
+            static void* psClass = StaticClass(va::ACrabPS_StaticClass);
+            g_extraHealth = 0.f;
+            auto& arr = At<TArray<void*>>(gs, off::GS_PlayerArray);
+            for (int i = 0; island == uint8_t(IslandType::Arcade) && i < arr.Num; i++) {
+                Inventory inv;
+                if (IsA(arr.Data[i], psClass) && (ReadInventory(arr.Data[i], inv), inv.maxHealth > 0.f))
+                    Fn<void (*)(void*)>(va::ACrabPS_UpdateMaxHealth)(arr.Data[i]);
+            }
+        }
+    }
+    g_minigame = IsMinigame(island);
+    if (g_minigame) {
+        if (island == uint8_t(IslandType::Holdout)) HoldoutLateJoiners(gs);
+        SetStatus(std::string("host, in the ") + IslandTypeName(island) + " minigame: nothing is shared");
+        if (g.dumpRequested) {
+            g.dumpRequested = false;
+            DumpVisible(gs, "minigame");
+        }
+        return;
     }
     // The lobby shows the pool's size (everyone's max includes healthPerPlayer) at full health, but no
     // damage is shared there: a pool carried over from the run's last fight must not reach the fresh
@@ -456,7 +525,7 @@ void HkSetMaxHealth(void* character, float max) {
 
 // A player's base max health changed by `d` (on the host). Everything but a chest's cost is the team's.
 void OnBaseMaxHealth(void* ps, float d, uintptr_t ret) {
-    if (d == 0.f) return;
+    if (d == 0.f || g_minigame) return;
     if (!g_ledger.hasTeam() || !g_ledger.maxShared()) {
         // Not an error in the lobby (nothing is shared there) or while a run is being set up; logged so a
         // max health change that stays with one player can be traced.
@@ -496,7 +565,7 @@ void HkChestPay(void* chest, void* opener) {
     uint8_t currency = At<uint8_t>(chest, off::Chest_CurrencyType);
     void* ps = IsA(opener, cClass) ? At<void*>(opener, off::Pawn_PlayerState) : nullptr;
     void* hc = IsA(opener, cClass) ? At<void*>(opener, off::C_HC) : nullptr;
-    if (!ps || !hc || At<uint8_t>(chest, off::Chest_bIsChestOpened) || At<int32_t>(chest, off::Chest_Cost) <= 0 ||
+    if (!ps || !hc || g_minigame || At<uint8_t>(chest, off::Chest_bIsChestOpened) || At<int32_t>(chest, off::Chest_Cost) <= 0 ||
         (currency != 2 && currency != 3) || At<uint8_t>(chest, off::Actor_Role) != ROLE_Authority) {
         oChestPay(chest, opener);
         return;
@@ -539,6 +608,9 @@ DWORD WINAPI Init(LPVOID) {
     Hook(va::ACrabPS_RestoreAutoSave, &HkRestoreAutoSave, &oRestore, "ACrabPS::RestoreAutoSave");
     Hook(va::AGameModeBase_K2_PostLogin, &HkPostLogin, &oPostLogin, "AGameModeBase::K2_PostLogin");
     Hook(va::APlayerController_ClientMessage_Impl, &HkClientMessage, &oClientMessage, "ClientMessage");
+    if (g_cfg.minigames)
+        SwapVirtual(va::ACrabPortal_VTable + va::ACrabPortal_CanInteract_Slot, &HkPortalCanInteract,
+                    &oPortalCanInteract, "ACrabPortal::CanInteract");
     if (g_cfg.sync.health) {
         Hook(va::ACrabPS_UpdateMaxHealth, &HkUpdateMaxHealth, &oUpdateMaxHealth, "ACrabPS::UpdateMaxHealth");
         Hook(va::ACrabC_SetMaxHealth, &HkSetMaxHealth, &oSetMaxHealth, "ACrabC::SetMaxHealth");

@@ -14,10 +14,12 @@ struct Config {
     float healthPerPlayer = 250.f;  // added to the shared health pool for each player after the first
     float settleSeconds = 3.f;   // wait after a map load before syncing
     float pollSeconds = 0.1f;    // how often the host compares inventories
+    bool minigames = true;       // the Arcade and Holdout portals work in multiplayer
 };
 
 // Written next to the DLL on first launch.
-inline constexpr const char kDefaultIni[] = R"(# CrabSync: shared team inventory. Only the host's settings matter; clients need nothing.
+inline constexpr const char kDefaultIni[] = R"(# CrabSync: shared team inventory. Only the host's settings matter; clients need nothing
+# (except to vote for a minigame portal: see minigames below).
 enabled = true
 
 # Equipment: the most recent change by anyone is applied to everyone.
@@ -55,6 +57,11 @@ chestHealthCost = split
 
 # Teammate pickups show the pickup popup and trigger perk side effects, like a real pickup.
 announcePickups = true
+
+# Lets the lobby's Arcade and Holdout portals be used in multiplayer (the game allows them solo only).
+# Every player who wants to vote for one needs CrabSync too, since each game checks its own portal.
+# Nothing is shared during a minigame: everyone has their own health, as in the game.
+minigames = true
 
 # Seconds to wait after a map loads before syncing, and how often the host checks for changes.
 settleSeconds = 3
@@ -102,6 +109,7 @@ inline Config LoadConfig(const std::wstring& path, bool* created = nullptr) {
             c.sync.chestCost = v == "full" ? ChestCost::Full : v == "free" ? ChestCost::Free : ChestCost::Split;
 
         else if (k == "announcePickups") c.announce = ParseBool(v);
+        else if (k == "minigames") c.minigames = ParseBool(v);
         else if (k == "settleSeconds") c.settleSeconds = std::stof(v);
         else if (k == "pollSeconds") c.pollSeconds = std::stof(v);
     }

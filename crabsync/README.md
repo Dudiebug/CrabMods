@@ -27,6 +27,16 @@ The health pool grows with the team: its max is your normal max health **plus 25
 
 Every part can be switched off in `CrabSync.ini`.
 
+## Minigames in co-op
+
+The game only lets you play the lobby's **Arcade** and **Holdout** minigames alone. CrabSync opens them to the whole lobby. The game already has everything else for a team: one shared score, the timer and waves, and a game-over screen for every player.
+
+- **Everyone who wants to vote for a minigame portal needs CrabSync installed.** Each game checks the portal on its own machine, so a player without it still sees "This portal can't be used in a multiplayer game".
+- **Nothing is shared during a minigame.** Everyone has their own health, as in the game. In Holdout one hit takes out only you, and the run goes on until the last crab falls.
+- Each player keeps their own high score and achievements.
+
+Set `minigames = false` to keep them solo only.
+
 ## Install
 
 The easy way is the [CrabMods Manager](../manager/README.md): it installs CrabSync and keeps it up to date.
@@ -64,6 +74,7 @@ By hand:
 | `healthPerPlayer` | `250` | Max health added to the pool for each player after the first. |
 | `chestHealthCost` | `split` | What spiked and greed chests cost the team: `split` (a share each, so every player opening one costs what one chest costs alone), `full` or `free`. |
 | `announcePickups` | `true` | Teammates' pickups show the pickup popup and trigger perk effects, like a real pickup. |
+| `minigames` | `true` | Lets the lobby's Arcade and Holdout portals be used in multiplayer. Every player who votes for one needs CrabSync. |
 | `settleSeconds` | `3` | How long to wait after a map loads or a run starts before syncing. |
 | `pollSeconds` | `0.1` | How often the host checks for changes. |
 
