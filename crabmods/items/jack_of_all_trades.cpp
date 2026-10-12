@@ -13,7 +13,7 @@ public:
                      L"Damage increased for each different kind of pickup you have",
                      L"Damage increased by PrimaryBuff% for each different pickup tag you have (Fire, Critical, Speed, ...)",
                      204, Perk_Collector},
-                    rarity::Legendary) {}
+                    rarity::Epic) {}
 
     std::string DefaultIni() const override {
         return R"(# Jack of All Trades, a perk: more damage for each different pickup tag you have (Healing, Critical,
@@ -24,7 +24,7 @@ enabled = true
 damagePercent = 3
 
 # Which chests it drops from: common, epic, legendary or greed.
-rarity = legendary
+rarity = epic
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
@@ -45,24 +45,7 @@ rarity = legendary
     }
 
 private:
-    static int Tags(void* ps) {
-        uint32_t mask = 0;
-        auto scan = [&](int offset) {
-            ForEachItem(ps, offset, [&](void* da, int) {
-                uint8_t t = At<uint8_t>(da, off::DA_PickupTag);
-                if (t == tag::None || t >= 32) return;
-                mask |= 1u << t;
-            });
-        };
-        scan(off::PS_WeaponMods);
-        scan(off::PS_AbilityMods);
-        scan(off::PS_MeleeMods);
-        scan(off::PS_Perks);
-        scan(off::PS_Relics);
-        int count = 0;
-        for (; mask; mask &= mask - 1) count++;
-        return count;
-    }
+    static int Tags(void* ps) { return DistinctTags(ps); }
 
 protected:
     float PrimaryBuff() const override { return pct_; }
@@ -74,4 +57,16 @@ private:
 JackOfAllTrades g_item;
 
 }  // namespace
+
+int DistinctTags(void* ps) {
+    uint32_t mask = 0;
+    for (int offset : {off::PS_WeaponMods, off::PS_AbilityMods, off::PS_MeleeMods, off::PS_Perks, off::PS_Relics})
+        ForEachItem(ps, offset, [&](void* da, int) {
+            uint8_t t = At<uint8_t>(da, off::DA_PickupTag);
+            if (t != tag::None && t < 32) mask |= 1u << t;
+        });
+    int count = 0;
+    for (; mask; mask &= mask - 1) count++;
+    return count;
+}
 }  // namespace crabmods

@@ -12,17 +12,17 @@
 |---|---|---|---|
 | **Arsenal** | weapon mod | Epic | +3% damage for each other weapon mod you have. |
 | **Hoarder** | perk | Legendary | +3% damage for each weapon mod **and** each perk level you have. Arsenal and Collector in one. |
-| **Minimalist** | perk | Epic | +5% damage for each **empty** weapon mod slot. |
+| **Minimalist** | perk | Epic | +40% damage, minus 4% for each **different pickup tag** you hold (Jack of All Trades the other way round). |
 | **Underdog** | perk | Epic | +0.5% damage for every 1% of health you are missing (+25% at half health). |
 | **Untouchable** | perk | Epic | +1% damage for each second without taking damage, up to +20%. Getting hit resets it. |
-| **Jack of All Trades** | perk | Legendary | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
-| **Greed Is Power** | Greed perk | Greed | +5% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
+| **Jack of All Trades** | perk | Epic | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
+| **Greed Is Power** | Greed perk | Greed | +3% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
 | **Combo Catalyst** | perk | Epic | Your hits apply **+1 stack of each element** they already apply for every combo level above 1 (+4 at combo 5). |
 | **Encore** | relic | Epic | Perks that go off by themselves have a **15% chance to go off twice**: Exploding / Freezing / Flammable / Electric / Poisonous Enemies, Explosive / Poisonous / Flammable Armor, and Grave Dodger (it can save you again that island). A failed Rigged Totems or Autoloader roll gets a second try, and Finishing Move's bonus can count twice. |
 | **Autoloader** | perk | Epic | Each kill has a **10% chance to reload your weapon instantly** (more levels: 16.7%, 23.1%, ...). |
 | **Purist** | relic | Epic | +10% damage while every elemental pickup you hold is the same element. |
-| **Collateral Damage** | perk | Epic | +5% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
-| **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives a permanent +3% damage for the rest of the run. |
+| **Collateral Damage** | perk | Epic | +3% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
+| **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives +3% damage until the island ends. It resets each island, like Collateral Damage. |
 | **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +35% damage. |
 | **Hellshot** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +35% damage. |
@@ -33,7 +33,7 @@
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Thick Shell** | perk | Epic | +3% max health multiplier for each perk level you have (this one included). Collector for health. |
-| **Community Support** | perk | Epic | You and every player within 20 m fire faster: one Rapid Fire level (+12%) for each player in range who has Community Support, you included. It stacks when your friends have it too. |
+| **Community Support** | perk | Epic | You and every player within 20 m fire faster: one Rapid Fire level (+12%) for each player in range who has Community Support, you included. It stacks when your friends have it too. Never drops when you play alone. |
 
 ### Loot
 
@@ -55,13 +55,13 @@
 |---|---|---|---|
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
 | **Enhanced Turrets** | ability mod | Common | The game's Enhanced Turrets perk, as an ability mod: more turret damage per level, as much as the perk gave. It drops only with a turret ability. The perk no longer drops. |
-| **Portal Shot** | perk | Legendary | Replaces the Portal Amulet relic: your shots fire from the nearest enemy, and each level adds +20% damage. Portal Amulet no longer drops. |
+| **Pathfinder** | perk | Common | Replaces the Portal Ring relic: one more portal choice after each island for every level (the ring gives one and doesn't level). Portal Ring no longer drops. |
 
 ### Weapon
 
 | Item | Type | Effect |
 |---|---|---|
-| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 5 / 15 / 40 / 100). Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
+| **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 100). Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. Each costs 0.25% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
 
 ### Soul Whip loot
 
@@ -70,22 +70,22 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Long Lash** | weapon mod | Common | Soul bolts fly **15%** farther. |
-| **Soul Siphon** | weapon mod | Common | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
+| **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
 | **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **25%** farther. |
 | **Death Mark** | weapon mod | Epic | Tagged enemies take **10%** more damage from you. |
-| **Soul Brand** | weapon mod | Legendary | Killing a tagged enemy tags the **2** enemies nearest it. |
+| **Soul Brand** | weapon mod | Epic | Killing a tagged enemy tags the **2** enemies nearest it. |
 | **Sturdy Bones** | ability mod | Common | Undead you raise have **15%** more health. |
 | **Soul Discount** | ability mod | Common | Raising costs about **8%** fewer souls (levels add up hyperbolically; never below half). |
 | **Mass Grave** | ability mod | Epic | Fodder raises bring **1** more. |
-| **Twin Rising** | ability mod | Legendary | **15%** chance a raise brings twice as many for the same souls (each level rolls again). |
+| **Twin Rising** | ability mod | Epic | **15%** chance a raise brings twice as many for the same souls (each level rolls again). |
 | **Grave Claws** | melee mod | Common | Melee kills give **100%** more souls. |
 | **Harvester** | melee mod | Legendary | A melee kill on a fodder or medium enemy has a **25%** chance to rise as your undead, for free. |
 | **Soul Jar** | perk | Common | **+10** max souls. |
 | **Hungry Ghosts** | perk | Common | Kills give **10%** more souls. |
 | **Last Rites** | perk | Common | When one of your undead falls in a fight, **15%** of its raise cost comes back. |
-| **Army of the Dead** | perk | Epic | **+4%** damage for each undead you have. |
+| **Army of the Dead** | perk | Legendary | **+4%** damage for each undead you have. |
 | **Plague Bearers** | perk | Epic | Your undead's attacks apply **3 poison**. |
-| **Grim Harvest** | perk | Legendary | Tagged kills give **50%** more souls, on top of the tag's own +50%. |
+| **Grim Harvest** | perk | Epic | Tagged kills give **50%** more souls, on top of the tag's own +50%. |
 | **Ring of Souls** | relic | Epic | **25%** more souls from everything. |
 | **Ring of the Grave** | relic | Epic | Your undead have **25%** more health and damage. |
 | **Phylactery** | relic | Legendary | Once per island, a hit that would down you is cancelled and you're left at half health or more. It spends all your souls, and needs at least **50**. |
@@ -107,12 +107,12 @@ Charms are a kind of item of their own, and they're what give you more inventory
 | Change | Effect |
 |---|---|
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
-| **Key totem** | The lobby's key totem opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
+| **Key totem** | While you still have **locked items**, the lobby's key totem works like the game's own but lets you **choose one of 3** random locked items from a menu (`choices`); closing the menu and reopening it shows the same three. Once everything is unlocked it opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 | **Parkour islands** (experimental) | Brings back the **Parkour island** the game dropped in 2025. On islands 1 to 3 the Demolition portal is sometimes (`chance`, 50%) a Parkour portal instead. Arctic runs get Arctic_Parkour_01, the other biomes Tropical_Parkour_01. **Needs the Parkour maps add-on on every player's game** (see [Parkour maps](#parkour-maps)); if anyone lacks it, Parkour isn't offered. |
 
 
-- Extra copies stack: each level of an item adds its bonus again (two Minimalists give +10% per empty slot).
+- Extra copies stack: each level of an item adds its bonus again (two Jacks of All Trades give +6% per tag).
 - Every damage bonus is added like the game's own damage perks, so they all stack with each other and with the game's items.
 - The percentages are kept low on purpose, because levels stack.
 - Specialists multiply the weight the game already gives each pickup, so a rare pickup stays rarer than a common one. Several Specialists that boost the same pickup multiply.
@@ -166,14 +166,14 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `countStacks` | `false` | `true` counts a x3 stack as three mods (for Arsenal and Hoarder). |
 | `[hoarder]` | `damagePercent` | `3` | Per weapon mod and per perk level. |
 | `[heavyShot]` | `enabled` | `true` | Let Heavy Shot drop for every weapon (called `anyWeapon` before 0.9.0, still read). |
-| `[minimalist]` | `damagePercent` | `5` | Per empty weapon mod slot. |
+| `[minimalist]` | `maxPercent`, `perTagPercent` | `40`, `4` | Bonus with no tags; taken off per different tag. |
 | `[underdog]` | `damagePercent` | `0.5` | Per 1% of health missing. |
 | `[untouchable]` | `damagePercent` | `1` | Per second without being hit. |
 | | `maxPercent` | `20` | The most it builds up to. |
 | `[jackOfAllTrades]` | `damagePercent` | `3` | Per different pickup tag. |
-| `[greedIsPower]` | `damagePercent` | `5` | Per Greed perk level. |
+| `[greedIsPower]` | `damagePercent` | `3` | Per Greed perk level. |
 | `[purist]` | `damagePercent` | `10` | |
-| `[collateralDamage]` | `damagePercent` | `5` | Per destructible broken this island. |
+| `[collateralDamage]` | `damagePercent` | `3` | Per destructible broken this island. |
 | `[overflow]` | `damagePercent` | `3` | Per stack. |
 | | `healthPerStack` | `100` | Healing past max health one stack takes. |
 | `[martyr]` | `crabHealthPerSecond` | `0.33` | Damage a second to each enemy in the bubble, per level, as a share of a basic crab's max health (15 times this island's enemy health multiplier). It falls off to 20% at the edge. |
@@ -213,7 +213,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `tagDamagePercent`, `taggedSoulsPercent` | `25`, `50` | More undead damage to tagged enemies; more souls for tagged kills. |
 | | `maxSouls` | `100` | |
 | | `soulsEasy` ... `soulsBoss` | `1`, `3`, `6`, `25`, `60` | Souls a kill gives, by the enemy's rank. |
-| | `costFodder`, `costMedium`, `costHard`, `costElite` | `5`, `15`, `40`, `100` | Souls a raise costs. |
+| | `costFodder`, `costMedium`, `costHard`, `costElite` | `10`, `15`, `40`, `100` | Souls a raise costs. |
 | | `fodderPack` | `3` | Fodder raised at once. |
 | | `raiseRangeMeters` | `40` | |
 | | `upkeepPercent` | `0.25` | Of an undead's raise cost, each second while enemies are alive. |
@@ -260,14 +260,14 @@ The effects:
   - The game applies Heavy Shot to every projectile: gravity = (the bullet's own gravity + 2) × (1 + its 15% weight), plus its +50% damage.
   - So even bullets that normally fly dead straight (most guns) start to drop.
 - **Collateral Damage**: on the host, every destructible reports the hit that breaks it, with the player who dealt it (or the last player who hit it, for explosions). Breaks only count during an island's fight, and not the landmines, homing barrels and mushrooms players' own items spawn. The bonus is kept in the perk's own counter, which the game sends to every player.
-- **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The bonus is kept in the perk's own counter, which the game carries from island to island.
+- **Overflow**: all healing happens on the host. CrabMods watches the two places where healing is capped at max health and counts what was lost. The host keeps each island's bonus and mirrors it into the perk's own counter, which the game sends to every player, putting it back to zero when a new island starts (the game would carry it over).
 - **Thick Shell** and **Community Support** add their bonus where the game totals Banana's max health and Rapid Fire's fire rate. The game only recomputes fire rate when your items change, so CrabMods checks who is in range four times a second and recomputes it when that changes.
 - **Bullet Rain** turns on the game's own "shots come from above" mode (Ice Staff's) for the holder's weapon. **Hellshot** moves each shot's start to the ground under where you aim and points it straight up. The machine that fires the shot sends the changed start and direction to everyone, as the game does for every shot. With both, Hellshot leaves every other shot alone, so they alternate between the sky and the ground.
 - **Martyr**: the revive bubble is the game's revival harvest area. Every machine sets a holder's bubble radius (which the host checks for reviving teammates) and its effect's size to the base radius times their Magnify. Four times a second the host fires the game's radial damage (Explosive Armor's) from the bubble's centre, with the downed character as its source, so the enemy-only filter, Magnify and kill credit work as they do for the game's explosions. The damage is the basic crab's base health (15) times the enemy health multiplier the game sets for each wave.
 - **Melee mods**: each melee mod's numbers live in its data asset, so CrabMods changes those when a level loads, and the game's descriptions follow.
 - **Key totem**: the game picks the unlock on your machine, unlocks it in your save and asks the host to spawn it. CrabMods opens a menu first: the game's own confirmation prompt (YES / NO hidden) with tabs, a search box and the items' own pickup cards as buttons in a scroll box, over a blurred game. Escape can't close it, since the keys are already spent. Your choice is unlocked and sent to the host exactly as the game sends its own pick, so any host spawns it. With `menu = false`, CrabMods sends several picks instead, the host spawns them in a row that only you can take (and removes the rest when you take one), then tells your machine which one you took.
 - **Charms** are relics underneath, so they cost the game nothing new to send or save. The host merges a second copy into the one held (adding levels) instead of adding another. Relic slot checks leave charms out. The inventory menu's relic list leaves them out too, and CrabMods adds a CHARMS heading and grid under it for them.
-- **Portal Shot** answers "yes" when the weapon asks whether its owner holds Portal Amulet (ACrabPS::HasRelic), on every machine. **Enhanced Turrets** adds its buff to the game's lookup of the Enhanced Turrets perk, which is where turret projectiles get their damage bonus.
+- **Pathfinder** answers "yes" when the host asks whether a player holds Portal Ring (ACrabPS::HasRelic) as it spawns the portals, which adds one portal per holder. For each level past the first, the holder is listed once more in the game's player list while the portals spawn. **Enhanced Turrets** adds its buff to the game's lookup of the Enhanced Turrets perk, which is where turret projectiles get their damage bonus.
 - **Inventory lines**: the details under the selected item come from the game's own line (UCrabInventoryUI's accumulated buff row). CrabMods fills it in for its items, and for game items with a built-up buff but no line of their own.
 - **Bandolier, Tool Belt, Scabbard, Backpack**: the host raises the player's slot count for that group (the same number the game sets to 24 / 12 / 12 / 24 at the start of a run) by 5 per level, and lowers it again if the item goes, never below what you hold. The count is sent to everyone and kept between islands by the game. The inventory menu only has widgets for the game's own slots, so CrabMods adds more like them (same look, hover and gamepad focus) before the menu lays them out, and puts the slots part of the menu in a scroll box.
 - **Reliquary**: relics have no slot count; the game allows 10, both when checking whether you can take a relic and in the inventory menu. On every machine, CrabMods raises both by the Reliquary's slots (worked out from the inventory, which everyone sees).

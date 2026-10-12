@@ -151,12 +151,14 @@ inline void Keep(void* mid, const wchar_t* param, void* texture) {
 
 // An unlit material showing a texture as it is: the engine's own one for widgets drawn in the world
 // (Widget3DPassThrough_Opaque, texture parameter SlateUI), as a dynamic instance in the transient package.
-inline void* TextureMaterial(void* texture) {
+// translucent: Widget3DPassThrough_Translucent, which takes the texture's alpha as its opacity.
+inline void* TextureMaterial(void* texture, bool translucent = false) {
     static void* lib = ui::FindObject(L"/Script/Engine.Default__KismetMaterialLibrary");
-    void* parent =
-        ui::FindObject(L"/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque");
+    void* parent = ui::FindObject(
+        translucent ? L"/Engine/EngineMaterials/Widget3DPassThrough_Translucent.Widget3DPassThrough_Translucent"
+                    : L"/Engine/EngineMaterials/Widget3DPassThrough_Opaque.Widget3DPassThrough_Opaque");
     if (!lib || !parent) {
-        CRAB_LOG("necromancer: no Widget3DPassThrough_Opaque material; the whip keeps the Sniper's look");
+        CRAB_LOG("necromancer: no Widget3DPassThrough_%s material", translucent ? "Translucent" : "Opaque");
         return nullptr;
     }
     struct {

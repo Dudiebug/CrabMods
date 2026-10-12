@@ -1,4 +1,5 @@
-// Key totem: the lobby's key totem lets you choose any item. Using it opens a menu in the game's own style (its
+// Key totem: while items are still locked, the lobby's key totem offers a few random locked ones (the game's own
+// gives one) in a menu to choose from; once everything is unlocked it lets you choose any item. It opens a menu in the game's own style (its
 // confirmation prompt, with every item's pickup card as a button, category tabs and a search box); the item you
 // choose comes out of the totem, as the game's own one does, and is unlocked if it was locked.
 //
@@ -40,15 +41,16 @@ public:
     KeyTotem() : Item("keyTotem", 190) { g_self = this; }
 
     std::string DefaultIni() const override {
-        return R"(# Key totem: the lobby's key totem lets you choose any item from a menu of every item (with category tabs,
-# locked items in a tab of their own, and a search box). A locked item you choose is unlocked.
+        return R"(# Key totem: the lobby's key totem works like the game's own while you still have locked items, but you choose
+# one of `choices` random locked items from a menu, and it is unlocked. Once everything is unlocked it opens a
+# menu of every item (with category tabs and a search box) instead.
 enabled = true
 
 # true: choose from the menu (works with any host). false: a row of random locked items comes out of the totem
 # and you pick one up (needs CrabMods on the host too).
 menu = true
 
-# Without the menu: how many items are in the row (1 to 8).
+# How many random locked items to choose from (1 to 8), in the menu or the row.
 choices = 3
 )";
     }
@@ -60,7 +62,7 @@ choices = 3
     bool Enabled() const override { return enabled_; }
     std::string Title() const override { return "Key Totem Menu"; }
     std::string Describe() const override {
-        return menu_ ? "choose any item from a menu" : "choose from " + std::to_string(choices_) + " items in a row";
+        return menu_ ? "choose from " + std::to_string(choices_) + " locked items, or any item once all are unlocked" : "choose from " + std::to_string(choices_) + " items in a row";
     }
 
     // Player's machine: keeps the menu up until a choice is made (something else may have closed it), and
@@ -201,8 +203,10 @@ private:
         std::vector<Candidate> items;
         bool unlocking = false;
         if (!self.Pick(pc, items, unlocking)) return oInteracted(pc, totem);
-        if (self.menu_ && self.OpenMenu(pc, totem, items)) return;
-        if (HostHasCrabMods(pc) && self.SendRow(pc, totem, self.Some(items, unlocking), unlocking)) return;
+        // Like the game's own while something is still locked: a few random locked items, here as a menu of
+        // choices_; once everything is unlocked, the menu of every item.
+        if (self.menu_ && self.OpenMenu(pc, totem, unlocking ? self.Some(items, true) : items, unlocking)) return;
+        if (HostHasCrabMods(pc) && self.SendRow(pc, totem, Das(self.Some(items, unlocking)), unlocking)) return;
         oInteracted(pc, totem);
     }
 
@@ -242,14 +246,18 @@ private:
         return !out.empty();
     }
 
-    // choices_ of them at random, for the row.
-    std::vector<void*> Some(std::vector<Candidate> items, bool lockedOnly) {
+    // choices_ of them at random.
+    std::vector<Candidate> Some(std::vector<Candidate> items, bool lockedOnly) {
         if (lockedOnly)
             items.erase(std::remove_if(items.begin(), items.end(), [](const Candidate& c) { return !c.locked; }),
                         items.end());
         std::shuffle(items.begin(), items.end(), rng_);
+        if (int(items.size()) > choices_) items.resize(choices_);
+        return items;
+    }
+    static std::vector<void*> Das(const std::vector<Candidate>& items) {
         std::vector<void*> das;
-        for (size_t i = 0; i < items.size() && int(i) < choices_; i++) das.push_back(items[i].da);
+        for (const Candidate& c : items) das.push_back(c.da);
         return das;
     }
 
@@ -312,6 +320,8 @@ private:
         void* scroll = nullptr;
         void* nothing = nullptr;  // "NOTHING MATCHES"
         std::wstring query;       // lower case
+        std::vector<Candidate> offered;  // what it was opened with (kept when it is closed without a choice)
+        bool few = false;
     };
 
     static void* VirtualOf(void* obj, int slot) { return (*reinterpret_cast<void***>(obj))[slot / 8]; }
@@ -335,7 +345,9 @@ private:
         return s;
     }
 
-    bool OpenMenu(void* pc, void* totem, std::vector<Candidate> items) {
+    // few: a handful of choices (items still locked), without the tabs and the search box.
+    bool OpenMenu(void* pc, void* totem, std::vector<Candidate> items, bool few = false) {
+        if (items.empty()) return false;
         void* cls = ui::FindObject(va::ConfirmationPromptClassPath);
         void* clsCls = cls ? At<void*>(cls, off::Object_Class) : nullptr;
         if (!clsCls || ObjectName(clsCls) != "WidgetBlueprintGeneratedClass") {
@@ -360,6 +372,7 @@ private:
 
         Menu m;
         m.widget = w, m.pc = pc, m.lm = LevelManagerOf(pc), m.totem = totem;
+        m.offered = items, m.few = few;
         // The prompt's font: its message bigger, as a menu's title; the rest at its size.
         ui::Font font, title;
         ui::FontOf(msg, 16, font);
@@ -374,7 +387,7 @@ private:
 
         // Tabs: all, locked, and each kind there's something of.
         int count[kTabs]{};
-        for (const Candidate& c : items) count[0]++, count[kLockedTab] += c.locked, count[c.list + 2]++;
+        for (const Candidate& c : items) count[0]++, count[kLockedTab] += c.locked && !few, count[c.list + 2] += !few;
         void* tabsBox = ui::NewWidget(w, va::UHorizontalBox_StaticClass);
         void* relayClass = At<void*>(items[0].da, off::DA_InteractUIClass);
         if (!tabsBox) return false;
@@ -445,6 +458,7 @@ private:
         ui::SetVisibility(ui::Parent(yes), ui::Collapsed);  // YES / NO
         AddRow(vbox, tabsBox, 20);
         AddRow(vbox, search, 12);
+        if (few) ui::SetVisibility(tabsBox, ui::Collapsed), ui::SetVisibility(search, ui::Collapsed);
         AddRow(vbox, size, 20);
         AddRow(vbox, nothing, 20);
         // The game behind is blurred, as behind its other menus.
@@ -696,15 +710,17 @@ private:
         if (c && !serverInteract_)
             serverInteract_ = Fn<void* (*)(void*, uint64_t, int)>(va::UClass_FindFunctionByName)(
                 At<void*>(c, off::Object_Class), ui::Name(L"ServerInteract"), 1);
-        parked_ = {m.pc, m.totem, m.lm};
+        parked_ = {m.pc, m.totem, m.lm, std::move(m.offered), m.few};
         CRAB_LOG("keyTotem: menu closed without a choice, use the totem again to choose");
     }
     void Unpark() {
         Parked p = parked_;
         parked_ = {};
-        std::vector<Candidate> items;
+        // The same choices again (no rerolling a few by closing the menu); the full menu is made afresh.
+        std::vector<Candidate> items = p.offered;
         bool unlocking = false;
-        if (Pick(p.pc, items, unlocking) && OpenMenu(p.pc, p.totem, items)) CRAB_LOG("keyTotem: menu opened again");
+        if ((p.few || Pick(p.pc, items, unlocking)) && OpenMenu(p.pc, p.totem, items, p.few))
+            CRAB_LOG("keyTotem: menu opened again");
     }
 
     using EventFn = void (*)(void*, void*, void*);
@@ -822,6 +838,8 @@ private:
         void* pc = nullptr;
         void* totem = nullptr;
         void* lm = nullptr;
+        std::vector<Candidate> offered;
+        bool few = false;
     } parked_;
     void* serverInteract_ = nullptr;  // ACrabPlayerC::ServerInteract's UFunction
     std::mt19937 rng_{std::random_device{}()};

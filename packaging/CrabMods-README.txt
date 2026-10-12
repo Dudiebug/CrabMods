@@ -4,18 +4,19 @@ https://github.com/Dudiebug/CrabMods
 Items (all bonuses are per level, and stack):
   Arsenal (Epic weapon mod): +3% damage per other weapon mod.
   Hoarder (Legendary perk): +3% damage per weapon mod and per perk level.
-  Minimalist (Epic perk): +5% damage per empty weapon mod slot.
+  Minimalist (Epic perk): +40% damage, minus 4% per different pickup tag you hold.
   Underdog (Epic perk): +0.5% damage per 1% of health missing.
   Untouchable (Epic perk): +1% damage per second without being hit, up to +20%.
-  Jack of All Trades (Legendary perk): +3% damage per different pickup tag.
-  Greed Is Power (Greed perk): +5% damage per Greed perk level.
+  Jack of All Trades (Epic perk): +3% damage per different pickup tag.
+  Greed Is Power (Greed perk): +3% damage per Greed perk level.
   Purist (Epic relic): +10% damage while all your elemental pickups are one element.
-  Collateral Damage (Epic perk): +5% damage per destructible broken this island.
-  Overflow (Epic perk): every 100 health healed at full health gives a
-    permanent +3% damage.
+  Collateral Damage (Epic perk): +3% damage per destructible broken this island.
+  Overflow (Epic perk): every 100 health healed at full health gives
+    +3% damage until the island ends.
   Thick Shell (Epic perk): +3% max health multiplier per perk level.
   Community Support (Epic perk): you and players within 20 m fire faster, one
-    Rapid Fire level for each player in range who has it, you included.
+    Rapid Fire level for each player in range who has it, you included. Never
+    drops when you play alone.
   Bullet Rain (Epic weapon mod): shots fall from the sky onto where you aim.
   Hellshot (Epic weapon mod): shots fire up out of the ground where you aim.
     With both, your shots alternate between the sky and the ground.
@@ -45,8 +46,8 @@ Items (all bonuses are per level, and stack):
   Recharge (Epic ability mod): each kill takes 0.1 s off your ability cooldown.
   Enhanced Turrets (Common ability mod): the game's Enhanced Turrets perk as an
     ability mod: more turret damage per level. The perk no longer drops.
-  Portal Shot (Legendary perk): replaces the Portal Amulet relic. Shots fire
-    from the nearest enemy, +20% damage per level.
+  Pathfinder (Common perk): replaces the Portal Ring relic. One more portal
+    choice after each island for every level.
   Charms (Legendary), a kind of item of their own, with their own inventory
     section: Bandolier / Tool Belt / Scabbard / Backpack / Reliquary give +5
     weapon mod / ability mod / melee mod / perk / relic slots per level.
@@ -56,9 +57,10 @@ Items (all bonuses are per level, and stack):
     Bouncing Shot.
   Melee mods (the game's own): stronger numbers, e.g. Sharp Claws +200%,
     Iron Claws +500%, Vampire 15 health per kill ([meleeMods]).
-  Key totem (the lobby's): a menu of every item, with category tabs (locked
-    items have their own) and a search box, lets you choose any item; a
-    locked one is unlocked. Works with any host.
+  Key totem (the lobby's): while items are still locked, choose one of 3
+    random locked items from a menu, and it is unlocked. Once everything is
+    unlocked, a menu of every item (category tabs, search box) lets you
+    choose any item. Works with any host.
   Spiked Chest (the game's own): costs 35% of your base max health instead
     of 25%, and its island's portal says so ([spikedChest] costPercent).
 
@@ -68,14 +70,14 @@ Soul Whip (a new weapon, on its own pedestal left of the Crossbow in the lobby):
   a soul bar, and V / C / X / Z raise the last fodder, medium, hard or elite
   enemy you killed as an undead that fights for you ([necromancer]).
   Its own loot, which only drops for whip holders:
-    Long Lash, Soul Siphon, Branding Iron (Common), Death Mark (Epic), Soul
-      Brand (Legendary): weapon mods for the bolt and its tags.
-    Sturdy Bones, Soul Discount (Common), Mass Grave (Epic), Twin Rising
-      (Legendary): ability mods for raising.
+    Long Lash, Branding Iron (Common), Soul Siphon, Death Mark, Soul
+      Brand (Epic): weapon mods for the bolt and its tags.
+    Sturdy Bones, Soul Discount (Common), Mass Grave, Twin Rising
+      (Epic): ability mods for raising.
     Grave Claws (Common), Harvester (Legendary): melee mods for souls and free
       raises.
-    Soul Jar, Hungry Ghosts, Last Rites (Common), Army of the Dead, Plague
-      Bearers (Epic), Grim Harvest (Legendary): perks.
+    Soul Jar, Hungry Ghosts, Last Rites (Common), Plague Bearers, Grim
+      Harvest (Epic), Army of the Dead (Legendary): perks.
     Ring of Souls, Ring of the Grave (Epic), Phylactery (Legendary): relics.
 
 

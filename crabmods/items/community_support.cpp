@@ -24,6 +24,7 @@ public:
 # it (you included) adds one Rapid Fire's worth, so it stacks when your friends have it too.
 enabled = true
 
+# Never drops when you play alone.
 # Fire rate bonus for each Community Support in range, in percent (Rapid Fire's is 12). Each extra level a
 # player has counts again.
 fireRatePercent = 12
@@ -72,6 +73,9 @@ rarity = epic
             RefreshFireRate(ps);
         });
     }
+
+    // It only helps with other players around: never offered when playing alone.
+    float LootWeight(void* ps, void* da) override { return da_ && da == da_ && PlayerCount(ps) <= 1 ? 0.f : 1.f; }
 
 protected:
     float PrimaryBuff() const override { return pct_; }

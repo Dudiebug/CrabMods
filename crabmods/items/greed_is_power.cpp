@@ -19,7 +19,7 @@ public:
 enabled = true
 
 # Damage bonus for each Greed perk level, in percent. Each extra Greed Is Power stacks it again.
-damagePercent = 5
+damagePercent = 3
 
 # Which chests it drops from: greed (also common, epic or legendary).
 rarity = greed
@@ -57,7 +57,7 @@ protected:
     float PrimaryBuff() const override { return pct_; }
 
 private:
-    float pct_ = 5.f;
+    float pct_ = 3.f;
 };
 
 GreedIsPower g_item;

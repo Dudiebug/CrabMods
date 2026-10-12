@@ -1,5 +1,7 @@
-// Minimalist, a perk: more damage for each empty weapon mod slot.
+// Minimalist, a perk: a big damage bonus that shrinks for each different pickup tag you hold (Jack of All Trades
+// the other way round): it pays for staying focused on a few kinds of pickup.
 #include "../item.hpp"
+#include "shared.hpp"
 
 namespace crabmods {
 namespace {
@@ -9,52 +11,52 @@ public:
     Minimalist()
         : AssetItem("minimalist", 40,
                     {Kind::Perk, L"DA_Perk_Minimalist", L"Minimalist",
-                     L"Damage increased for each empty weapon mod slot",
-                     L"Damage increased by PrimaryBuff% for each empty weapon mod slot", 201, Perk_Collector},
+                     L"More damage the fewer different kinds of pickup you have",
+                     L"Damage increased by PrimaryBuff%, minus a share for each different pickup tag you have (Fire, "
+                     L"Critical, Speed, ...)",
+                     201, Perk_Collector},
                     rarity::Epic) {}
 
     std::string DefaultIni() const override {
-        return R"(# Minimalist, a perk: more damage for each empty weapon mod slot.
+        return R"(# Minimalist, a perk: a damage bonus that shrinks for each different pickup tag you have (Healing, Critical,
+# Speed, Bounce, Fire, Ice, Lightning, Poison, Arcane, Turret, Combo, ...). Jack of All Trades the other way round.
 enabled = true
 
-# Damage bonus for each empty weapon mod slot, in percent. Each extra Minimalist stacks it again.
-damagePercent = 5
+# Damage bonus with no tags at all, in percent.
+maxPercent = 40
 
-# Which chests it drops from: epic or legendary (also common or greed).
+# Taken off it for each different tag, in percent (never below 0). With 40 and 4, five tags leave +20% and ten
+# leave nothing. Each extra Minimalist stacks what is left again.
+perTagPercent = 4
+
+# Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
 )";
     }
     void Set(const std::string& k, const std::string& v) override {
-        if (k == "damagePercent") pct_ = ParseFloat(v);
+        if (k == "maxPercent") max_ = std::max(ParseFloat(v), 0.f);
+        else if (k == "perTagPercent") perTag_ = std::max(ParseFloat(v), 0.f);
         else AssetItem::Set(k, v);
     }
     std::string Describe() const override {
-        return "+" + Num(pct_) + "% per empty weapon mod slot, " + RarityName(rarity_);
+        return "+" + Num(max_) + "% minus " + Num(perTag_) + "% per different pickup tag, " + RarityName(rarity_);
     }
 
-    // Minimalist level x empty weapon mod slots. Each weapon mod entry fills one slot, whatever its level.
+    // Minimalist level x what is left of the bonus after the tags.
     float DamageBonus(void* ps) override {
         int level = Level(ps);
-        if (!level) return 0.f;
-        int slots = At<uint8_t>(ps, off::PS_NumWeaponModSlots);
-        int used = 0;
-        ForEachItem(ps, off::PS_WeaponMods, [&](void*, int) { used++; });
-        int empty = slots > used ? slots - used : 0;
-        return level * empty * pct_ * 0.01f;
+        return level ? level * Left(ps) * 0.01f : 0.f;
     }
-
     std::string InventoryNote(void* ps, void* da) override {
-        if (!da || da != da_) return {};
-        int slots = At<uint8_t>(ps, off::PS_NumWeaponModSlots), used = 0;
-        ForEachItem(ps, off::PS_WeaponMods, [&](void*, int) { used++; });
-        return CountNote(ps, da, "Empty weapon mod slots", slots > used ? slots - used : 0);
+        return CountNote(ps, da, "Different pickup tags held", DistinctTags(ps));
     }
 
 protected:
-    float PrimaryBuff() const override { return pct_; }
+    float PrimaryBuff() const override { return max_; }
 
 private:
-    float pct_ = 5.f;
+    float Left(void* ps) const { return std::max(max_ - perTag_ * float(DistinctTags(ps)), 0.f); }
+    float max_ = 40.f, perTag_ = 4.f;
 };
 
 Minimalist g_item;

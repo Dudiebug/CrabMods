@@ -4,6 +4,21 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.12.0
+
+- **Minimalist is reworked: fewer kinds of pickup, more damage.** It now gives +40% damage, minus 4% for each different pickup tag you hold (Fire, Critical, Speed, ...), so five tags leave +20% and ten leave nothing. It is Jack of All Trades the other way round. It used to give +5% per empty weapon mod slot, which was +115% at the start of a run, because there are 24 slots. The new settings are `maxPercent` and `perTagPercent`. An existing `CrabMods.ini` keeps its old `damagePercent` line, which now does nothing.
+- **The key totem works like the game's own again while you still have locked items, but you get 3 choices.** It offers 3 random locked items in its menu (the game's own gives one), and the one you choose is unlocked. Closing the menu and using the totem again shows the same three. Once everything is unlocked, it opens the menu of every item as before. Set the count with `choices` in `[keyTotem]`.
+- **Rarity changes.** Jack of All Trades, Soul Brand, Twin Rising and Grim Harvest are now Epic (they were Legendary, which was too much for what they do). Soul Siphon is now Epic (it was Common): a soul for every enemy the burst hits outearned kills several times over. Army of the Dead is now Legendary (it was Epic): with a full army it was over +100% damage per level.
+- **Greed Is Power gives +3% damage per Greed perk level** (was +5%).
+- **Collateral Damage gives +3% per destructible broken** (was +5%). Islands have dozens of pots, rocks and crystals, so it reached +100% and more on every island.
+- **Overflow now resets each island**, like Collateral Damage. Its bonus used to be permanent and uncapped, so healing at full health kept adding damage for the whole run.
+- **Community Support never drops when you play alone**, where it does nothing.
+- **Portal Shot is gone, and Pathfinder takes Portal Ring's place.** Portal Shot replaced the wrong relic: Portal Amulet (your shots fire from the nearest enemy) drops again as normal. Pathfinder is a new Common perk that replaces Portal Ring: one more portal choice after each island for every level, where the ring gives one and never levels. Portal Ring no longer drops while it's on. A `[portalShot]` section left in `CrabMods.ini` does nothing.
+- **Fodder raises cost 10 souls** (were 5). A pack of 3 fodder had about five times the health per soul of an elite, so cheap fodder walls beat everything else.
+- **Necromancer marks.** A raised undead climbs out of a turning circle of runes on the ground, which flares as it comes up and then fades. It replaces the enemy's own spawn effect, which was flat and cut into slopes. A tagged enemy has a rune brand on the ground under it and a ring of runes floating around its middle, which snaps in when the tag lands and disappears when the tag ends or the enemy dies. Every player sees them.
+- **Undead no longer spawn with a shield or armor plates.** An enemy can roll the Shielded or Armored buff as it spawns, and raised undead kept it.
+- An existing `CrabMods.ini` keeps its old `rarity`, `damagePercent` and `costFodder` lines (Collateral Damage and Greed Is Power included), so these changes only show up with a fresh file or after you edit those lines (delete a section to get its new defaults back).
+
 ### 0.11.0
 
 - **Parkour islands are back (experimental).** On islands 1 to 3 the Demolition portal is sometimes a Parkour portal instead. The maps come from the game's 2025-04-03 build, which every player builds into an add-on pak from their own download (`re/scripts/parkour_pak.py`, see the README). Parkour is only offered when every player has it. Settings in `[parkour]`.

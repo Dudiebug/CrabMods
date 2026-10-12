@@ -30,7 +30,7 @@ enabled = true
 
 # Damage bonus for every destructible broken, in percent. Each extra level makes every new break worth this
 # much more.
-damagePercent = 5
+damagePercent = 3
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -97,7 +97,7 @@ private:
         Fn<void (*)(void*, uint8_t, float)>(va::ACrabPS_AddPerkAccumulatedBuff)(ps, spec_.type, value - acc);
     }
 
-    float pct_ = 5.f;
+    float pct_ = 3.f;
     void* lm_ = nullptr;
     std::unordered_map<void*, float> island_;  // this island's bonus per player, in percent
 };

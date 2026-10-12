@@ -73,6 +73,7 @@ constexpr uintptr_t TArray28_ResizeGrow = 0x140840fd0;        // void(TArray<0x2
 // Health (UCrabHC, the character's health component)
 constexpr uintptr_t UCrabHC_TakeDamage = 0x140c9afe0;        // void(UCrabHC*, FCrabDamageInfo*): armor, protections, elimination
 constexpr uintptr_t UCrabHC_OnRep_HealthInfo = 0x140c9b4a0;  // void(UCrabHC*): broadcasts health changed, Previous = Current
+constexpr uintptr_t ACrabEnemyC_OnRep_EnemyBuff = 0x140ca7b50;  // void(ACrabEnemyC*): the buff's health-bar text and shield look
 // void(UCrabHC*, float Amount): Current = min(Current + Amount, Max), then OnRep_HealthInfo. Every heal ends here
 // (host only); perk, relic and Vampire heals are cut to the missing health first, by ClampHealToMissing.
 constexpr uintptr_t UCrabHC_Heal = 0x140c9acc0;
@@ -497,6 +498,8 @@ constexpr int PlayerC_AbilityMaxCharges = 0xA18;  // int
 constexpr int HC_OwningC = 0xB0;              // set when the component initialises
 constexpr int HC_bDead = 0xD8;                // unreflected: set by TakeDamage when health reaches 0
 constexpr int HC_bDeathProtectionUsed = 0xFB; // unreflected: one-time death protection consumed
+constexpr int HC_ArmorPlates = 0xFC;          // HealthInfo.CurrentArmorPlates, int
+constexpr int HC_ArmorPlateHealth = 0x100;    // float
 constexpr int HC_CurrentHealth = 0x108;       // HealthInfo (0xFC) + 0xC
 constexpr int HC_CurrentMaxHealth = 0x10C;
 // UCrabPickupDA / UCrabInventoryDA and subclasses
@@ -679,7 +682,9 @@ constexpr int Character_Mesh = 0x280;         // USkeletalMeshComponent*
 constexpr int Enemy_OwningAIC = 0x770;
 constexpr int Enemy_Category = 0x778;         // ECrabEnemyCategory: 1 Easy, 2 Medium, 3 Hard, 4 Elite, 5 Boss
 constexpr int Enemy_EnemyName = 0x780;        // FString
+constexpr int Enemy_EnemyBuff = 0x7c8;        // ECrabEnemyBuff, replicated: 1 Shielded, 2 Armored, 3 Healthy, ... (rolled in init, 0x140ca5ca0)
 constexpr int Enemy_BestEnemyC = 0x800;       // ACrabC*, replicated
+constexpr int Enemy_SpawnFX = 0x8c8;  // UNiagaraSystem* EnemySpawnFX: played on the ground at BeginPlay (0x140ca3390)
 constexpr int Enemy_bIgnoredByPlayerTargeting = 0x901;
 constexpr int Enemy_bIsLesserEnemy = 0x902;   // split off another enemy on its death
 constexpr int Enemy_ChanceToSpawnOnEliminated = 0x944;  // float

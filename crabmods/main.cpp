@@ -43,7 +43,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.11.0";
+constexpr const char kVersion[] = "0.12.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -272,7 +272,7 @@ void crabmods_HasRelicHook();
 bool crabmods_OnRewardChests(void* ps, char* frame, uint32_t num, void** data) {
     return RewardChests(ps, frame, int(num), data);
 }
-// Every other call: the game's answer, or an item's (Portal Shot holding Portal Amulet's place).
+// Every other call: the game's answer, or an item's (Pathfinder holding Portal Ring's place).
 bool crabmods_HasRelicAny(void* ps, uint8_t type) {
     if (reinterpret_cast<bool (*)(void*, uint8_t)>(crabmods_hasRelicOrig)(ps, type)) return true;
     if (!ps || !g_grantedRelics[type]) return false;

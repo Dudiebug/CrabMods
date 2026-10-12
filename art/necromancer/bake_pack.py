@@ -18,6 +18,9 @@ The pack: "CRPK", u32 count, then per entry a 48-byte name, u32 offset, u32 size
   whip_lash_NN.mesh, whip_tip.mesh   the same, in their segment's space (the segment runs along +X from 0)
   whip.rig          anchor (3 floats), direction (3 floats), u32 segment count, the segments' lengths
   *.png             the HUD's pictures, as they are
+  tag_halo.png      the ring floating around a tagged enemy (drawn here): soul violet, its alpha the shape
+  raise_ring.png, raise_hex.png   the raise circle's two layers (drawn here), white on black with matching alpha:
+                    the ground decal under a rising undead takes one as its shape and turns them opposite ways
   *.pcm             sounds: mono, 32 kHz, 16-bit
 """
 import glob
@@ -47,6 +50,87 @@ def png(rgba):
 
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) +
             chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def smooth(d, w):
+    """1 inside a line of half width w (distance d), fading over a pixel or so."""
+    return np.clip((w - d) / 0.004 + 0.5, 0, 1)
+
+
+def seg_dist(x, y, a, b):
+    ax, ay = a
+    bx, by = b
+    vx, vy = bx - ax, by - ay
+    t = np.clip(((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy), 0, 1)
+    return np.hypot(x - ax - t * vx, y - ay - t * vy)
+
+
+def raise_layers(size=512):
+    """The raise circle: an outer ring of runes, and a hexagram inside. Coordinates run -1..1 across."""
+    c = (np.arange(size) + 0.5) / size * 2 - 1
+    x, y = np.meshgrid(c, c)
+    r, a = np.hypot(x, y), np.arctan2(y, x)
+
+    ring = smooth(np.abs(r - 0.94), 0.022) + smooth(np.abs(r - 0.80), 0.008)
+    # 24 runes between the rings: a radial stroke each, and a short arc or a dot by turns.
+    n = 24
+    sector = (a + np.pi) / (2 * np.pi) * n
+    k, f = np.floor(sector), sector - np.floor(sector)
+    width = 2 * np.pi * r / n  # a sector's width at this radius, in the same units
+    band = (r > 0.825) & (r < 0.905)
+    ring += band * smooth(np.abs(f - 0.5) * width, 0.008)
+    arc = band & (k % 2 == 0) & (np.abs(f - 0.5) < 0.32)
+    ring += arc * smooth(np.abs(r - np.where(k % 4 == 0, 0.845, 0.885)), 0.007)
+    for i in range(1, n, 2):
+        ang = (i + 0.5) / n * 2 * np.pi - np.pi
+        rr = 0.865 + (0.02 if i % 4 == 1 else -0.02)
+        ring += smooth(np.hypot(x - rr * np.cos(ang + 0.07), y - rr * np.sin(ang + 0.07)), 0.011)
+    # The inner ring: six dashes.
+    ring += smooth(np.abs(r - 0.64), 0.009) * (np.cos(6 * a) > -0.6)
+    ring = np.clip(ring, 0, 1)
+    ring = np.maximum(ring, 0.22 * np.clip(1 - r / 0.95, 0, 1) ** 1.5)  # a soft glow inside
+
+    hexa = smooth(np.abs(r - 0.56), 0.007)
+    pts = [(0.56 * np.cos(np.pi / 2 + i * np.pi / 3), 0.56 * np.sin(np.pi / 2 + i * np.pi / 3)) for i in range(6)]
+    for tri in (pts[0::2], pts[1::2]):
+        for i in range(3):
+            hexa = np.maximum(hexa, smooth(seg_dist(x, y, tri[i], tri[(i + 1) % 3]), 0.011))
+    for px, py in pts:
+        d = np.hypot(x - px, y - py)
+        hexa = np.maximum(hexa, smooth(np.abs(d - 0.05), 0.008))
+        hexa = np.maximum(hexa, smooth(d, 0.018))
+    hexa = np.maximum(hexa, smooth(np.abs(r - 0.2), 0.008))
+    hexa = np.maximum(hexa, 0.6 * np.clip(1 - r / 0.16, 0, 1))
+
+    def rgba(v):
+        g = np.clip(v * 255 + 0.5, 0, 255).astype(np.uint8)
+        return png(np.dstack([g, g, g, g]))
+
+    return rgba(ring), rgba(hexa)
+
+
+def tag_halo(size=256):
+    """Three lock-on brackets on an outer ring, a thin ring inside, and twelve diamond runes between."""
+    c = (np.arange(size) + 0.5) / size * 2 - 1
+    x, y = np.meshgrid(c, c)
+    r, a = np.hypot(x, y), np.arctan2(y, x)
+    px = 2 / size  # a pixel
+    sm = lambda d, w: np.clip((w - d) / px + 0.5, 0, 1)
+    v = sm(np.abs(r - 0.92), 0.035) * (np.cos(3 * a) > -0.35)  # the brackets
+    v = np.maximum(v, sm(np.abs(r - 0.66), 0.012))
+    for i in range(12):
+        ang = i / 12 * 2 * np.pi
+        dx, dy = x - 0.79 * np.cos(ang), y - 0.79 * np.sin(ang)
+        u = dx * np.cos(ang) + dy * np.sin(ang)  # along the radius
+        w = -dx * np.sin(ang) + dy * np.cos(ang)
+        v = np.maximum(v, sm(np.abs(u) / 0.06 + np.abs(w) / 0.035, 1.0) * (0.7 if i % 2 else 1.0))
+    glow = 0.35 * np.exp(-((r - 0.79) / 0.16) ** 2) * (r < 1)
+    alpha = np.clip(np.maximum(v, glow), 0, 1)
+    core = v  # the lines run white-hot in the middle, violet at the edges and in the glow
+    rgb = np.array([176, 108, 255], np.float64) / 255
+    col = rgb[None, None, :] * (1 - 0.55 * core[..., None]) + 0.55 * core[..., None]
+    out = np.dstack([np.clip(col * 255 + 0.5, 0, 255), alpha * 255 + 0.5]).astype(np.uint8)
+    return png(out)
 
 
 def read_crabmesh(path):
@@ -110,6 +194,9 @@ def main():
     rig = struct.pack("<6fI", *held["anchor"], *held["dir"], len(held["seg"])) + struct.pack(
         f"<{len(held['seg'])}f", *held["seg"])
     entries["whip.rig"] = rig
+
+    entries["raise_ring.png"], entries["raise_hex.png"] = raise_layers()
+    entries["tag_halo.png"] = tag_halo()
 
     for f in sorted(glob.glob(os.path.join(HERE, "ui", "*.png"))):
         entries[os.path.basename(f)] = open(f, "rb").read()

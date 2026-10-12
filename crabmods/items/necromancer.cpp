@@ -8,7 +8,9 @@
 // Host: souls (per player, kept for the run), the undead (fresh enemies spawned outside the island's count),
 // who may hurt whom (DamageInfo_CanDamage: undead and hostile enemies fight, players and undead never), who
 // targets whom (ACrabEnemyAIC::SelectTarget), upkeep, and the whip's tags. It tells every player which enemies it
-// raised, so their machines show them as undead too.
+// raised, so their machines show them as undead too, and which are tagged. A raise is announced a moment before the
+// undead come up ("rise"), so every machine can draw its circle on the ground (necro_runes.hpp) and leave out the
+// enemy's own spawn effect, a flat one that cuts into slopes.
 // Every machine also dresses the whip (necro_art.hpp: its meshes and sounds come inside CrabMods.dll): the handle
 // is the weapon's mesh, and the lash is a chain of mesh pieces moved by a small simulation (necro_lash.hpp) that
 // each shot (the weapon's replicated shot count) flings forward.
@@ -31,6 +33,7 @@
 #include "necro_art.hpp"
 #include "necro_lash.hpp"
 #include "necro_loot.hpp"
+#include "necro_runes.hpp"
 
 namespace crabmods {
 namespace {
@@ -150,7 +153,7 @@ soulsBoss = 60
 
 # --- Raising ---
 # Soul cost of each raise. Fodder raises a pack.
-costFodder = 5
+costFodder = 10
 fodderPack = 3
 costMedium = 15
 costHard = 40
@@ -266,6 +269,9 @@ soundVolume = 80
         marked_.clear();
         pending_.clear();
         tags_.clear();
+        seenTags_.clear();
+        for (const Rising& r : rising_) Refund(r);
+        rising_.clear();
         world_ = WorldOf(lm);
         lashes_.clear();  // the old level's weapons and pickups (and our pieces on them) are gone
         shows_.clear();
@@ -479,7 +485,16 @@ soundVolume = 80
         Vec3 at;
         float souls, max, c[kTiers];
         int tier, undead = 0;
-        if (swscanf(s, L"raised %d %f %f %f", &tier, &at.x, &at.y, &at.z) == 4) {
+        bool host = At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority;  // the host's own: it knows already
+        wchar_t path[200];
+        if (swscanf(s, L"rise %d %f %f %f %199ls", &tier, &at.x, &at.y, &at.z, path) == 5) {
+            if (!host && tier >= 0 && tier < kTiers) {
+                runes_.Rise(world_, at, kRuneRadius[tier], kRiseDelay);
+                Hush(ui::FindObject(path));
+            }
+        } else if (text.compare(kMsgLen, 5, L"tags ") == 0) {
+            if (!host) SeeTags(s + 5);
+        } else if (swscanf(s, L"raised %d %f %f %f", &tier, &at.x, &at.y, &at.z) == 4) {
             if (At<uint8_t>(pc, off::Actor_Role) != ROLE_Authority) pending_.push_back({at, Now() + 5.0});
             // One sound for a pack.
             if (tier >= 0 && tier < kTiers && Now() - lastRaiseSound_[tier] > 0.3) {
@@ -548,12 +563,15 @@ soundVolume = 80
         }
         if (At<uint8_t>(gs, off::Actor_Role) == ROLE_Authority) HostTick(world, gs);
         MarkRaised(world);
+        MarkTagged(world, At<uint8_t>(gs, off::Actor_Role) == ROLE_Authority);
         UpdateHud(world);
     }
 
     // The raise keys, on the player's machine.
     void OnFrame(void* world, float dt) override {
         world_ = world;
+        runes_.Frame(world);
+        Unhush(false);
         FollowGameVolume(world);
         UpdateLashes(world, dt);
         UpdatePickups(world);
@@ -598,6 +616,15 @@ private:
     struct Pending {
         Vec3 at;
         double until;
+    };
+    struct Rising {  // host: an undead about to come up
+        void* ps;
+        std::string key;  // the owner's, for a refund
+        int tier;
+        void* cls;
+        Vec3 loc;
+        float yaw, upkeep, paid;
+        double at;
     };
     struct View {  // what the host last said, on the player's machine
         bool known = false;
@@ -765,6 +792,24 @@ private:
             swprintf(param, std::size(param), L"Keep%d", i);
             if (*slots[i] && mid_) necro::Keep(mid_, param, *slots[i]);
         }
+        // The marks on the ground: the raise circle's two layers, kept the same way; the decal material by the
+        // handle mesh.
+        void* ring = necro::Texture(pack_.Get("raise_ring.png"));
+        void* hex = necro::Texture(pack_.Get("raise_hex.png"));
+        if (ring && mid_) necro::Keep(mid_, L"Keep7", ring);
+        if (hex && mid_) necro::Keep(mid_, L"Keep8", hex);
+        // The tag's halo: a flat square one unit across, the picture on it see-through where it's clear.
+        void* halo = nullptr;
+        if (void* haloMat = necro::TextureMaterial(necro::Texture(pack_.Get("tag_halo.png")), true)) {
+            const float quad[6][5] = {{-.5f, -.5f, 0, 0, 0}, {.5f, -.5f, 0, 1, 0}, {.5f, .5f, 0, 1, 1},
+                                      {-.5f, -.5f, 0, 0, 0}, {.5f, .5f, 0, 1, 1}, {-.5f, .5f, 0, 0, 1}};
+            uint8_t blob[4 + sizeof quad];
+            uint32_t n = 6;
+            std::memcpy(blob, &n, 4);
+            std::memcpy(blob + 4, quad, sizeof quad);
+            halo = necro::Mesh({blob, uint32_t(sizeof blob)}, haloMat, L"SM_TagHalo");
+        }
+        runes_.Init(ring, hex, handle, halo, &AddPiece);
         // Our crack and equip sounds instead of the Sniper's; no muzzle flash or scope glint.
         At<void*>(whip_, off::WeaponDA_GunshotSound) = nullptr;
         At<void*>(whip_, off::WeaponDA_EquipSound) = nullptr;
@@ -1302,11 +1347,13 @@ private:
         for (auto it = lastMelee_.begin(); it != lastMelee_.end();) it = present.count(it->first) ? std::next(it) : lastMelee_.erase(it);
         if (fight)
             for (const Harvest& h : harvest_) {
-                void* lm = LevelManagerOf(world);
-                if (lm && h.cls && SpawnUndead(lm, h.ps, h.tier, h.cls, h.at, 0.f, cost_[h.tier] / (h.tier ? 1 : fodderPack_)))
-                    CRAB_LOG("necromancer: Harvester raised a %ls for %s", kTierNames[h.tier], PlayerKey(h.ps).c_str());
+                if (!h.cls) continue;
+                QueueRise(h.ps, h.tier, h.cls, h.at, 0.f, cost_[h.tier] / (h.tier ? 1 : fodderPack_), 0.f);
+                CRAB_LOG("necromancer: Harvester raises a %ls for %s", kTierNames[h.tier], PlayerKey(h.ps).c_str());
             }
         harvest_.clear();
+        RiseDue(world, fight);
+        if (fight && tagsDirty_ && Now() >= nextTagSync_) SendTags(world);
         if (fight && !hostiles_.empty()) Upkeep();
         if (fight && !undead_.empty()) HitNests(world);
         else nests_.clear();
@@ -1395,6 +1442,7 @@ private:
         if (d.souls + 1e-3f < cost) return Deny(ps, L"Not enough souls");
         int mine = 0;
         for (auto& [u, info] : undead_) mine += info.owner == ps;
+        for (const Rising& r : rising_) mine += r.ps == ps;
         if (mine >= kMaxUndeadPerPlayer) return Deny(ps, L"Your army is as big as it gets");
         Vec3 from;
         LocationOf(c, from);
@@ -1407,19 +1455,96 @@ private:
         bool twin = false;
         if (int lv = loot::Level(ps, loot::TwinRising); lv && Roll(loot::Amount(loot::TwinRising) / 100.f, lv))
             twin = true, count *= 2;
-        int raised = 0;
+        int paid = twin ? count / 2 : count;  // a twin's extra ones are free
         for (int i = 0; i < count; i++) {
             float a = 6.2831853f * i / count;
             float r = count > 1 ? 160.f + 25.f * count : 0.f;
             Vec3 loc = count > 1 ? Vec3{at.x + r * std::cos(a), at.y + r * std::sin(a), at.z} : at;
-            raised += SpawnUndead(lm, ps, tier, cls, loc, yaw, each) != nullptr;
+            QueueRise(ps, tier, cls, loc, yaw, each, i < paid ? each : 0.f);
         }
-        if (!raised) return Deny(ps, L"Nothing rose there");
-        d.souls -= each * float(std::min(raised, twin ? count / 2 : count));  // a twin's extra ones are free
+        d.souls -= each * float(paid);  // back for any that don't come up (Refund)
         d.dirty = true;
         if (twin) ShowMessage(ps, L"Twin Rising!");
-        CRAB_LOG("necromancer: %s raised %d %ls (%ls)%s for %g souls, %g left", PlayerKey(ps).c_str(), raised,
+        CRAB_LOG("necromancer: %s raises %d %ls (%ls)%s for %g souls, %g left", PlayerKey(ps).c_str(), count,
                  kTierNames[tier], d.names[tier].c_str(), twin ? " (twin)" : "", cost, d.souls);
+    }
+
+    // A raise to come: its circle now, the undead kRiseDelay later (HostTick). Every machine is told, to draw the
+    // circle and leave out the enemy's own spawn effect (Hush).
+    void QueueRise(void* ps, int tier, void* cls, Vec3 loc, float yaw, float upkeep, float paid) {
+        rising_.push_back({ps, PlayerKey(ps), tier, cls, loc, yaw, upkeep, paid, Now() + kRiseDelay});
+        runes_.Rise(world_, loc, kRuneRadius[tier], kRiseDelay);
+        Hush(cls);
+        std::wstring path = PathOf(cls);
+        if (path.empty() || path.size() > 199) return;
+        wchar_t buf[300];
+        swprintf(buf, std::size(buf), L"%lsrise %d %.0f %.0f %.0f %ls", kMsg, tier, loc.x, loc.y, loc.z, path.c_str());
+        ForEachPlayer(ps, [&](void* other) {
+            if (void* pc = At<void*>(other, off::Actor_Owner)) SendToPlayer(pc, buf);
+        });
+    }
+
+    // Host: the risings that are due come up; those that can't give their souls back.
+    void RiseDue(void* world, bool fight) {
+        double now = Now();
+        std::vector<Rising> due;
+        for (auto it = rising_.begin(); it != rising_.end();)
+            if (it->at <= now || !fight) due.push_back(*it), it = rising_.erase(it);
+            else ++it;
+        if (due.empty()) return;
+        std::unordered_set<void*> here;
+        ForEachPlayer(world, [&](void* ps) { here.insert(ps); });
+        void* lm = LevelManagerOf(world);
+        for (const Rising& r : due)
+            if (!fight || !lm || !here.count(r.ps) || !SpawnUndead(lm, r.ps, r.tier, r.cls, r.loc, r.yaw, r.upkeep))
+                Refund(r);
+    }
+
+    void Refund(const Rising& r) {
+        if (r.paid <= 0.f) return;
+        auto it = players_.find(r.key);
+        if (it == players_.end()) return;
+        it->second.souls += r.paid;  // under the cap: it was there a moment ago
+        it->second.dirty = true;
+        CRAB_LOG("necromancer: a %ls didn't rise for %s; %g souls back", kTierNames[r.tier], r.key.c_str(), r.paid);
+    }
+
+    // The enemy's own spawn effect (EnemySpawnFX, played on the ground at BeginPlay) is left out of undead: taken
+    // off the class's defaults for a few seconds around the raise, which every machine's copy is built from.
+    void Hush(void* cls) {
+        void* cdo = cls ? At<void*>(cls, off::Class_DefaultObject) : nullptr;
+        if (!cdo || !enemyClass_ || !IsA(cdo, enemyClass_)) return;
+        double until = Now() + 3.0;
+        for (Hushed& h : hushed_)
+            if (h.cdo == cdo) return void(h.until = until);
+        void* fx = At<void*>(cdo, off::Enemy_SpawnFX);
+        if (!fx) return;
+        hushed_.push_back({cdo, fx, until});
+        At<void*>(cdo, off::Enemy_SpawnFX) = nullptr;
+    }
+    void Unhush(bool all) {
+        double now = Now();
+        for (auto it = hushed_.begin(); it != hushed_.end();) {
+            if (!all && it->until > now) {
+                ++it;
+                continue;
+            }
+            At<void*>(it->cdo, off::Enemy_SpawnFX) = it->fx;
+            it = hushed_.erase(it);
+        }
+    }
+
+    std::wstring PathOf(void* obj) {
+        auto it = paths_.find(obj);
+        if (it != paths_.end()) return it->second;
+        static void* lib = ui::FindObject(L"/Script/Engine.Default__KismetSystemLibrary");
+        struct {
+            void* obj;
+            TArray<wchar_t> ret;
+        } p{obj, {}};
+        std::wstring path;
+        if (lib && ui::Call(lib, L"GetPathName", &p) && p.ret.Data) path = p.ret.Data;  // the engine's copy stays
+        return paths_[obj] = path;
     }
 
     // One undead of that class at loc, owned by ps; upkeep: its share of the raise cost. null if it didn't spawn.
@@ -1430,7 +1555,18 @@ private:
         undead_[e] = {ps, tier, upkeep};
         At<uint8_t>(e, off::Enemy_bIgnoredByPlayerTargeting) = 1;
         At<float>(e, off::Enemy_ChanceToSpawnOnEliminated) = 0.f;
+        // No shields for undead: the game may have rolled it the Shielded or Armored buff as it spawned.
+        uint8_t& buff = At<uint8_t>(e, off::Enemy_EnemyBuff);
+        if (buff == 1 || buff == 2) {
+            buff = 0;
+            Fn<void (*)(void*)>(va::ACrabEnemyC_OnRep_EnemyBuff)(e);
+        }
         if (void* hc = At<void*>(e, off::C_HC)) {
+            if (At<int>(hc, off::HC_ArmorPlates)) {  // Armored's plates, or the enemy's own
+                At<int>(hc, off::HC_ArmorPlates) = 0;
+                At<float>(hc, off::HC_ArmorPlateHealth) = 0.f;
+                Fn<void (*)(void*)>(va::UCrabHC_OnRep_HealthInfo)(hc);
+            }
             float health = undeadHealth_ * (tier == 3 ? eliteHealth_ : 1.f) *
                            (1.f + loot::Total(ps, loot::SturdyBones) / 100.f) *
                            (1.f + loot::Total(ps, loot::RingOfTheGrave) / 100.f);
@@ -1490,7 +1626,7 @@ private:
         }
         std::sort(closest.begin(), closest.end());
         double until = Now() + tagSeconds_;
-        for (int i = 0; i < n && i < int(closest.size()); i++) tags_[closest[i].second] = until;
+        for (int i = 0; i < n && i < int(closest.size()); i++) tags_[closest[i].second] = until, tagsDirty_ = true;
     }
 
     // Phylactery: a hit that would down its holder takes their souls instead, once per island.
@@ -1575,8 +1711,74 @@ private:
         double until = Now() + tagSeconds_;
         for (void* e : hostiles_) {
             Vec3 p;
-            if (LocationOf(e, p) && DistanceSquared(p, at) <= radius * radius) tags_[e] = until;
+            if (LocationOf(e, p) && DistanceSquared(p, at) <= radius * radius) tags_[e] = until, tagsDirty_ = true;
         }
+    }
+
+    // --- Tags on every machine: the host says where its tagged enemies are and for how long ("tags x y z s ..."),
+    // a few times a second at most while they change; each machine finds them and brands them (necro_runes.hpp).
+
+    void SendTags(void* world) {
+        tagsDirty_ = false;
+        nextTagSync_ = Now() + 0.25;
+        std::wstring msg = std::wstring(kMsg) + L"tags";
+        int n = 0;
+        double now = Now();
+        for (auto& [e, until] : tags_) {
+            Vec3 p;
+            if (until <= now || !Alive(e) || !LocationOf(e, p)) continue;
+            wchar_t one[64];
+            swprintf(one, std::size(one), L" %.0f %.0f %.0f %.1f", p.x, p.y, p.z, until - now);
+            msg += one;
+            if (++n == 24) break;
+        }
+        ForEachPlayer(world, [&](void* ps) {
+            if (void* pc = At<void*>(ps, off::Actor_Owner)) SendToPlayer(pc, msg);
+        });
+    }
+
+    // A player's machine: the tagged enemies are those nearest the host's spots.
+    void SeeTags(const wchar_t* s) {
+        if (!enemyClass_ || !world_) return;
+        std::vector<void*> enemies = AllActorsOf(world_, enemyClass_);
+        double now = Now();
+        Vec3 at;
+        float left;
+        int used = 0;
+        while (swscanf(s, L"%f %f %f %f%n", &at.x, &at.y, &at.z, &left, &used) == 4) {
+            s += used;
+            void* best = nullptr;
+            float d = 250.f * 250.f;
+            for (void* e : enemies) {
+                Vec3 p;
+                if (!marked_.count(e) && LocationOf(e, p) && DistanceSquared(p, at) < d) d = DistanceSquared(p, at), best = e;
+            }
+            if (best) seenTags_[best] = now + left;
+        }
+    }
+
+    // Every machine: a brand under each living tagged enemy.
+    void MarkTagged(void* world, bool host) {
+        auto& tags = host ? tags_ : seenTags_;
+        std::unordered_map<void*, float> brand;
+        if (!tags.empty() && enemyClass_) {
+            std::vector<void*> enemies = AllActorsOf(world, enemyClass_);
+            std::unordered_set<void*> present(enemies.begin(), enemies.end());
+            double now = Now();
+            for (auto it = tags.begin(); it != tags.end();) {
+                if (!present.count(it->first) || it->second <= now) {
+                    it = host ? std::next(it) : tags.erase(it);  // the host's own list keeps its own rules
+                    continue;
+                }
+                if (Alive(it->first) && !IsUndead(it->first)) {
+                    static const float size[] = {110.f, 110.f, 140.f, 170.f, 220.f, 320.f};
+                    uint8_t cat = At<uint8_t>(it->first, off::Enemy_Category);
+                    brand[it->first] = size[cat < 6 ? cat : 2];
+                }
+                ++it;
+            }
+        }
+        runes_.Brands(world, brand);
     }
 
     // Kills an undead the ordinary way (its death animation and effects), dropping nothing.
@@ -2054,7 +2256,7 @@ private:
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
-    float cost_[kTiers] = {5.f, 15.f, 40.f, 100.f};
+    float cost_[kTiers] = {10.f, 15.f, 40.f, 100.f};
     int fodderPack_ = 3;
     float refund_ = 1.f;  // share of a surviving undead's cost given back when the fight ends
     float raiseRange_ = 4000.f, upkeep_ = 0.0025f, undeadDamage_ = 1.f, undeadHealth_ = 2.f, starve_ = 0.04f, eliteHealth_ = 0.5f, eliteDamage_ = 0.5f;
@@ -2103,6 +2305,20 @@ private:
         Vec3 at;
     };
     std::vector<Harvest> harvest_;                         // host: Harvester's free raises, for the next tick
+    static constexpr float kRiseDelay = 0.35f;              // from the circle to the undead coming up, seconds
+    static constexpr float kRuneRadius[kTiers] = {120.f, 160.f, 200.f, 260.f};  // the circle's, per tier, cm
+    std::vector<Rising> rising_;                           // host: undead about to come up
+    struct Hushed {
+        void* cdo;  // an enemy class's defaults
+        void* fx;   // its EnemySpawnFX, to put back
+        double until;
+    };
+    std::vector<Hushed> hushed_;                           // every machine: spawn effects left out for a raise
+    std::unordered_map<void*, std::wstring> paths_;        // host: enemy class -> its path, for "rise"
+    necro::Runes runes_;                                   // every machine: the circles and brands
+    std::unordered_map<void*, double> seenTags_;           // players' machines: tagged enemies, as the host said
+    bool tagsDirty_ = false;                               // host: tags_ changed since last sent
+    double nextTagSync_ = 0.0;
     std::unordered_set<std::string> phylacteryUsed_;       // host: players whose Phylactery went off this island
     bool fightOver_ = false;
     float loggedVolume_[2] = {-1.f, -1.f};                               // host: crumbling everyone at the fight's end
