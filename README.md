@@ -55,6 +55,7 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 | `loader/` | The `xinput1_3.dll` mod loader. |
 | `tests/` | CrabSync ledger tests and manager tests. |
 | `re/` | Reverse-engineering notes, SDK and scripts. |
+| `sdk/` | CrabSDK: compilable C++ headers for every game and engine type, with function wrappers, for writing your own DLL mods. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
 | `third_party/imgui/` | [Dear ImGui](https://github.com/ocornut/imgui) 1.91.9b (MIT), the manager's UI. |
 
@@ -63,6 +64,8 @@ Every address in `common/crab/game.hpp` comes from static analysis of the game b
 ## Reverse engineering
 
 [`re/`](re/README.md) has everything the mods are built on: a [report](re/REPORT.md) of the game's internals with addresses, a generated C++ SDK of every reflected class, struct and enum, native function and vtable tables, and the scripts that produced them. It is all static analysis. The game's own files, and anything decompiled or extracted from them, are not included.
+
+To write your own native mod, start with [CrabSDK](sdk/README.md): compilable headers with exact layouts for every class, struct and enum, and C++ wrappers for 6209 game and engine functions.
 
 ## License
 

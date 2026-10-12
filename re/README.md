@@ -40,7 +40,10 @@ python scripts/natives.py                     # natives.json: exec thunks
 python scripts/natives_impl.py                #   then the implementation each thunk calls
 python scripts/vtables.py                     # vtables.json (needs sdk.json and natives.json)
 python scripts/perkmap.py                     # perk_sites.json (needs sdk/)
+python scripts/emit_full_sdk.py               # ../sdk: CrabSDK, the compilable SDK (needs the three JSON files)
 ```
+
+`sdk/` here is a readable reference. The SDK for building mods against is [`../sdk`](../sdk/README.md).
 
 | Helper | |
 |---|---|

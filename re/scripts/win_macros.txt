@@ -1,0 +1,8 @@
+DrawText
+GetCommandLine
+GetCurrentTime
+PF_MAX
+PlaySound
+RGB
+ReportEvent
+UpdateResource
