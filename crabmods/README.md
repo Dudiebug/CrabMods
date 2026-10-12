@@ -209,6 +209,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[necromancer]` | `whipDps` | `100` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (80) to every enemy in it, less at its edge. |
 | | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
 | | `burstRadiusMeters` | `4` | The bolt's purple burst's reach. |
+| | `procRollMultiplier` | `3` | How much more often chance-based weapon mods (Double Shot, Split Shot, ...) trigger with the whip. The Sniper has 7, the SMG 1. |
 | | `tagRadiusMeters`, `tagSeconds` | `6`, `8` | Who a crack tags, and for how long. |
 | | `tagDamagePercent`, `taggedSoulsPercent` | `25`, `50` | More undead damage to tagged enemies; more souls for tagged kills. |
 | | `maxSouls` | `100` | |

@@ -647,6 +647,7 @@ constexpr int WeaponDA_ProjectileDA = 0xC0;
 constexpr int WeaponDA_CrosshairType = 0x100;
 constexpr int WeaponDA_FireMode = 0x102;
 constexpr int WeaponDA_BaseFireRate = 0x118;
+constexpr int WeaponDA_ModTriggerRollMultiplier = 0x11C;  // float: chance-based weapon mods roll x this
 constexpr int WeaponDA_BaseSpread = 0x120;
 constexpr int WeaponDA_VerticalRecoil = 0x134;
 constexpr int WeaponDA_HorizontalRecoil = 0x138;

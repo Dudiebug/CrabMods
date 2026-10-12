@@ -135,6 +135,9 @@ whipFireRate = 1.25
 whipRangeMeters = 45
 # The burst's radius in meters.
 burstRadiusMeters = 4
+# Chance-based weapon mods (Double Shot, Split Shot, ...) roll this many times as often with the whip. The Sniper,
+# whose data the whip starts from, has 7; the SMG 1 and the AutoRifle 2.5. Every extra bolt is a whole burst.
+procRollMultiplier = 3
 # A crack tags every enemy within this many meters of where it lands, for this many seconds. Your undead go
 # after tagged enemies first and hurt them more, and tagged kills give more souls.
 tagRadiusMeters = 6
@@ -199,6 +202,7 @@ soundVolume = 80
         else if (k == "whipFireRate") whipFireRate_ = num(0.1f, 20.f);
         else if (k == "whipRangeMeters") whipRange_ = num(1.f, 200.f) * 100.f;
         else if (k == "burstRadiusMeters") burstRadius_ = num(0.f, 50.f) * 100.f;
+        else if (k == "procRollMultiplier") procRoll_ = num(0.f, 100.f);
         else if (k == "tagRadiusMeters") tagRadius_ = num(0.f, 100.f) * 100.f;
         else if (k == "tagSeconds") tagSeconds_ = num(0.f, 600.f);
         else if (k == "tagDamagePercent") tagDamage_ = num(0.f, 10000.f) / 100.f;
@@ -1148,6 +1152,7 @@ private:
     void RefreshWhip() {
         if (!whip_) return;
         At<float>(whip_, off::WeaponDA_BaseFireRate) = whipFireRate_;
+        At<float>(whip_, off::WeaponDA_ModTriggerRollMultiplier) = procRoll_;
         if (projDA_) {
             At<float>(projDA_, off::ProjDA_Lifetime) = whipRange_ / kBoltSpeed;
             At<int32_t>(projDA_, off::ProjDA_MaxPiercings) = 0;  // stops at the first enemy, and bursts
@@ -2253,6 +2258,7 @@ private:
     // Settings
     bool enabled_ = true;
     float whipDps_ = 100.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f;
+    float procRoll_ = 3.f;  // WeaponModTriggerRollMultiplier (the Sniper's is 7)
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;
     float souls_[6] = {0.f, 1.f, 3.f, 6.f, 25.f, 60.f};  // by EnemyCategory
