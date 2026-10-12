@@ -18,4 +18,13 @@ bool EncoreRoll(void* ps);
 bool IsCharm(void* da);
 constexpr float kCharmColor[4] = {0.3f, 1.f, 0.8f, 1.f};
 
+// Greed Run (greed_run.cpp): the game mode where everything is Greed.
+bool GreedRunActive();
+// A pickup's card is being filled (ACrabInteractPickup::SetupUI, every machine; lucky_charm.cpp has the hook): before
+// is true just before the game fills it, false after the other items changed it.
+void GreedRunCard(void* pickup, bool before);
+// true while a player drops an item (cursed_lottery.cpp sets it around ServerDropPickup, host): the pickup that
+// spawns is one they already had.
+inline bool g_droppingPickup = false;
+
 }  // namespace crabmods

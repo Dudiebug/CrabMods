@@ -114,6 +114,12 @@ Charms are a kind of item of their own, and they're what give you more inventory
 | **No Anvil Portals** | The portals after an island never lead to an **Anvil** island. A portal the game would make an Anvil gets another reward instead, picked by the game's own weights. Host only: the host spawns the portals. |
 | **Parkour islands** (experimental) | Brings back the **Parkour island** the game dropped in 2025. On islands 1 to 3 the Demolition portal is sometimes (`chance`, 50%) a Parkour portal instead. Arctic runs get Arctic_Parkour_01, the other biomes Tropical_Parkour_01. **Needs the Parkour maps add-on on every player's game** (see [Parkour maps](#parkour-maps)); if anyone lacks it, Parkour isn't offered. |
 
+### Game modes
+
+| Mode | Effect |
+|---|---|
+| **Greed Run** | A portal in the lobby, opposite Arcade and Holdout, starts a normal run where **everything is Greed**. Every island reward chest is a Greed chest that can offer any item at the usual rarity odds (plus the game's own Greed items), with **2 more choices**. Every mod and perk that appears comes **1 level higher**, and each level of a non-Greed item you hold carries a **curse** by its kind: Damage −4% max health, Critical and Speed +4% damage taken, Elemental −3% fire rate, Luck and Health −3% damage, Economy lose 5 crystals when hit, Skill +5% ability cooldown, everything else −3% max health (never more than 90% off). Cards and item texts show it. You can always leave a chest's items on the ground. Coming back to the lobby ends the mode; a continued Greed Run stays one. Greed versions never show up outside this mode. |
+
 
 - Extra copies stack: each level of an item adds its bonus again (two Jacks of All Trades give +6% per tag).
 - Every damage bonus is added like the game's own damage perks, so they all stack with each other and with the game's items.
@@ -233,6 +239,10 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They also follow the game's Master and Gameplay volume sliders. |
 | `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `undead`, `upkeepCutPercent`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
 | `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
+| `[greedRun]` | `enabled` | `true` | Off: no Greed Run portal. |
+| | `extraLevels`, `extraChoices` | `1`, `2` | Extra levels on each Greed pickup, and extra choices in a Greed chest. |
+| | `maxHealthPerLevel`, `damageTakenPerLevel`, `fireRatePerLevel`, `damagePerLevel`, `cooldownPerLevel`, `otherMaxHealthPerLevel` | `4`, `4`, `3`, `3`, `5`, `3` | Curse sizes in percent per level held. |
+| | `crystalsPerHit` | `5` | Economy curse: crystals lost per hit, per level. |
 | `[fireSpecialist]` ... `[summonerSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 

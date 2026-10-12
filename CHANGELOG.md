@@ -4,6 +4,19 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.13.0
+
+- **Greed Run, a new game mode.** A new portal in the lobby, opposite Arcade and Holdout, starts a normal run where everything is Greed. Every island reward chest is a Greed chest. A Greed chest can offer any item at the usual rarity odds, plus the game's own Greed items, with 2 more choices than usual. Every mod and perk that appears comes 1 level higher, and each level of a non-Greed item you hold carries a curse that depends on its kind:
+  - Damage items: −4% max health
+  - Critical and Speed items: +4% damage taken
+  - Elemental items: −3% fire rate
+  - Luck and Health items: −3% damage
+  - Economy items: you lose 5 crystals when hit
+  - Skill items: +5% ability cooldown
+  - Relics and everything else: −3% max health
+
+  Curses never take more than 90% of your max health, damage or fire rate. Cards say "Greed" in the Greed colour, and every item's text shows its curse. You can always leave a chest's items on the ground. Coming back to the lobby ends the mode, and a continued Greed Run stays one. Change the numbers in `[greedRun]`.
+
 ### 0.12.1
 
 - **Fixed the game crashing at the start with the Parkour maps add-on installed** ("Attempted to create a package with name containing double slashes", issue 2). Parkour gave the engine the whole map path where it wanted only the map's name. Without the add-on nothing changes.

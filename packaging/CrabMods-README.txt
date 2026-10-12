@@ -67,6 +67,13 @@ Items (all bonuses are per level, and stack):
   No Anvil Portals: portals never lead to an Anvil island; they get another
     reward instead ([noAnvilPortals] enabled).
 
+Greed Run (a game mode; its portal is in the lobby, opposite Arcade and
+Holdout): a normal run where every chest is a Greed chest. Every item comes
+1 level higher and chests have 2 more choices, but each level of a non-Greed
+item you hold carries a curse by its kind (less max health, damage or fire
+rate, more damage taken or ability cooldown, or crystals lost when hit). You
+can always skip a chest's items. Back in the lobby the mode ends ([greedRun]).
+
 Soul Whip (a new weapon, on its own pedestal left of the Crossbow in the lobby):
   Each crack sends a purple soul bolt that bursts where it lands and tags
   enemies. While you hold it, your ability becomes raising the dead: kills fill

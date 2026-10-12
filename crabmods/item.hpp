@@ -81,6 +81,10 @@ public:
     // pickups: TArray<FCrabPickupInfo> (0x50 each: the DA at +0, its level, a uint8, at +8). Items may change
     // the entries.
     virtual void OnChestLoot(void* chest, void* ps, TArray<uint8_t>& pickups) {}
+    // A loot roll is about to run (host; the key totem rolls on the player's machine): items may change its loot
+    // pool, rarity and number of choices. AfterLootRoll comes right after it. Outermost rolls only.
+    virtual void BeforeLootRoll(uint8_t& lootPool, uint8_t& rarity, int& choices) {}
+    virtual void AfterLootRoll() {}
 
     // Portal rewards (host): how much more likely an island is to reward this loot pool (pool::*). The game
     // picks Damage, Critical, ... for each Arena/Horde/Demolition portal; 1 = unchanged.

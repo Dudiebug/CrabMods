@@ -20,6 +20,7 @@
 
 #include "../item.hpp"
 #include "../world.hpp"
+#include "shared.hpp"
 
 namespace crabmods {
 namespace {
@@ -179,7 +180,9 @@ private:
             ShowMessage(ps, L"Cursed Lottery is cursed: it can't be dropped");
             return;
         }
+        g_droppingPickup = true;
         oDrop(pc, da, info);
+        g_droppingPickup = false;
     }
 
     int crystals_ = 15000;

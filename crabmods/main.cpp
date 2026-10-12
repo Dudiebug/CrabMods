@@ -44,7 +44,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.12.1";
+constexpr const char kVersion[] = "0.13.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -225,6 +225,14 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
                 uint64_t out) {
     auto* who = reinterpret_cast<TArray<void*>*>(players);
     void* opener = who && who->Num > 0 && who->Data ? who->Data[0] : nullptr;
+    if (g_rollDepth == 0) {
+        uint8_t p = uint8_t(pool), r = uint8_t(rarity);
+        int n = int(choices);
+        ForEachEnabled([&](Item* i) { i->BeforeLootRoll(p, r, n); });
+        pool = p;
+        rarity = r;
+        choices = uint64_t(uint32_t(n));
+    }
     void* savedSource = g_rollSource;
     uint8_t savedPool = g_rollPool;
     g_rollSource = reinterpret_cast<void*>(source);
@@ -239,6 +247,7 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
         g_baseWeight.clear();
         for (auto& [da, p] : g_basePool) At<uint8_t>(da, off::DA_LootPool) = p;
         g_basePool.clear();
+        ForEachEnabled([&](Item* i) { i->AfterLootRoll(); });
         // An opened chest's roll fills its PickupsToSpawn for the opener; it spawns them right after.
         void* chest = reinterpret_cast<void*>(source);
         auto* loot = reinterpret_cast<TArray<uint8_t>*>(out);

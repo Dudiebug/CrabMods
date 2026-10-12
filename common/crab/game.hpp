@@ -245,6 +245,21 @@ constexpr uintptr_t ACrabInteractPickup_Deactivate = 0x140d3c0b0;
 // Fills the pickup's card (UI at Pickup_UI) from its PickupInfo: void(pickup). A virtual (slot 0x638) run when the
 // pickup appears and from OnRep_PickupInfo, so on every machine.
 constexpr uintptr_t ACrabInteractPickup_SetupUI = 0x140d3c800;
+// FLinearColor*(FLinearColor* out, uint8 Rarity): the rarity's card colour (white for none).
+constexpr uintptr_t RarityColor = 0x140d31c20;
+
+// Greed Run (re/decomp/greedmode_*.c). UWorld::SpawnActor: AActor*(UWorld*, UClass*, const FVector*, const FRotator*,
+// const FActorSpawnParameters*), the call SpawnPortals makes; FActorSpawnParameters (0x30 bytes) is set up by its
+// constructor, void(FActorSpawnParameters*).
+constexpr uintptr_t UWorld_SpawnActor = 0x1423d8590;
+constexpr uintptr_t FActorSpawnParameters_Ctor = 0x142750810;
+// void(ACrabGM*): the portal vote passed and its timer ran; GM_ChosenPortal is the portal the party takes. It applies
+// the portal's modifiers and reward, then starts a new run (NewRun, Loop) or travels to the island.
+constexpr uintptr_t ACrabGM_EnterChosenPortal = 0x140ce8690;
+// void(ACrabPortal*), every machine: the portal's card (UI init, vtable slot 0x638: the island type's name and the
+// class's Description), and its update from PortalInfo (SetInfo, and OnRep_PortalInfo on the players' machines).
+constexpr uintptr_t ACrabPortal_InitUI = 0x140cb26a0;
+constexpr uintptr_t ACrabPortal_UpdateUI = 0x140cb29f0;
 
 // Buff lookups. InvArr_GetBuff: float(TArray<FCrabPerk/...>* Inventory, uint8 Type), the held item's buff (0 if not
 // held); 106 callers, told apart by return address. ACrabPS_GetWeaponModBuff: float(ACrabPS*, uint8 Type), the same
@@ -405,6 +420,11 @@ constexpr int Spawnables_SpikedChest = 0x580;  // TSubclassOf<ACrabChest>: BP_Ch
 // Demolition is offered on islands 1 to 3 only; nothing offers Parkour (BP_Portal_Parkour_C).
 constexpr int Spawnables_DemolitionPortal = 0x638;
 constexpr int Spawnables_ParkourPortal = 0x648;
+constexpr int Spawnables_NewRunPortal = 0x618;  // TSubclassOf<ACrabPortal>: BP_Portal_NewRun_C (the lobby's)
+constexpr int Spawnables_GreedChest = 0x558;    // TSubclassOf<ACrabChest>: BP_Chest_Greed (pool Greed, free, 1 choice)
+constexpr int GM_ChosenPortal = 0x390;          // ACrabPortal*, inside ACrabGM_EnterChosenPortal
+constexpr int SpawnParams_Size = 0x30;
+constexpr int SpawnParams_Collision = 0x28;    // ESpawnActorCollisionHandlingMethod: 1 = AlwaysSpawn
 constexpr int LM_BiomeDA = 0x358;          // UCrabBiomeDA*: the run's current biome
 constexpr int LM_RecentParkour = 0x450;    // TArray<FName>: Parkour maps played lately
 constexpr int Biome_ParkourIslands = 0x58;  // TArray<FCrabIsland>: empty in the current game
@@ -578,6 +598,9 @@ constexpr int Enemy_EliminatingC = 0x930;  // ACrabC*: who killed it
 // FCrabPortalInfo
 constexpr int PortalInfo_RewardLootPool = 0x19;
 constexpr int Portal_IslandType = 0x290;  // ACrabPortal.IslandType (ECrabIslandType)
+constexpr int Portal_Info = 0x2D8;        // FCrabPortalInfo (0x20, replicated): bIsInited +0, ChallengeModifiers +8,
+                                          // Blessing +0x18, RewardLootPool +0x19
+constexpr int PortalInfo_Size = 0x20;
 // UMG and the game's UI objects
 constexpr int Widget_Slot = 0x28;            // UPanelSlot*
 constexpr int UserWidget_WidgetTree = 0x1D8;

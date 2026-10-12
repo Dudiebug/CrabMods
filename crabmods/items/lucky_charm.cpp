@@ -79,7 +79,12 @@ private:
     // After the game fills the card from the DA, puts the pickup's level after its name. A charm's card (any
     // charm, this is the only hook on the card) says "Charm" in the charms' colour.
     static void HkSetupUI(void* pickup) {
+        GreedRunCard(pickup, true);
         oSetupUI(pickup);
+        LevelCard(pickup);
+        GreedRunCard(pickup, false);
+    }
+    static void LevelCard(void* pickup) {
         void* card = At<void*>(pickup, off::Pickup_UI);
         void* da = At<void*>(pickup, off::Pickup_PickupInfo + off::PickupInfo_DA);
         uint8_t level = At<uint8_t>(pickup, off::Pickup_PickupInfo + off::PickupInfo_Level);
