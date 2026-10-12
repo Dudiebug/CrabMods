@@ -48,7 +48,7 @@ Items (all bonuses are per level, and stack):
     ability mod: more turret damage per level. The perk no longer drops.
   Pathfinder (Common perk): replaces the Portal Ring relic. One more portal
     choice after each island for every level.
-  Charms (Epic; Reliquary Legendary), a kind of item of their own, with their own inventory
+  Charms (Legendary), a kind of item of their own, with their own inventory
     section: Bandolier / Tool Belt / Scabbard / Backpack / Reliquary give +5
     weapon mod / ability mod / melee mod / perk / relic slots per level.
     Charms stack and never take a relic slot. The inventory menu scrolls

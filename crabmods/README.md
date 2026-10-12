@@ -92,14 +92,14 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 
 ### Charms (inventory slots)
 
-Charms are a kind of item of their own, and they're what give you more inventory space. There is one charm per inventory group: Reliquary is Legendary, the others Epic. Each level gives that group **5 more slots**. A second copy of a charm adds its levels to the one you have. Charms never take a relic slot. They have their own **CHARMS** section in the inventory and their own tab in the key totem menu. The inventory menu scrolls once the slots no longer fit.
+Charms are a kind of item of their own, and they're what give you more inventory space. There is one Legendary charm per inventory group. Each level gives that group **5 more slots**. A charm you hold can still drop from chests, and picking up another copy adds its levels to the one you have. Charms never take a relic slot. They have their own **CHARMS** section in the inventory and their own tab in the key totem menu. The inventory menu scrolls once the slots no longer fit.
 
 | Charm | Rarity | Effect |
 |---|---|---|
-| **Bandolier** | Epic | +5 weapon mod slots per level. |
-| **Tool Belt** | Epic | +5 ability mod slots per level. |
-| **Scabbard** | Epic | +5 melee mod slots per level. |
-| **Backpack** | Epic | +5 perk slots per level. |
+| **Bandolier** | Legendary | +5 weapon mod slots per level. |
+| **Tool Belt** | Legendary | +5 ability mod slots per level. |
+| **Scabbard** | Legendary | +5 melee mod slots per level. |
+| **Backpack** | Legendary | +5 perk slots per level. |
 | **Reliquary** | Legendary | +5 relic slots per level (the game allows 10 relics). |
 
 ### Game changes

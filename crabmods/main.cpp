@@ -37,6 +37,7 @@
 #include "item.hpp"
 #include "ui.hpp"
 #include "world.hpp"
+#include "items/shared.hpp"
 
 using namespace crab;
 using namespace crabmods;
@@ -185,9 +186,18 @@ void ApplyWeights(void* ps) {
         if (g_basePool.try_emplace(da, p).second) At<uint8_t>(da, off::DA_LootPool) = g_rollPool;
 }
 
+// LootRoll leaves out the relics a player holds (relics don't stack). Charms are held as relics but level up when
+// found again, so the roll's copy of what the player holds leaves them out: a held charm can drop again.
 void* HkGetPickups(void* ps, void* out) {
     void* r = oGetPickups(ps, out);
-    if (g_rollDepth > 0 && ps) ApplyWeights(ps);
+    if (g_rollDepth == 0 || !ps) return r;
+    if (auto* held = static_cast<TArray<void*>*>(r); held && held->Data) {
+        int n = 0;
+        for (int i = 0; i < held->Num; i++)
+            if (!IsCharm(held->Data[i])) held->Data[n++] = held->Data[i];
+        held->Num = n;
+    }
+    ApplyWeights(ps);
     return r;
 }
 
