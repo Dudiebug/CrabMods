@@ -21,12 +21,14 @@ The pack: "CRPK", u32 count, then per entry a 48-byte name, u32 offset, u32 size
   tag_halo.png      the ring floating around a tagged enemy (drawn here): soul violet, its alpha the shape
   raise_ring.png, raise_hex.png   the raise circle's two layers (drawn here), white on black with matching alpha:
                     the ground decal under a rising undead takes one as its shape and turns them opposite ways
-  *.pcm             sounds: mono, 32 kHz, 16-bit
+  *.ogg             sounds: Ogg Vorbis, mono, 32 kHz (the DLL decodes them to 16-bit PCM on load)
 """
 import glob
 import json
 import os
+import shutil
 import struct
+import subprocess
 import wave
 import zlib
 
@@ -39,6 +41,15 @@ PAL = 16
 # The glowing parts' colours as the game shows them: soul violet. And the cord's, which glows a little too.
 SOUL = {(235, 224, 255): (176, 108, 255), (204, 189, 255): (214, 150, 255)}
 CORD = (107, 77, 209)
+
+
+def vorbis(pcm):
+    """Mono 32 kHz 16-bit PCM -> Ogg Vorbis (about 10x smaller), with ffmpeg's libvorbis."""
+    ff = os.environ.get("FFMPEG") or shutil.which("ffmpeg") or "ffmpeg"
+    r = subprocess.run([ff, "-v", "error", "-f", "s16le", "-ar", str(RATE), "-ac", "1", "-i", "-",
+                        "-c:a", "libvorbis", "-q:a", "5", "-map_metadata", "-1", "-fflags", "+bitexact",
+                        "-flags:a", "+bitexact", "-f", "ogg", "-"], input=pcm, capture_output=True, check=True)
+    return r.stdout
 
 
 def png(rgba):
@@ -217,7 +228,8 @@ def main():
         n = int(round(len(mono) * RATE / w.getframerate()))
         spec = np.fft.rfft(mono)[: n // 2 + 1]  # band-limited resample
         out = np.fft.irfft(spec, n) * (n / len(mono))
-        entries[os.path.basename(f)[:-4] + ".pcm"] = np.clip(np.round(out), -32768, 32767).astype("<i2").tobytes()
+        pcm = np.clip(np.round(out), -32768, 32767).astype("<i2").tobytes()
+        entries[os.path.basename(f)[:-4] + ".ogg"] = vorbis(pcm)
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     head = b"CRPK" + struct.pack("<I", len(entries))

@@ -25,7 +25,8 @@ UI = (-6.0, -13.5, 8.0)
 QUIET = (-8.0, -18.0, 6.0)
 CRACK = (-0.5, -12.0, 3.0)  # keep the crack transient on top rather than squashed
 
-CRACK_T = 16 / 30  # 0.5333 s: whip montage frame 17 (1-based) at 30 fps
+DRAW_T = 0.11  # the wrist snaps forward this long after the shot: Lash::kDrawBack (crabmods/items/necro_lash.hpp)
+CRACK_T = 0.29  # and the simulated tip typically cracks about this long after it
 
 
 # --------------------------------------------------------------------------- basics
@@ -311,6 +312,78 @@ def chime(rng, f, d, tau=0.12, ratios=(1, 2.0, 2.76, 5.4), amps=(1, 0.2, 0.3, 0.
 
 
 # --------------------------------------------------------------------------- mastering
+V_OO = [(330, 70, 1.0), (760, 100, 0.35), (2300, 200, 0.12)]
+V_OH = [(480, 80, 1.0), (880, 110, 0.5), (2500, 220, 0.18)]
+V_AH = [(760, 100, 1.0), (1150, 120, 0.6), (2650, 230, 0.25)]
+V_EE = [(290, 60, 0.8), (2250, 160, 0.55), (3000, 250, 0.3)]
+V_HH = [(1200, 500, 0.7), (2600, 600, 0.6), (4200, 900, 0.4)]  # breath
+
+
+def ghost_voice(rng, d, f_fn, va, vb, amp_fn, breath=0.35, voices=3, detune=12.0, vib=(5.2, 0.014),
+                flicker=0.25, width=0.7):
+    """A wailing spirit: detuned saws plus breath through a vowel filter morphing va -> vb, with vibrato,
+    slow pitch drift and an amplitude flicker. f_fn(t) gives the pitch; amp_fn(t) the envelope."""
+    t = tt(d)
+    f = np.broadcast_to(np.asarray(f_fn(t), float), t.shape)
+    out = np.zeros((2, len(t)))
+
+    def mask(tc, fr):
+        u = np.clip(tc / d, 0, 1)
+        h = 0.025
+        for (fa, ba, ga), (fb, bb, gb) in zip(va, vb):
+            fc, bw, g = fa + (fb - fa) * u, ba + (bb - ba) * u, ga + (gb - ga) * u
+            h = h + g * np.exp(-0.5 * ((fr - fc) / bw) ** 2)
+        return h
+    for c in range(2):
+        src = np.zeros(len(t))
+        for _ in range(voices):
+            cents = rng.uniform(-detune, detune)
+            vr = vib[0] * rng.uniform(0.85, 1.15)
+            mod = 1 + vib[1] * np.sin(2 * np.pi * vr * t + rng.uniform(0, 6.28))
+            mod *= 1 + 0.004 * np.sin(2 * np.pi * rng.uniform(0.3, 0.9) * t + rng.uniform(0, 6.28))
+            src += saw_bl(f * 2 ** (cents / 1200) * mod, d, fmax=7000, ph0=rng.uniform(0, 6.28)) / voices
+        src += breath * noise(rng, d)
+        y = tv_filter(src, mask)
+        fl = 1 - flicker + flicker * (0.5 + 0.5 * np.sin(2 * np.pi * rng.uniform(6, 9) * t + rng.uniform(0, 6.28)))
+        out[c] = y * fl
+    mid, side = out.mean(0), (out[0] - out[1]) / 2 * width
+    out = np.vstack([mid + side, mid - side])
+    return out / (np.abs(out).max() + 1e-12) * amp_fn(t)
+
+
+def lash_zip(rng, d, f0, f1, curve=2.2, fl0=14.0, fl1=70.0, bw=0.45):
+    """The lash's travelling loop: a band of air noise sweeping up ever faster, with a flutter that speeds up
+    as the loop shrinks (the 'fwip-fwip-ZZT' before the crack). Ends at full level at t = d."""
+    def fc(t):
+        return f0 * (f1 / f0) ** (np.clip(t / d, 0, 1) ** curve)
+    t = tt(d)
+    u = np.clip(t / d, 0, 1)
+    flph = 2 * np.pi * np.cumsum(fl0 + (fl1 - fl0) * u ** 2) / SR
+    fl = 0.55 + 0.45 * np.sin(flph) ** 2
+
+    def amp(tc):
+        return np.clip(tc / d, 0, 1) ** 2.6
+    l = swept_noise(rng, d, fc, bw, amp) * fl
+    r = swept_noise(rng, d, lambda tc: fc(tc) * 1.05, bw, amp) * np.roll(fl, N(0.002))
+    out = np.vstack([0.75 * l + 0.25 * r, 0.25 * l + 0.75 * r])
+    return out / np.abs(out).max()
+
+
+def shimmer(rng, d, lo, hi, amp_fn, n=6, fall=0.0):
+    """High inharmonic partials with tremolo, optionally gliding down `fall` semitones: soul glitter."""
+    t = tt(d)
+    out = np.zeros((2, len(t)))
+    gl = 2 ** (-fall * np.clip(t / d, 0, 1) / 12)
+    for _ in range(n):
+        f = rng.uniform(lo, hi)
+        ph, trem, tph = rng.uniform(0, 6.28), rng.uniform(7, 14), rng.uniform(0, 6.28)
+        for c in range(2):
+            out[c] += np.sin(phase_of(f * gl * (1 + (c - 0.5) * 0.0004), len(t)) + ph) * \
+                (0.55 + 0.45 * np.sin(2 * np.pi * trem * t + tph + 0.7 * c))
+    return out / np.abs(out).max() * amp_fn(t)
+
+
+# --------------------------------------------------------------------------- mastering
 def true_peak(x):
     x = st(x)
     n = x.shape[1]
@@ -428,58 +501,96 @@ def write(name, x):
 
 
 # --------------------------------------------------------------------------- cues
-def soul_whip_crack(v):
-    rng = np.random.default_rng(1000 + v)
-    P = [dict(f0=280, f1=3400, nw=0.0011, body=2200, pop=170, vowel=0),
-         dict(f0=320, f1=4200, nw=0.0008, body=2600, pop=190, vowel=1),
-         dict(f0=240, f1=3000, nw=0.0014, body=1900, pop=150, vowel=0),
-         dict(f0=300, f1=3800, nw=0.0010, body=2400, pop=210, vowel=1)][v]
-    b = buf(1.4)
-    # 1. building swish (0 -> crack): rising band-pass sweep, growing louder, slight whirr
-    sd = CRACK_T + 0.004
-    sw = whoosh(rng, sd, P["f0"], P["f1"], peak=0.97, bw=0.55, curve=1.4,
-                flutter=0.35, fl_rate=rng.uniform(16, 24))
-    sw *= envp(tt(sd), [(0, 0), (0.45, 0.75), (sd - 0.02, 1.0), (sd, 0.2)])
-    place(b, sw, 0, 0.5)
-    # 2. CRACK at exactly CRACK_T: N-wave + click + HP noise snap + body + pop + slap
-    nw = np.linspace(1.0, -1.0, max(3, N(P["nw"])))
-    c = np.zeros(N(0.08))
-    c[:len(nw)] += nw
-    c[1] += 0.6  # extra sharp click on the leading edge
-    snap = hp(noise(rng, 0.03) * np.exp(-tt(0.03) / 0.004), 2500, 2)
-    c[:len(snap)] += 0.9 * snap / np.abs(snap).max()
-    c = np.tanh(5.0 * c) / np.tanh(5.0)  # saturate the transient: keeps sharp edges, adds density
-    c = lp(c, 15000, 4)  # tame Gibbs/inter-sample overshoot of the hard edges
-    c += 0.35 * damped(P["body"], 0.005, 0.08, 0.0)
-    c += 0.35 * low_thump(rng, P["pop"] * 1.6, P["pop"], 0.02, 0.08)
-    c += 0.3 * lp(hp(noise(rng, 0.08), 400) * np.exp(-tt(0.08) / 0.012), 3000)  # meaty thwack
-    cs = st(c)
-    cs[1, :N(0.03)] += 0.25 * hp(noise(rng, 0.03) * np.exp(-tt(0.03) / 0.002), 3000)  # width
-    place(b, cs, CRACK_T, 1.0)
-    place(b, lp(c, 6000), CRACK_T + rng.uniform(0.009, 0.014), 0.22, pan=rng.uniform(-0.3, 0.3))
-    # 3. ghostly whisper tail: formant-morphing noise, tremolo
-    wd = 0.55
-    va = [(850, 120, 1.0), (1220, 150, 0.6), (2810, 250, 0.35)]
-    vu = [(350, 90, 1.0), (870, 120, 0.5), (2250, 220, 0.25)]
-    if P["vowel"]:
-        va, vu = [(500, 100, 1.0), (1700, 180, 0.6), (2600, 250, 0.4)], va
+def _whip_params(v):
+    return [dict(z0=650, z1=6500, nw=0.0008, wail=(196, 784), va=V_OO, vb=V_AH, sigh=(523, 262)),
+            dict(z0=720, z1=7200, nw=0.0006, wail=(220, 880), va=V_OH, vb=V_EE, sigh=(587, 294)),
+            dict(z0=600, z1=6000, nw=0.0010, wail=(175, 698), va=V_OO, vb=V_OH, sigh=(494, 247)),
+            dict(z0=680, z1=6800, nw=0.0007, wail=(208, 831), va=V_OH, vb=V_AH, sigh=(554, 277))][v]
 
-    def wmask(t, f):
-        u = np.clip(t / wd, 0, 1)
-        h = 0.02
-        for (fa, ba, ga), (fu, bu, gu) in zip(va, vu):
-            fc = fa + (fu - fa) * u
-            bw = ba + (bu - ba) * u
-            h = h + (ga + (gu - ga) * u) * np.exp(-0.5 * ((f - fc) / bw) ** 2)
-        return h
-    t = tt(wd)
-    wenv = envp(t, [(0, 0), (0.04, 1), (wd, 0)], 1.6) * (0.65 + 0.35 * np.sin(2 * np.pi * 7 * t))
-    wl = tv_filter(noise(rng, wd), wmask) * wenv
-    wr = tv_filter(noise(rng, wd), wmask) * wenv
-    w = np.vstack([wl, wr])
-    place(b, w / np.abs(w).max(), CRACK_T + 0.02, 0.16)
-    out = reverb(b, rt=0.45, wet=0.18, seed=v, bright=7000)
-    return finalize(out, CRACK, keep_lead=True, maxdur=0.95, fade_out=0.06)
+
+def soul_whip_swing(v):
+    """At the shot: the wrist's draw-back and snap, and the loop rolling down the lash. It builds toward
+    CRACK_T and dies away just before it, so the crack (played when the simulated tip actually cracks) lands on
+    top whether the physics runs a little early or late."""
+    rng = np.random.default_rng(1000 + v)
+    P = _whip_params(v)
+    b = buf(0.6)
+    # 1. the lift: the cord swung up and back over the shell, a short low swish
+    place(b, whoosh(rng, DRAW_T + 0.02, 220, 900, peak=0.45, bw=0.8), 0.0, 0.16)
+    # 2. the loop rolling down the lash after the snap, quickening toward the crack
+    zs = DRAW_T - 0.02
+    zd = CRACK_T - zs
+    z = lash_zip(rng, zd, P["z0"], P["z1"], curve=1.6, fl0=rng.uniform(28, 36), fl1=rng.uniform(80, 100))
+    z = z * np.clip((zd - tt(zd)) / 0.03, 0, 1) ** 0.5  # tail off rather than cut: the crack covers the seam
+    place(b, z, zs, 0.24)
+    # 3. a soul riding the lash: a ghost voice yelping up an octave and a half
+    gd = CRACK_T
+    f0, f1 = P["wail"]
+    g = ghost_voice(rng, gd, lambda t: f0 * (f1 / f0) ** (np.clip(t / gd, 0, 1) ** 1.3), P["va"], P["vb"],
+                    lambda t: envp(t, [(0, 0), (0.5 * gd, 0.6), (gd - 0.04, 1.0), (gd, 0.0)], 1.3),
+                    breath=0.45, voices=3, detune=18)
+    place(b, g, 0.0, 0.14)
+    out = reverb(b, rt=0.5, wet=0.18, seed=v, bright=7500)
+    return finalize(out, SOFT, keep_lead=True, maxdur=0.5, fade_out=0.05)
+
+
+def sharp_crack(rng):
+    """A real whip crack is a sonic boom: a sub-millisecond N-wave (vertical fronts, all its energy above ~1 kHz), a
+    couple of smaller breaks right after as the frayed popper turns over, its bounce off the ground ~2-3 ms later,
+    a few ms of splintering crackle, and outdoor slapback. No tonal body: a 'thump' under it makes it a gunshot."""
+    c = np.zeros(N(0.25))
+    breaks = [(0.0, 0.0006, 1.0), (rng.uniform(0.0007, 0.0013), 0.00035, 0.55),
+              (rng.uniform(0.0018, 0.003), 0.0004, 0.3)]
+    for t0, w, g in breaks:
+        n = max(4, N(w))
+        nw = np.linspace(1.0, -0.8, n)
+        i = N(t0)
+        c[i:i + n] += g * nw
+    c = hp(c, 900, 2)
+    gr = N(rng.uniform(0.0022, 0.0032))  # the ground's reflection
+    c[gr:] += 0.55 * lp(c, 9000, 2)[:len(c) - gr]
+    cd = 0.008  # splintering crackle: sparse sharp ticks dying in a few ms
+    cr = np.zeros(N(cd))
+    t = 0.0003
+    while N(t) < len(cr):
+        cr[N(t)] += rng.uniform(-1, 1) * np.exp(-t / 0.0018)
+        t += rng.exponential(0.00025)
+    c[:len(cr)] += 0.8 * hp(cr, 2500, 2)
+    ad = 0.04  # the torn air hissing shut
+    c[:N(ad)] += 0.12 * hp(noise(rng, ad), 3000, 2) * np.exp(-tt(ad) / 0.007)
+    c /= np.abs(c).max()
+    c = np.tanh(4.0 * c) / np.tanh(4.0)  # driven like a mic at point-blank: denser, fronts kept
+    out = st(c)
+    for dt, g, fc, pan in [(0.018, 0.22, 7000, -0.5), (0.037, 0.13, 5000, 0.55), (0.061, 0.07, 3500, -0.25),
+                           (0.095, 0.04, 2500, 0.3)]:
+        place(out, lp(c, fc, 2), dt, g, pan=pan)
+    return out
+
+
+def soul_whip_crack(v):
+    """When the tip cracks (the transient at the very start): a sharp supersonic crack, then the soul ripped out of
+    it, a falling ghostly sigh with glitter, well under the crack so the crack stays the event."""
+    rng = np.random.default_rng(1100 + v)
+    P = _whip_params(v)
+    t0 = 0.002
+    b = buf(1.0)
+    sd = 0.6
+    s0, s1 = P["sigh"]
+    sg = ghost_voice(rng, sd, lambda t: 2 * s0 * (s1 / (2 * s0)) ** (np.clip(t / sd, 0, 1) ** 0.45), V_EE, V_HH,
+                     lambda t: envp(t, [(0, 0), (0.03, 1), (0.12, 0.6), (sd, 0)], 1.6), breath=0.7, voices=3,
+                     detune=30, flicker=0.4)
+    place(b, sg, t0 + 0.02, 1.0)
+    place(b, shimmer(rng, 0.5, 2600, 5200, lambda t: envp(t, [(0, 0), (0.02, 1), (0.5, 0)], 1.6), fall=7),
+          t0 + 0.015, 0.25)
+    soul = reverb(b, rt=0.7, wet=0.25, seed=v, bright=8000)
+    soul = soul / np.abs(soul).max()
+    out = st(np.zeros(N(0.8)))
+    place(out, sharp_crack(rng), t0, 1.0)
+    place(out, soul, 0.0, 0.16)
+    out = out - out.mean(axis=1, keepdims=True)
+    fo = N(0.12)
+    out[:, -fo:] *= 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, fo))
+    return out * (db(-0.5) / np.abs(out).max())  # peak-normalised: no compression or fade-in on the transient
 
 
 def soul_whip_equip(v):
@@ -711,6 +822,7 @@ def tag_mark(v):
 
 def main():
     for v in range(4):
+        write(f"A_SoulWhip_Swing_{v + 1:02d}", soul_whip_swing(v))
         write(f"A_SoulWhip_Crack_{v + 1:02d}", soul_whip_crack(v))
     for v in range(2):
         write(f"A_SoulWhip_Equip_{v + 1:02d}", soul_whip_equip(v))

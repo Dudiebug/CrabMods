@@ -1,5 +1,5 @@
 // The Soul Whip's lash simulation (crabmods/items/necro_lash.hpp): it hangs from the handle, keeps its length,
-// follows the hand calmly, unrolls toward the target on a crack and settles again.
+// follows the hand calmly, cracks once per stroke toward the target and settles again.
 #include <cmath>
 #include <cstdio>
 
@@ -57,19 +57,33 @@ static void Cracks() {
     V3 target{1500, 300, 0};  // where the shot lands: 15 m out, on the ground
     V3 to = Normal(target - anchor);
     l.Crack(target);
-    float best = -1, longest = 0, shortest = 1e9f;
-    for (int f = 0; f < 30; f++) {
-        l.Step(anchor, dir, 1.f, 0.f, 1.f / 60);
-        best = std::fmax(best, Dot(Normal(l.Point(13) - anchor), to));
+    float longest = 0, shortest = 1e9f, lifted = -1, fastest = 0, crackTime = -1, aligned = -1;
+    int cracks = 0;
+    for (int f = 0; f < 84; f++) {
+        l.Step(anchor, dir, 1.f, 0.f, 1.f / 120);
+        float t = (f + 1) / 120.f;
         longest = std::fmax(longest, Total(l));
         shortest = std::fmin(shortest, Total(l));
+        fastest = std::fmax(fastest, l.TipSpeed());
+        lifted = std::fmax(lifted, l.Point(13).z - anchor.z);
+        V3 at;
+        if (l.TakeCrack(at)) {
+            cracks++;
+            crackTime = t;
+            aligned = Dot(Normal(at - anchor), to);
+        }
         CHECK(Finite(l));
-        CHECK(Length(l.Point(0) - anchor) < 1e-3f);  // still in the hand
+        CHECK(Length(l.Point(0) - anchor) < 40.f);  // still in the hand (pushed by the wrist at most)
     }
-    std::printf("  crack: tip lines up with the target to %.3f, lash %.0f..%.0f cm\n", best, shortest, longest);
-    CHECK(best > 0.97f);                             // unrolled toward the target
-    CHECK(longest < 191.5f && shortest > 150.f);     // never stretched (only bent along the ground)
-    CHECK(!l.Striking());                            // let go after the strike
+    std::printf("  crack: tip up %.0f cm in the stroke, %d crack at %.3f s, tip %.0f m/s, toward the target %.2f, "
+                "lash %.0f..%.0f cm\n", lifted, cracks, crackTime, fastest / 100, aligned, shortest, longest);
+    CHECK(lifted > 30.f);                            // the loop rolls up over the hand
+    CHECK(cracks == 1);                              // one crack per stroke
+    CHECK(crackTime > Lash::kDrawBack && crackTime < 0.35f);
+    CHECK(fastest > Lash::kCrackSpeed);
+    CHECK(aligned > 0.5f);                           // out in front, toward the target
+    CHECK(longest < 191.f * 1.03f && shortest > 191.f * 0.97f);  // the cord keeps its length
+    CHECK(!l.Striking());                            // the stroke is over
     for (int f = 0; f < 240; f++) l.Step(anchor, dir, 1.f, 0.f, 1.f / 60);
     CHECK(Finite(l));
     CHECK(std::fabs(Total(l) - 191.f) < 191.f * 0.05f);  // back to its length

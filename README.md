@@ -58,6 +58,7 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 | `sdk/` | CrabSDK: compilable C++ headers for every game and engine type, with function wrappers, for writing your own DLL mods. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
 | `third_party/imgui/` | [Dear ImGui](https://github.com/ocornut/imgui) 1.91.9b (MIT), the manager's UI. |
+| `third_party/stb/` | [stb_vorbis](https://github.com/nothings/stb) 1.22 (public domain), which decodes the necromancer's sounds. |
 
 Every address in `common/crab/game.hpp` comes from static analysis of the game binary. The mods read and call the game's own code; they do not modify any game files.
 
@@ -69,6 +70,6 @@ To write your own native mod, start with [CrabSDK](sdk/README.md): compilable he
 
 ## License
 
-[MIT](LICENSE). MinHook is © Tsuda Kageyu and contributors, under its own [BSD 2-Clause license](third_party/minhook/LICENSE.txt). Dear ImGui is © Omar Cornut, [MIT](third_party/imgui/LICENSE.txt). The manager's font, Roboto, is © Google, under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+[MIT](LICENSE). MinHook is © Tsuda Kageyu and contributors, under its own [BSD 2-Clause license](third_party/minhook/LICENSE.txt). Dear ImGui is © Omar Cornut, [MIT](third_party/imgui/LICENSE.txt). stb_vorbis is by Sean Barrett, in the public domain. The manager's font, Roboto, is © Google, under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 
 These are fan-made mods. They are not affiliated with or endorsed by the developers or publishers of Crab Champions.

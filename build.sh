@@ -13,6 +13,7 @@ CXX="$TC/x86_64-w64-mingw32-clang++"
 CC="$TC/x86_64-w64-mingw32-clang"
 OUT=build
 mkdir -p "$OUT/obj"
+ROOT="$(pwd -W 2>/dev/null || pwd)"  # resource compilers on Windows want C:/..., not /c/...
 
 CXXFLAGS=(-std=c++20 -O2 -Wall -Wextra -Wno-unused-parameter -Icommon -Ithird_party/minhook/include)
 LDFLAGS=(-shared -static -static-libgcc -static-libstdc++ -Wl,--kill-at -s)
@@ -25,6 +26,9 @@ for f in "$MH/buffer.c" "$MH/hook.c" "$MH/trampoline.c" "$MH/hde/hde64.c"; do
     "$CC" -O2 -c "$f" -o "$o"
     MH_OBJS+=("$o")
 done
+
+# stb_vorbis (C): decodes the necromancer kit's sounds.
+"$CC" -O2 -w -DSTB_VORBIS_NO_STDIO -DSTB_VORBIS_NO_PUSHDATA_API -c third_party/stb/stb_vorbis.c -o "$OUT/obj/stb_vorbis.o"
 
 # version_res <name> <version> <description> <file name>: a VERSIONINFO resource object, build/obj/<name>.res.o.
 # The manager reads it to tell which version is installed.
@@ -61,10 +65,10 @@ version_of() { sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' "$1"; }
 version_res loader 1.0.0 "Crab Champions mod loader" xinput1_3.dll
 version_res CrabSync "$(version_of crabsync/main.cpp)" "CrabSync for Crab Champions" CrabSync.dll
 version_res CrabMods "$(version_of crabmods/main.cpp)" "CrabMods for Crab Champions" CrabMods.dll \
-    "100 RCDATA \"$PWD/crabmods/assets/necro.pack\""
+    "100 RCDATA \"$ROOT/crabmods/assets/necro.pack\""
 # The manager also carries its font (resource 2).
 version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" CrabModsManager.exe \
-    "2 RCDATA \"$PWD/manager/fonts/Roboto-Medium.ttf\""
+    "2 RCDATA \"$ROOT/manager/fonts/Roboto-Medium.ttf\""
 
 # The mod loader: the game imports xinput1_3.dll, so Windows loads it, and it loads the other DLLs beside it.
 "$CXX" "${CXXFLAGS[@]}" loader/xinput_proxy.cpp loader/xinput1_3.def "$OUT/obj/loader.res.o" "${LDFLAGS[@]}" \
@@ -73,7 +77,7 @@ version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" Crab
 # Each mod writes its own ini (with defaults) and log next to itself on first launch.
 "$CXX" "${CXXFLAGS[@]}" crabsync/main.cpp crabsync/ledger.cpp crabsync/game_inv.cpp "${MH_OBJS[@]}" "$OUT/obj/CrabSync.res.o" \
     "${LDFLAGS[@]}" -o "$OUT/CrabSync.dll"
-"$CXX" "${CXXFLAGS[@]}" crabmods/main.cpp crabmods/items/*.cpp "${MH_OBJS[@]}" "$OUT/obj/CrabMods.res.o" \
+"$CXX" "${CXXFLAGS[@]}" crabmods/main.cpp crabmods/items/*.cpp "${MH_OBJS[@]}" "$OUT/obj/stb_vorbis.o" "$OUT/obj/CrabMods.res.o" \
     "${LDFLAGS[@]}" -lwinmm -o "$OUT/CrabMods.dll"
 
 # The manager: a Windows program (it runs under wine too), drawn with Dear ImGui on Direct3D 11.

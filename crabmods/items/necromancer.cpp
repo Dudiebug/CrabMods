@@ -1008,7 +1008,7 @@ private:
                 target = anchor + forward * whipRange_;
             }
             l.sim.Crack(target);
-            PlayAt("A_SoulWhip_Crack_", {anchor.x, anchor.y, anchor.z}, 1.f, 0.45f);
+            PlayAt("A_SoulWhip_Swing_", {anchor.x, anchor.y, anchor.z});
         }
 
         Vec3 feet{};
@@ -1016,6 +1016,9 @@ private:
         float half = 0.f;
         if (void* capsule = At<void*>(c, off::Character_Capsule)) halfHeight(capsule, &half);
         l.sim.Step(anchor, dir, s, feet.z - half, dt);
+        // The crack sounds where and when the tip actually breaks the sound barrier.
+        necro::V3 crackAt;
+        if (l.sim.TakeCrack(crackAt)) PlayAt("A_SoulWhip_Crack_", {crackAt.x, crackAt.y, crackAt.z});
 
         // The soul glow: breathing, as a wave running down the cord from the handle; a crack flares it.
         for (size_t i = 0; i <= l.pieces.size(); i++)  // the handle (last) leads

@@ -4,6 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.13.2
+
+- **The Soul Whip cracks like a real whip.** The lash is a physical cord now. The crab draws the whip back over its shell and snaps it forward, and a loop rolls down the cord until the tip breaks the sound barrier. The crack plays at that moment, from the tip, instead of when you attack. It's a sharp supersonic snap with a ghostly sigh after it.
+- **New swing sound.** Every lash whooshes as the crab swings it, with a faint wail.
+- **Smaller download.** The necromancer's sounds are stored compressed, so CrabMods.dll is about 1.4 MB smaller.
+
 ### 0.13.1
 
 - **Tagged enemies get a reticle on the HUD instead of marks in the world.** The rune brand on the ground and the ring floating around the enemy are gone. Now a rune reticle is drawn over each tagged enemy on your screen, sized to the enemy. It snaps in when the tag lands, turns and pulses, and has a dark rim so it reads on sand, grass and snow. Every player sees it, whether or not they hold the whip.

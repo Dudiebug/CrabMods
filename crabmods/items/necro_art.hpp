@@ -1,14 +1,16 @@
 // The necromancer kit's art and sounds, carried inside CrabMods.dll (resource 100, made by
 // art/necromancer/bake_pack.py) and turned into game objects at run time: textures from PNGs, the whip's meshes
 // from triangle lists, and sounds played by a small mixer of our own (the engine can't load a sound file at run
-// time).
+// time). Sounds are stored as Ogg Vorbis and decoded once, when the pack loads.
 #pragma once
 #include <windows.h>
 #include <mmsystem.h>
 
 #include <atomic>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -17,6 +19,10 @@
 
 #include "../item.hpp"
 #include "../ui.hpp"
+
+// third_party/stb/stb_vorbis.c, built as C by build.sh.
+extern "C" int stb_vorbis_decode_memory(const unsigned char* mem, int len, int* channels, int* sample_rate,
+                                        short** output);
 
 namespace crabmods::necro {
 
@@ -57,6 +63,7 @@ public:
             entries_[std::string(reinterpret_cast<const char*>(e), strnlen(reinterpret_cast<const char*>(e), 48))] =
                 {p + off, size};
         }
+        DecodeSounds();
         CRAB_LOG("necromancer: art pack loaded, %zu files", entries_.size());
         return true;
     }
@@ -77,8 +84,35 @@ public:
 
 private:
     static void Anchor() {}
+
+    // Each name.ogg becomes name.pcm: mono 16-bit at Mixer::kRate, the format the mixer plays.
+    void DecodeSounds() {
+        std::vector<std::string> oggs;
+        for (auto& [name, b] : entries_)
+            if (name.size() > 4 && name.compare(name.size() - 4, 4, ".ogg") == 0) oggs.push_back(name);
+        size_t bytes = 0;
+        for (auto& name : oggs) {
+            Blob b = entries_[name];
+            entries_.erase(name);
+            int channels = 0, rate = 0;
+            short* pcm = nullptr;
+            int frames = stb_vorbis_decode_memory(b.data, int(b.size), &channels, &rate, &pcm);
+            if (frames <= 0 || channels != 1 || rate != 32000) {
+                CRAB_LOG("necromancer: can't decode %s", name.c_str());
+                free(pcm);
+                continue;
+            }
+            sounds_.emplace_back(pcm, &free);
+            entries_[name.substr(0, name.size() - 4) + ".pcm"] = {reinterpret_cast<const uint8_t*>(pcm),
+                                                                   uint32_t(frames) * 2};
+            bytes += size_t(frames) * 2;
+        }
+        if (!oggs.empty()) CRAB_LOG("necromancer: %zu sounds decoded (%zu KB)", oggs.size(), bytes / 1024);
+    }
+
     bool loaded_ = false;
     std::unordered_map<std::string, Blob> entries_;
+    std::vector<std::unique_ptr<short, void (*)(void*)>> sounds_;
 };
 
 // --- Calling engine functions often -------------------------------------------------------------------------
