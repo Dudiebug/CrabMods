@@ -4,6 +4,11 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.13.3
+
+- **Souls fly to you.** When you or your undead kill an enemy, its soul streaks from the body to you as a glowing violet wisp with a tail, and the pickup chime plays as it lands. Before, the soul bar just went up. The soul that fills your bar plays the full chime when it arrives.
+- **New necromancy sounds.** The whip's equip and tag sounds, the soul pickups, all four raise sounds and the undead crumbling are redone to go with the new crack.
+
 ### 0.13.2
 
 - **The Soul Whip cracks like a real whip.** The lash is a physical cord now. The crab draws the whip back over its shell and snaps it forward, and a loop rolls down the cord until the tip breaks the sound barrier. The crack plays at that moment, from the tip, instead of when you attack. It's a sharp supersonic snap with a ghostly sigh after it.

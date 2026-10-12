@@ -341,6 +341,13 @@ soundVolume = 80
         bool byClaw = !byUndead && melee != lastMelee_.end() && melee->second == ps;
         if (byClaw) gain *= 1.f + loot::Total(ps, loot::GraveClaws) / 100.f;
         AddSouls(ps, gain);
+        // Its soul flies to the player: their machine draws it and plays the pickup as it lands.
+        if (Vec3 at; gain > 0.f && LocationOf(enemy, at))
+            if (void* pc = At<void*>(ps, off::Actor_Owner)) {
+                wchar_t buf[64];
+                swprintf(buf, std::size(buf), L"%lswisp %.0f %.0f %.0f", kMsg, at.x, at.y, at.z);
+                SendToPlayer(pc, buf);
+            }
         PlayerData& d = players_[PlayerKey(ps)];
         // Soul Brand: the mark spreads to the enemies nearest the tagged kill.
         if (tagged)
@@ -558,13 +565,17 @@ soundVolume = 80
                 lastRaiseSound_[tier] = Now();
                 PlayAt((std::string("A_Necro_Raise_") + ui::Narrow(kTierNames[tier]) + "_").c_str(), at);
             }
+        } else if (swscanf(s, L"wisp %f %f %f", &at.x, &at.y, &at.z) == 3) {
+            if (wisps_.size() < 64) wisps_.push_back({at, Now()});
         } else if (text.compare(kMsgLen, std::wstring::npos, L"denied") == 0) {
             Play("A_Necro_Raise_Denied_", 0.8f);
         } else if (swscanf(s, L"souls %f %f %f %f %f %f %d %f", &souls, &max, &c[0], &c[1], &c[2], &c[3], &undead, &army) >= 6) {
             view_.undead = undead;
             view_.army = army >= 0.f && army < 1e6f ? army : float(undead);  // an older host sends only the count
             if (view_.known && souls > view_.souls + 0.01f) {
-                if (souls >= max - 1e-3f && view_.souls < max - 1e-3f) Play("A_Necro_SoulBar_Full_", 0.9f);
+                bool full = souls >= max - 1e-3f && view_.souls < max - 1e-3f;
+                if (!wisps_.empty()) wispFull_ = wispFull_ || full;  // souls in flight: they sound as they land
+                else if (full) Play("A_Necro_SoulBar_Full_", 0.9f);
                 else if (Now() - lastSoulSound_ > 0.08) Play("A_Soul_Pickup_", 0.55f), lastSoulSound_ = Now();
             }
             view_.souls = souls;
@@ -639,6 +650,7 @@ soundVolume = 80
         void* ps = At<void*>(c, off::Pawn_PlayerState);
         void* pc = At<void*>(c, off::Pawn_Controller);
         DrawReticles(pc);
+        DrawWisps(pc, c);
         // Picking the whip up.
         void* held = ps ? At<void*>(ps, off::PS_WeaponDA) : nullptr;
         if (whip_ && held == whip_ && lastHeld_ && lastHeld_ != whip_) Play("A_SoulWhip_Equip_", 0.9f);
@@ -862,6 +874,9 @@ private:
         // The tag's reticle, drawn on the HUD over each tagged enemy.
         texReticle_ = necro::Texture(pack_.Get("tag_halo.png"));
         if (texReticle_ && mid_) necro::Keep(mid_, L"Keep9", texReticle_);
+        // A kill's soul, flying to its player on the HUD.
+        texWisp_ = necro::Texture(pack_.Get("soul_wisp.png"));
+        if (texWisp_ && mid_) necro::Keep(mid_, L"Keep10", texWisp_);
         runes_.Init(ring, hex, handle);
         // Our crack and equip sounds instead of the Sniper's; no muzzle flash or scope glint.
         At<void*>(whip_, off::WeaponDA_GunshotSound) = nullptr;
@@ -2138,6 +2153,7 @@ private:
             hud_ = hud;
             widgets_.clear();
             reticles_.clear();
+            wispImages_.clear();
             abilityHidden_ = false;
         }
         if (!hud) return;
@@ -2318,6 +2334,72 @@ private:
             }
         }
         for (size_t i = used; i < reticles_.size(); i++) ui::SetVisibility(reticles_[i], ui::Hidden);
+    }
+
+    // --- Souls flying in: from each kill to this machine's player, drawn on the HUD -------------------------------
+
+    void DrawWisps(void* pc, void* c) {
+        static void* layout = ui::FindObject(L"/Script/UMG.Default__WidgetLayoutLibrary");
+        void* root = nullptr;
+        if (hud_ && texWisp_ && layout) {
+            void* tree = At<void*>(hud_, off::UserWidget_WidgetTree);
+            root = tree ? At<void*>(tree, off::WidgetTree_RootWidget) : nullptr;
+        }
+        double now = Now();
+        Vec3 to{};
+        bool home = LocationOf(c, to);
+        to.z += 40.f;
+        size_t used = 0;
+        for (auto it = wisps_.begin(); it != wisps_.end();) {
+            float u = float(now - it->since) / kWispFlight;
+            if (u >= 1.f || !home) {  // landed: its sound (the last one in, when the bar just filled: the full chime)
+                it = wisps_.erase(it);
+                if (wispFull_ && wisps_.empty()) Play("A_Necro_SoulBar_Full_", 0.9f), wispFull_ = false;
+                else if (now - lastSoulSound_ > 0.08) Play("A_Soul_Pickup_", 0.55f), lastSoulSound_ = now;
+                continue;
+            }
+            // The head and a fading tail behind it, each a moment back along the same arc.
+            for (int k = 0; k < kWispTail && root && pc && InGame(pc); k++) {
+                float uk = u - 0.05f * float(k);
+                if (uk <= 0.f) break;
+                float e = uk * uk * (3.f - 2.f * uk);  // eases out of the body, then rushes in
+                Vec3 p{it->from.x + (to.x - it->from.x) * e, it->from.y + (to.y - it->from.y) * e,
+                       it->from.z + 60.f + (to.z - it->from.z - 60.f) * e + 160.f * std::sin(3.14159265f * uk)};
+                float xy[2];
+                if (!Project(layout, pc, p, xy)) continue;
+                if (used == wispImages_.size() && !AddWisp(root)) break;
+                void* w = wispImages_[used++];
+                float size = (38.f - 8.f * float(k)) * (1.f + 0.15f * std::sin(float(now) * 30.f + float(k)));
+                SetPosition(w, xy[0], xy[1]);
+                SetSize(w, size, size);
+                Tint(w, {0.85f, 0.65f, 1.f, std::min(1.f, uk * 6.f) * (1.f - 0.28f * float(k))});
+                ui::SetVisibility(w, ui::HitTestInvisible);
+            }
+            ++it;
+        }
+        for (size_t i = used; i < wispImages_.size(); i++) ui::SetVisibility(wispImages_[i], ui::Hidden);
+    }
+
+    bool AddWisp(void* root) {
+        void* widget = ui::NewWidget(hud_, va::UImage_StaticClass);
+        void* slot = widget ? ui::AddToCanvas(root, widget) : nullptr;
+        if (!slot) {
+            if (widget) ui::RemoveFromParent(widget);
+            return false;
+        }
+        float anchors[4] = {0.f, 0.f, 0.f, 0.f};
+        ui::Call(slot, L"SetAnchors", anchors);
+        float align[2] = {0.5f, 0.5f};
+        ui::Call(slot, L"SetAlignment", align);
+        int32_t z = -1;
+        ui::Call(slot, L"SetZOrder", &z);
+        struct {
+            void* texture;
+            bool matchSize;
+        } b{texWisp_, false};
+        ui::Call(widget, L"SetBrushFromTexture", &b);
+        wispImages_.push_back(widget);
+        return true;
     }
 
     // UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition: where a spot is in the viewport's widget space
@@ -2527,6 +2609,16 @@ private:
     std::unordered_map<void*, float> tagged_;         // tagged enemies now, and their size in cm
     std::unordered_map<void*, double> reticleSince_;  // when each got its reticle (for the lock-on)
     void* texReticle_ = nullptr;
+    struct Wisp {
+        Vec3 from;
+        double since;
+    };
+    static constexpr float kWispFlight = 0.45f;  // seconds from the kill to the player
+    static constexpr int kWispTail = 4;          // images per soul: the head and its tail
+    std::vector<Wisp> wisps_;                    // this machine's player's souls in flight
+    std::vector<void*> wispImages_;              // the images drawing them (shown as needed)
+    void* texWisp_ = nullptr;
+    bool wispFull_ = false;  // the bar filled while souls were in flight: the last one in chimes
     void *barFill_ = nullptr, *soulIcon_ = nullptr, *soulText_ = nullptr, *notch_[kTiers] = {};
     TierWidgets tiers_[kTiers];
     bool abilityHidden_ = false;

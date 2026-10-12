@@ -311,7 +311,7 @@ def chime(rng, f, d, tau=0.12, ratios=(1, 2.0, 2.76, 5.4), amps=(1, 0.2, 0.3, 0.
     return out
 
 
-# --------------------------------------------------------------------------- mastering
+# Vowel formants (freq, bandwidth Hz, gain) for the ghost voices.
 V_OO = [(330, 70, 1.0), (760, 100, 0.35), (2300, 200, 0.12)]
 V_OH = [(480, 80, 1.0), (880, 110, 0.5), (2500, 220, 0.18)]
 V_AH = [(760, 100, 1.0), (1150, 120, 0.6), (2650, 230, 0.25)]
@@ -349,6 +349,26 @@ def ghost_voice(rng, d, f_fn, va, vb, amp_fn, breath=0.35, voices=3, detune=12.0
     mid, side = out.mean(0), (out[0] - out[1]) / 2 * width
     out = np.vstack([mid + side, mid - side])
     return out / (np.abs(out).max() + 1e-12) * amp_fn(t)
+
+
+def whip_snap(rng, width=0.0008, ring=3200.0, bright=16000.0, slap=1.0):
+    """The supersonic crack: a sub-millisecond N-wave and a hiss burst, almost no body, then the slapback
+    of the nearest surfaces (what makes a real whip crack sound like 'pa-KSH' rather than a click)."""
+    c = np.zeros(N(0.12))
+    nw = np.linspace(1.0, -1.0, max(3, N(width)))
+    c[:len(nw)] += nw
+    burst = hp(noise(rng, 0.006) * np.exp(-tt(0.006) / 0.0007), 3000)
+    c[:len(burst)] += 0.7 * burst / np.abs(burst).max()
+    c = np.tanh(4.0 * c) / np.tanh(4.0)
+    c = lp(c, bright, 4)
+    c += 0.10 * damped(ring, 0.0025, 0.12)
+    c[:N(0.0003)] *= np.linspace(0, 1, N(0.0003))
+    out = st(c)
+    if slap:
+        for dt, g, fc, pan in [(0.0105, 0.34, 5500, -0.45), (0.023, 0.22, 3800, 0.5), (0.041, 0.12, 2600, -0.2),
+                               (0.067, 0.06, 2000, 0.3)]:
+            place(out, lp(c, fc, 2), dt, g * slap, pan=pan)
+    return out
 
 
 def lash_zip(rng, d, f0, f1, curve=2.2, fl0=14.0, fl1=70.0, bw=0.45):
@@ -595,70 +615,65 @@ def soul_whip_crack(v):
 
 def soul_whip_equip(v):
     rng = np.random.default_rng(2000 + v)
-    b = buf(0.8)
-    # leather creak: jittered stick-slip impulse train through leather body resonances
-    imp = np.zeros(N(0.3))
-    t, end = 0.01, 0.2 + 0.03 * v
-    while t < end:
-        u = t / end
-        rate = 55 + 110 * u if v == 0 else 140 - 70 * u
-        imp[N(t)] += np.sin(np.pi * u) ** 0.7 * rng.uniform(0.5, 1.0)
-        t += rng.uniform(0.8, 1.25) / rate
-    cr = ffilt(imp, formant_H([(520 + 60 * v, 60, 1.0), (1150, 110, 0.6), (2400, 200, 0.3)], 0.05))
-    place(b, cr / np.abs(cr).max(), 0, 0.55, pan=-0.15)
-    # soft lash flick
-    ft = 0.24 + 0.02 * v
-    place(b, whoosh(rng, 0.09, 900, 4500, peak=0.85, bw=0.6), ft - 0.08, 0.6)
-    nw = np.linspace(1, -1, N(0.0007))
-    sn = np.zeros(N(0.04))
-    sn[:len(nw)] = nw
-    sn += 0.5 * hp(noise(rng, 0.04) * np.exp(-tt(0.04) / 0.002), 2000)
-    place(b, lp(sn, 7000), ft, 0.45, pan=0.1)
-    # soul shimmer: inharmonic high partials, tremolo, fade in/out
-    sd = 0.45
+    b = buf(0.9)
+    # the coil slithering loose: leather friction grains through a band-pass
+    sd = 0.26
     t = tt(sd)
-    sh = np.zeros((2, len(t)))
-    for k in range(5):
-        f = rng.uniform(1800, 4200)
-        ph, trem, tph = rng.uniform(0, 6.28), rng.uniform(8, 13), rng.uniform(0, 6.28)
-        for c in range(2):
-            sh[c] += np.sin(2 * np.pi * f * (1 + (c - 0.5) * 0.0002) * t + ph) * \
-                (0.6 + 0.4 * np.sin(2 * np.pi * trem * t + tph + 0.6 * c))
-    sh *= envp(t, [(0, 0), (0.15, 1), (sd, 0)], 1.5)
-    place(b, sh / np.abs(sh).max(), 0.1, 0.12)
-    out = reverb(b, rt=0.35, wet=0.15, seed=20 + v)
-    return finalize(out, SOFT, maxdur=0.55, fade_out=0.05)
+    grains = np.zeros(len(t))
+    tg = 0.0
+    while tg < sd - 0.01:
+        grains[N(tg)] += rng.uniform(0.3, 1.0) * np.sin(np.pi * tg / sd) ** 0.6
+        tg += rng.exponential(1 / (260 + 200 * v))
+    sl = bp(lp(grains, 6000, 1) + 0.05 * noise(rng, sd), 1100, 4200, 2)
+    cr = ffilt(grains, formant_H([(520 + 60 * v, 60, 1.0), (1150, 110, 0.6)], 0.05))
+    place(b, sl / np.abs(sl).max(), 0, 0.12, pan=-0.2)
+    place(b, cr / np.abs(cr).max(), 0, 0.10, pan=-0.1)
+    # a short flick of the wrist and a small crack
+    ft = 0.30 + 0.02 * v
+    place(b, lash_zip(rng, 0.12, 1200, 7000, curve=1.6, fl0=30, fl1=70), ft - 0.12, 0.2)
+    place(b, whip_snap(rng, 0.0005, ring=4000, bright=14000, slap=0.6), ft, 0.6)
+    # the whip drinking in a soul: an inhaled 'oo' rising, with glitter
+    gd = 0.42
+    f0 = [262, 294][v]
+    place(b, ghost_voice(rng, gd, lambda tt_: f0 * 2 ** (7 / 12 * np.clip(tt_ / gd, 0, 1)), V_HH, V_OO,
+                         lambda tt_: envp(tt_, [(0, 0), (0.3, 1), (gd, 0)], 1.5), breath=0.7, voices=2),
+          0.05, 0.16)
+    place(b, shimmer(rng, 0.4, 1800, 4200, lambda tt_: envp(tt_, [(0, 0), (0.12, 1), (0.4, 0)], 1.5)), 0.12, 0.08)
+    out = reverb(b, rt=0.4, wet=0.16, seed=20 + v)
+    return finalize(out, SOFT, maxdur=0.7, fade_out=0.06)
 
 
 def soul_whip_tag(v):
     rng = np.random.default_rng(3000 + v)
-    b = buf(1.2)
-    # lash slap + dull thud
-    place(b, low_thump(rng, 140 - 10 * v, 60 + 5 * v, 0.06), 0, 1.0)
-    dust = lp(noise(rng, 0.12) * np.exp(-tt(0.12) / 0.03), 900, 2)
-    place(b, dust / np.abs(dust).max(), 0, 0.45)
-    sl = hp(noise(rng, 0.02) * np.exp(-tt(0.02) / 0.003), 1200)
-    place(b, sl / np.abs(sl).max(), 0, 0.35)
-    # eerie inharmonic bell: partials 500-900 Hz, slow chorus detune, slight downward bend
+    b = buf(1.3)
+    # the lash landing: a snap at the tip, a flat slap on the target and a short thud
+    place(b, whip_snap(rng, 0.0012, ring=2400, bright=9000, slap=0.4), 0, 0.55)
+    sl = bp(noise(rng, 0.05) * np.exp(-tt(0.05) / 0.007), 500, 3500, 2)
+    place(b, sl / np.abs(sl).max(), 0.001, 0.55)
+    place(b, low_thump(rng, 150 - 10 * v, 70 + 5 * v, 0.04), 0.0, 0.6)
+    # the soul hooked: an eerie inharmonic bell under a rising ghostly 'whoo'
     f1 = [540, 600, 570][v]
-    ratios = [(1.0, 1.0), ([1.34, 1.29, 1.37][v], 0.7), ([1.59, 1.52, 1.63][v], 0.55),
-              (2.76, 0.12), (4.07, 0.05)]
+    ratios = [(1.0, 1.0), ([1.34, 1.29, 1.37][v], 0.7), ([1.59, 1.52, 1.63][v], 0.55), (2.76, 0.12), (4.07, 0.05)]
     d = 0.9
     t = tt(d)
     bell = np.zeros((2, len(t)))
     for k, (r, a) in enumerate(ratios):
         tau = 0.32 / (1 + 0.6 * k)
-        for sgn in (-1, 1):  # detuned pair -> slow chorus beating; L/R differ only in LFO phase
+        for sgn in (-1, 1):
             cb, lr, lph, ph = rng.uniform(3, 7), rng.uniform(0.3, 0.8), rng.uniform(0, 6.28), rng.uniform(0, 6.28)
             for c in range(2):
                 cents = sgn * cb * (1 + 0.5 * np.sin(2 * np.pi * lr * t + lph + 0.9 * c))
                 bend = 2 ** (-18 * (1 - np.exp(-t / 0.4)) / 1200)
-                bell[c] += a * 0.5 * np.sin(phase_of(f1 * r * 2 ** (cents / 1200) * bend, len(t))
-                                            + ph) * np.exp(-t / tau)
+                bell[c] += a * 0.5 * np.sin(phase_of(f1 * r * 2 ** (cents / 1200) * bend, len(t)) + ph) *                     np.exp(-t / tau)
     bell *= envp(t, [(0, 0), (0.004, 1), (d, 1)])
-    place(b, bell / np.abs(bell).max(), 0.018, 0.55)
-    out = reverb(b, rt=0.7, wet=0.22, seed=30 + v, bright=5000)
-    return finalize(out, IMPACT, maxdur=0.85, fade_out=0.08)
+    place(b, bell / np.abs(bell).max(), 0.018, 0.38)
+    gd = 0.7
+    g0 = f1 / 2
+    place(b, ghost_voice(rng, gd, lambda tc: g0 * 2 ** (5 / 12 * (1 - np.exp(-tc / 0.15))), V_OO, V_OH,
+                         lambda tc: envp(tc, [(0, 0), (0.08, 1), (0.25, 0.8), (gd, 0)], 1.6), breath=0.5),
+          0.03, 0.30)
+    out = reverb(b, rt=0.75, wet=0.24, seed=30 + v, bright=5000)
+    return finalize(out, IMPACT, maxdur=0.9, fade_out=0.1)
 
 
 PENTA = [0, 2, 4, 7, 9, 12, 14, 16]  # major pentatonic steps
@@ -672,6 +687,9 @@ def soul_pickup(i):
     place(b, chime(rng, f * 1.5, 0.25, tau=0.06, amps=(1, 0.1, 0.15, 0.0)), 0.022, 0.28)
     tick = hp(noise(rng, 0.01) * np.exp(-tt(0.01) / 0.0012), 3000)
     place(b, tick / np.abs(tick).max(), 0, 0.12)
+    wd = 0.22  # the soul arriving: a breathy 'oo' sliding up into the chime's pitch
+    place(b, ghost_voice(rng, wd, lambda t: f / 2 * 2 ** (-3 / 12 * np.exp(-t / 0.05)), V_HH, V_OO,
+                         lambda t: envp(t, [(0, 0), (0.02, 1), (wd, 0)], 1.6), breath=0.6, voices=2), 0, 0.30)
     b = lp(b, 9000, 2)
     out = reverb(b, rt=0.35, wet=0.2, seed=40 + i, bright=8000)
     return finalize(out, PICKUP, maxdur=0.25, fade_out=0.04)
@@ -729,6 +747,17 @@ def necro_raise(tier, v):
             cenv = lambda t: envp(t, [(0, 0), (0.6, 1), (1.0, 0.8), (cd, 0)], 1.3)
         ch = choir(rng, notes, cd, cenv, voices=3 if tier == 2 else 4)
         place(b, ch / np.abs(ch).max(), 0.1, [0, 0, 0.32, 0.45][tier])
+    # souls answering the call: ghost voices rising out of the ground, more of them for bigger enemies
+    nw_ = [1, 2, 3, 5][tier]
+    for k in range(nw_):
+        gd = dur * rng.uniform(0.55, 0.8)
+        g0 = 147.0 * 2 ** ((semis + [0, 7, 12, 3, 10][k]) / 12) * rng.uniform(0.98, 1.02)
+        rise = rng.uniform(5, 9)
+        gv = ghost_voice(rng, gd, lambda t, g0=g0, gd=gd, rise=rise: g0 * 2 ** (rise / 12 * np.clip(t / gd, 0, 1) ** 0.6),
+                         [V_OO, V_OH][k % 2], [V_AH, V_OO][k % 2],
+                         lambda t, gd=gd: envp(t, [(0, 0), (0.35 * gd, 1), (0.7 * gd, 0.7), (gd, 0)], 1.4),
+                         breath=0.5, voices=2, detune=20)
+        place(b, gv, 0.06 + 0.07 * k, [0.22, 0.2, 0.18, 0.16][tier], pan=0)
     if tier == 3:  # final impact boom with long tail
         bt = 1.38 + 0.04 * v
         place(b, boom(rng, 1.0), bt, 1.3)
@@ -803,8 +832,13 @@ def undead_crumble(v):
                                                   / np.sqrt(1 + (f / (5000 * np.exp(-tc / 0.35) + 1200)) ** 4)))
     ex *= envp(t, [(0, 0), (0.08, 1), (ed, 0)], 1.5)
     place(b, np.vstack([ex, np.roll(ex, N(0.011))]) / np.abs(ex).max(), 0.03, 0.22)
-    # faint soul-release whoosh
+    # the soul leaving: a faint whoosh and a breathy wail drifting up and away
     place(b, whoosh(rng, 0.5, 700, 3500 + 500 * v, peak=0.6, bw=0.6), 0.18, 0.12)
+    gd = 0.6
+    g0 = [330, 370, 311][v]
+    place(b, ghost_voice(rng, gd, lambda t: g0 * 2 ** (10 / 12 * np.clip(t / gd, 0, 1)), V_OH, V_HH,
+                         lambda t: envp(t, [(0, 0), (0.12, 1), (gd, 0)], 1.7), breath=0.8, voices=2, flicker=0.4),
+          0.15, 0.16)
     out = reverb(b, rt=0.5, wet=0.2, seed=80 + v)
     return finalize(out, IMPACT, maxdur=0.9, fade_out=0.08)
 

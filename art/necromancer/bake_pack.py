@@ -19,6 +19,7 @@ The pack: "CRPK", u32 count, then per entry a 48-byte name, u32 offset, u32 size
   whip.rig          anchor (3 floats), direction (3 floats), u32 segment count, the segments' lengths
   *.png             the HUD's pictures, as they are
   tag_halo.png      the ring floating around a tagged enemy (drawn here): soul violet, its alpha the shape
+  soul_wisp.png     a kill's soul flying to its player (drawn here): a white-hot core in a soft violet glow
   raise_ring.png, raise_hex.png   the raise circle's two layers (drawn here), white on black with matching alpha:
                     the ground decal under a rising undead takes one as its shape and turns them opposite ways
   *.ogg             sounds: Ogg Vorbis, mono, 32 kHz (the DLL decodes them to 16-bit PCM on load)
@@ -153,6 +154,21 @@ def tag_halo(size=256):
     return png(out)
 
 
+def soul_wisp(size=64):
+    """A white-hot core fading out through soul violet, with soft edges (the HUD tints and scales it)."""
+    c = (np.arange(size) + 0.5) / size * 2 - 1
+    x, y = np.meshgrid(c, c)
+    r = np.hypot(x, y)
+    core = np.exp(-(r / 0.22) ** 2)
+    halo = np.exp(-(r / 0.55) ** 2) * (1 - r.clip(0, 1) ** 2)
+    alpha = np.clip(core + 0.75 * halo, 0, 1)
+    violet = np.array([176, 108, 255], np.float64) / 255
+    w = (core / np.maximum(alpha, 1e-6)).clip(0, 1)[..., None]
+    col = violet * (1 - w) + np.ones(3) * w
+    out = np.dstack([np.clip(col * 255 + 0.5, 0, 255), alpha * 255 + 0.5]).astype(np.uint8)
+    return png(out)
+
+
 def read_crabmesh(path):
     b = open(path, "rb").read()
     assert b[:4] == b"CRBM"
@@ -217,6 +233,7 @@ def main():
 
     entries["raise_ring.png"], entries["raise_hex.png"] = raise_layers()
     entries["tag_halo.png"] = tag_halo()
+    entries["soul_wisp.png"] = soul_wisp()
 
     for f in sorted(glob.glob(os.path.join(HERE, "ui", "*.png"))):
         entries[os.path.basename(f)] = open(f, "rb").read()
