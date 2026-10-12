@@ -125,7 +125,10 @@ private:
                 there = levels.Data[i] && At<uint64_t>(levels.Data[i], off::LevelStreaming_PackageNameToLoad) == package;
             if (there) continue;
             static void* cdo = ui::FindObject(L"/Script/Engine.Default__LevelStreamingDynamic");
-            int n = int(wcslen(m.package) + 1);
+            // The name override is only the level's name: the engine puts the package's folder in front of it
+            // ("/Game/Island/Arctic/" + "Arctic_Parkour_01"). A whole package path there doubles the folder, and
+            // the engine stops the game (issue 2).
+            int n = int(wcslen(m.package) + 1), nn = int(wcslen(m.name) + 1);
             struct {
                 void* context;
                 TArray<wchar_t> level;
@@ -135,9 +138,12 @@ private:
                 TArray<wchar_t> nameOverride;
                 void* result;
             } p{world, {const_cast<wchar_t*>(m.package), n, n}, {}, {}, false,
-                {const_cast<wchar_t*>(m.package), n, n}, nullptr};
+                {const_cast<wchar_t*>(m.name), nn, nn}, nullptr};
             static_assert(sizeof p == 0x50);
             if (!ui::Call(cdo, L"LoadLevelInstance", &p) || !p.ok || !p.result) {
+                // Once added, a failure means the map's package is still in memory from the last world (the
+                // engine refuses a name that's taken): try again later.
+                if (added_) return false;
                 CRAB_LOG("parkour: %s isn't installed (pakchunk77-ParkourMaps_P.pak in Content/Paks/~mods): no "
                          "Parkour islands", ui::Narrow(m.package).c_str());
                 missing_ = true;
@@ -149,6 +155,7 @@ private:
             ui::Call(p.result, L"SetShouldBeVisible", &no);
             At<uint8_t>(p.result, off::LevelStreamingDynamic_Initially) &= ~3;
             CRAB_LOG("parkour: added %s", ui::Narrow(m.name).c_str());
+            added_ = true;
         }
         return true;
     }
@@ -168,6 +175,7 @@ private:
     bool enabled_ = true;
     float chance_ = 50.f;
     bool missing_ = false;
+    bool added_ = false;  // the maps were added to a world before
     void* world_ = nullptr;
     void* told_ = nullptr;                // the player controller the host was told through
     std::unordered_set<void*> have_;      // host: player controllers whose machines have the maps

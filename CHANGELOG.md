@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.12.1
+
+- **Fixed the game crashing at the start with the Parkour maps add-on installed** ("Attempted to create a package with name containing double slashes", issue 2). Parkour gave the engine the whole map path where it wanted only the map's name. Without the add-on nothing changes.
+
 ### 0.12.0
 
 - **Minimalist is reworked: fewer kinds of pickup, more damage.** It now gives +40% damage, minus 4% for each different pickup tag you hold (Fire, Critical, Speed, ...), so five tags leave +20% and ten leave nothing. It is Jack of All Trades the other way round. It used to give +5% per empty weapon mod slot, which was +115% at the start of a run, because there are 24 slots. The new settings are `maxPercent` and `perTagPercent`. An existing `CrabMods.ini` keeps its old `damagePercent` line, which now does nothing.
