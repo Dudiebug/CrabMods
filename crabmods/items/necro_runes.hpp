@@ -1,11 +1,5 @@
-// The necromancer's marks. On the ground: deferred decals, so they lie on the floor however it slopes or steps.
-//
-//   Rise:  the circle a raised undead climbs out of: an outer ring of runes and a hexagram inside, turning opposite
-//          ways, flaring when the undead comes up and fading after.
-//   Brand: under a tagged enemy while the tag lasts, following it.
-//
-// And around a tagged enemy, a halo: a ring of runes floating round its middle (a flat translucent mesh on the
-// enemy, placed each frame) that snaps in from wide when the tag lands, then turns, sways and breathes.
+// The raise circle: a deferred decal, so it lies on the floor however it slopes or steps. An outer ring of runes and
+// a hexagram inside, turning opposite ways, flaring when the undead comes up and fading after.
 //
 // They use the game's damage-area decal material (M_Decal_DamageArea: a translucent stain decal whose shape is its
 // texture parameter "O"), as a dynamic instance per decal with our pictures (raise_ring.png, raise_hex.png from the
@@ -27,9 +21,8 @@ class Runes {
 public:
     // The pictures, and something rooted to hold the material (a static mesh: AddMaterial). false without the
     // material; then there are no marks.
-    // halo: the halo's mesh; addPiece puts a mesh component on an actor, placed by us. Without them, no halos.
-    bool Init(void* ring, void* hex, void* keeper, void* halo, void* (*addPiece)(void*, void*)) {
-        ring_ = ring, hex_ = hex, haloMesh_ = halo, addPiece_ = addPiece;
+    bool Init(void* ring, void* hex, void* keeper) {
+        ring_ = ring, hex_ = hex;
         mat_ = ui::FindObject(kMaterial);
         if (!mat_) {
             static void* lib = ui::FindObject(L"/Script/Engine.Default__KismetSystemLibrary");
@@ -60,29 +53,14 @@ public:
     void Rise(void* world, Vec3 at, float radius, float rise) {
         if (!Ready(world)) return;
         float yaw = float(rand() % 360);
-        Add(world, {Kind::Ring, nullptr, at, radius, Now(), Now() + rise + 1.7, yaw, 40.f, rise});
-        Add(world, {Kind::Hex, nullptr, at, radius * 0.95f, Now(), Now() + rise + 1.7, -yaw, -75.f, rise});
-    }
-
-    // The tagged enemies now (alive, in this world) and their marks' sizes: marks come and go to match.
-    void Brands(void* world, const std::unordered_map<void*, float>& tagged) {
-        Halos(world, tagged);
-        if (!Ready(world)) return;
-        for (auto& m : marks_)
-            if (m.kind == Kind::Brand && m.follow && !tagged.count(m.follow)) m.end = 0.0, m.follow = nullptr;
-        for (auto& [e, radius] : tagged) {
-            bool have = false;
-            for (auto& m : marks_) have |= m.follow == e;
-            Vec3 at;
-            if (!have && LocationOf(e, at)) Add(world, {Kind::Brand, e, at, radius, Now(), 1e30, float(rand() % 360), 90.f, 0.f});
-        }
+        Add(world, {Kind::Ring, at, radius, Now(), Now() + rise + 1.7, yaw, 40.f, rise});
+        Add(world, {Kind::Hex, at, radius * 0.95f, Now(), Now() + rise + 1.7, -yaw, -75.f, rise});
     }
 
     // Every frame: turns, grows, flares, fades and follows; removes what is done.
     void Frame(void* world) {
-        if (world != world_) marks_.clear(), halos_.clear(), world_ = world;  // the old level's went with it
+        if (world != world_) marks_.clear(), world_ = world;  // the old level's decals went with it
         double now = Now();
-        for (Halo& h : halos_) PlaceHalo(h, float(now - h.start));
         for (auto it = marks_.begin(); it != marks_.end();) {
             Mark& m = *it;
             float t = float(now - m.start);
@@ -91,20 +69,12 @@ public:
                 it = marks_.erase(it);
                 continue;
             }
-            if (m.follow) LocationOf(m.follow, m.at);
-            float grow, amount, glow;
-            if (m.kind == Kind::Brand) {
-                grow = 1.f + 0.06f * std::sin(t * 5.f);
-                amount = 2.5f * std::min(t / 0.2f, 1.f);
-                glow = 5.f + 2.5f * std::sin(t * 5.f);
-            } else {
-                float k = std::min(t / 0.3f, 1.f);
-                grow = 0.35f + 0.65f * (1.f - (1.f - k) * (1.f - k) * (1.f - k));
-                float left = float(m.end - now);
-                amount = 3.f * k * std::min(left / 0.7f, 1.f);
-                float f = (t - m.rise) / 0.18f;
-                glow = 5.f + 18.f * std::exp(-f * f);  // the flare as the undead comes up
-            }
+            float k = std::min(t / 0.3f, 1.f);
+            float grow = 0.35f + 0.65f * (1.f - (1.f - k) * (1.f - k) * (1.f - k));
+            float left = float(m.end - now);
+            float amount = 3.f * k * std::min(left / 0.7f, 1.f);
+            float f = (t - m.rise) / 0.18f;
+            float glow = 5.f + 18.f * std::exp(-f * f);  // the flare as the undead comes up
             Place(m, m.yaw + m.spin * t, grow);
             Scalar(m.mid, nameAmount_, amount);
             Scalar(m.mid, nameEmissive_, glow);
@@ -115,10 +85,9 @@ public:
 private:
     static constexpr const wchar_t* kMaterial = L"/Game/FX/Material/M_Decal_DamageArea.M_Decal_DamageArea";
     static constexpr float kDepth = 260.f;  // how far up and down from the spot it reaches, cm
-    enum class Kind { Ring, Hex, Brand };
+    enum class Kind { Ring, Hex };
     struct Mark {
         Kind kind;
-        void* follow;  // the tagged enemy (Brand)
         Vec3 at;
         float radius;
         double start, end;
@@ -134,7 +103,7 @@ private:
     }
 
     bool Ready(void* world) {
-        if (world != world_) marks_.clear(), halos_.clear(), world_ = world;
+        if (world != world_) marks_.clear(), world_ = world;
         return mat_ && world && marks_.size() < 96;
     }
 
@@ -165,7 +134,6 @@ private:
             uint64_t name;
             float c[4];
         } tint{ui::Name(L"Tint"), {0.35f, 0.95f, 0.75f, 1.f}};  // the undead's ghost green
-        if (m.kind == Kind::Brand) tint.c[0] = 0.69f, tint.c[1] = 0.42f, tint.c[2] = 1.f;  // the whip's soul violet
         ui::Call(m.mid, L"SetVectorParameterValue", &tint);
         Scalar(m.mid, ui::Name(L"Distortion_Amount"), 0.f);  // crisp lines, not the damage area's wobble
         Scalar(m.mid, ui::Name(L"Noise_Power"), 0.f);
@@ -201,67 +169,6 @@ private:
         ui::Call(comp, L"GetOwner", &owner);
         if (owner) ui::Call(owner, L"K2_DestroyActor");
     }
-
-    // --- Halos ---
-    struct Halo {
-        void* enemy;
-        void* comp;
-        double start;
-        float yaw;
-        float radius;  // the enemy's capsule's, cm
-        float half;    // its half height
-    };
-
-    void Halos(void* world, const std::unordered_map<void*, float>& tagged) {
-        if (world != world_) marks_.clear(), halos_.clear(), world_ = world;
-        if (!haloMesh_ || !addPiece_ || !world) return;
-        for (auto it = halos_.begin(); it != halos_.end();) {
-            if (tagged.count(it->enemy)) {
-                ++it;
-                continue;
-            }
-            ui::Call(it->comp, L"K2_DestroyComponent", &it->comp);
-            it = halos_.erase(it);
-        }
-        for (auto& [e, size] : tagged) {
-            bool have = false;
-            for (Halo& h : halos_) have |= h.enemy == e;
-            if (have || halos_.size() >= 48) continue;
-            void* comp = addPiece_(e, haloMesh_);
-            if (!comp) continue;
-            Halo h{e, comp, Now(), float(rand() % 360), 60.f, 60.f};
-            if (void* capsule = At<void*>(e, off::Character_Capsule)) {
-                ui::Call(capsule, L"GetScaledCapsuleRadius", &h.radius);
-                ui::Call(capsule, L"GetScaledCapsuleHalfHeight", &h.half);
-            }
-            h.radius = std::clamp(h.radius, 30.f, 400.f);
-            halos_.push_back(h);
-            PlaceHalo(halos_.back(), 0.f);
-        }
-    }
-
-    void PlaceHalo(Halo& h, float t) {
-        Vec3 at;
-        if (!LocationOf(h.enemy, at)) return;
-        at.z += h.half * 0.15f + 6.f * std::sin(t * 2.2f);  // a little above its middle, bobbing
-        float k = std::min(t / 0.28f, 1.f);
-        float lock = 1.f + 1.6f * (1.f - k) * (1.f - k);  // the lock-on: in from wide
-        float breathe = 1.f + 0.05f * std::sin(t * 5.f);
-        float d = h.radius * 2.f * 1.55f * lock * breathe;  // the mesh is one unit across
-        struct {
-            Vec3 loc;
-            Vec3 rot;
-            bool sweep = false;
-            uint8_t hit[0x90] = {};
-        } p{at, {9.f * std::sin(t * 1.3f), h.yaw + 120.f * t + 260.f * (1.f - k), 9.f * std::cos(t * 1.1f)}};
-        ui::Call(h.comp, L"K2_SetWorldLocationAndRotation", &p);
-        Vec3 s{d, d, d};
-        ui::Call(h.comp, L"SetWorldScale3D", &s);
-    }
-
-    void* haloMesh_ = nullptr;
-    void* (*addPiece_)(void*, void*) = nullptr;
-    std::vector<Halo> halos_;
 
     void *mat_ = nullptr, *ring_ = nullptr, *hex_ = nullptr;
     void* world_ = nullptr;

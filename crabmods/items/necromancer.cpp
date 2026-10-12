@@ -638,6 +638,7 @@ soundVolume = 80
         if (!IsA(c, StaticClass(va::ACrabPlayerC_StaticClass))) return;
         void* ps = At<void*>(c, off::Pawn_PlayerState);
         void* pc = At<void*>(c, off::Pawn_Controller);
+        DrawReticles(pc);
         // Picking the whip up.
         void* held = ps ? At<void*>(ps, off::PS_WeaponDA) : nullptr;
         if (whip_ && held == whip_ && lastHeld_ && lastHeld_ != whip_) Play("A_SoulWhip_Equip_", 0.9f);
@@ -858,18 +859,10 @@ private:
         void* hex = necro::Texture(pack_.Get("raise_hex.png"));
         if (ring && mid_) necro::Keep(mid_, L"Keep7", ring);
         if (hex && mid_) necro::Keep(mid_, L"Keep8", hex);
-        // The tag's halo: a flat square one unit across, the picture on it see-through where it's clear.
-        void* halo = nullptr;
-        if (void* haloMat = necro::TextureMaterial(necro::Texture(pack_.Get("tag_halo.png")), true)) {
-            const float quad[6][5] = {{-.5f, -.5f, 0, 0, 0}, {.5f, -.5f, 0, 1, 0}, {.5f, .5f, 0, 1, 1},
-                                      {-.5f, -.5f, 0, 0, 0}, {.5f, .5f, 0, 1, 1}, {-.5f, .5f, 0, 0, 1}};
-            uint8_t blob[4 + sizeof quad];
-            uint32_t n = 6;
-            std::memcpy(blob, &n, 4);
-            std::memcpy(blob + 4, quad, sizeof quad);
-            halo = necro::Mesh({blob, uint32_t(sizeof blob)}, haloMat, L"SM_TagHalo");
-        }
-        runes_.Init(ring, hex, handle, halo, &AddPiece);
+        // The tag's reticle, drawn on the HUD over each tagged enemy.
+        texReticle_ = necro::Texture(pack_.Get("tag_halo.png"));
+        if (texReticle_ && mid_) necro::Keep(mid_, L"Keep9", texReticle_);
+        runes_.Init(ring, hex, handle);
         // Our crack and equip sounds instead of the Sniper's; no muzzle flash or scope glint.
         At<void*>(whip_, off::WeaponDA_GunshotSound) = nullptr;
         At<void*>(whip_, off::WeaponDA_EquipSound) = nullptr;
@@ -1800,7 +1793,7 @@ private:
     }
 
     // --- Tags on every machine: the host says where its tagged enemies are and for how long ("tags x y z s ..."),
-    // a few times a second at most while they change; each machine finds them and brands them (necro_runes.hpp).
+    // a few times a second at most while they change; each machine finds them and draws a reticle over them.
 
     void SendTags(void* world) {
         tagsDirty_ = false;
@@ -1841,10 +1834,10 @@ private:
         }
     }
 
-    // Every machine: a brand under each living tagged enemy.
+    // Every machine: which living enemies are tagged, and how big they are (cm), for the reticles.
     void MarkTagged(void* world, bool host) {
         auto& tags = host ? tags_ : seenTags_;
-        std::unordered_map<void*, float> brand;
+        tagged_.clear();
         if (!tags.empty() && enemyClass_) {
             std::vector<void*> enemies = AllActorsOf(world, enemyClass_);
             std::unordered_set<void*> present(enemies.begin(), enemies.end());
@@ -1857,12 +1850,11 @@ private:
                 if (Alive(it->first) && !IsUndead(it->first)) {
                     static const float size[] = {110.f, 110.f, 140.f, 170.f, 220.f, 320.f};
                     uint8_t cat = At<uint8_t>(it->first, off::Enemy_Category);
-                    brand[it->first] = size[cat < 6 ? cat : 2];
+                    tagged_[it->first] = size[cat < 6 ? cat : 2];
                 }
                 ++it;
             }
         }
-        runes_.Brands(world, brand);
     }
 
     // Kills an undead the ordinary way (its death animation and effects), dropping nothing.
@@ -2018,30 +2010,48 @@ private:
     // A pale, glowing ghost of the enemy. Each kind's material names its colors its own way (crabs SkinTintA,
     // skulls Tint_Inner, grubs Body_Tint, ...), so all of them are set, on every material of the body; a name a
     // material doesn't have is ignored.
+    // The undead look on one mesh's materials: whichever of these colour parameters its material has (every enemy
+    // kind names them its own way). The heavy crabs' skin (M_Crab_SkinPrototype) also has armour plates
+    // (BakedMask_Tint) and a camo pattern over it, which would keep their colours.
+    static void GhostMesh(void* mesh) {
+        static const wchar_t* const light[] = {L"SkinTintA", L"Tint", L"Tint_Outer", L"Base_Tint", L"Body_Tint",
+                                               L"BodyTint", L"PrimaryTint", L"AltTint", L"Emissive_Tint",
+                                               L"CrystalFresnel_Tint", L"BakedMask_Tint"};
+        static const wchar_t* const dark[] = {L"SkinTintB", L"Tint_Inner", L"SecondaryTint", L"StemTint"};
+        static const wchar_t* const glow[] = {L"Emissive_Brightness", L"Brightness", L"Emissive_Amount",
+                                              L"CrystalFresnel_Amount", L"Fresnel_Brightness"};
+        struct {
+            uint64_t name;
+            Vec3 color;
+        } v{};
+        v.color = {0.35f, 0.95f, 0.75f};
+        for (const wchar_t* p : light) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+        v.color = {0.1f, 0.45f, 0.4f};
+        for (const wchar_t* p : dark) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+        v.color = {0.6f, 1.f, 0.85f};
+        v.name = ui::Name(L"Eyes_Tint");
+        ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
+        struct {
+            uint64_t name;
+            float value;
+        } s{0, 2.f};
+        for (const wchar_t* p : glow) s.name = ui::Name(p), ui::Call(mesh, L"SetScalarParameterValueOnMaterials", &s);
+        s = {ui::Name(L"Camo_Amount"), 0.f};
+        ui::Call(mesh, L"SetScalarParameterValueOnMaterials", &s);
+    }
+
     static void Ghost(void* e) {
-        if (void* mesh = At<void*>(e, off::Character_Mesh)) {
-            static const wchar_t* const light[] = {L"SkinTintA", L"Tint", L"Tint_Outer", L"Base_Tint", L"Body_Tint",
-                                                   L"BodyTint", L"PrimaryTint", L"AltTint", L"Emissive_Tint",
-                                                   L"CrystalFresnel_Tint"};
-            static const wchar_t* const dark[] = {L"SkinTintB", L"Tint_Inner", L"SecondaryTint", L"StemTint"};
-            static const wchar_t* const glow[] = {L"Emissive_Brightness", L"Brightness", L"Emissive_Amount",
-                                                  L"CrystalFresnel_Amount", L"Fresnel_Brightness"};
-            struct {
-                uint64_t name;
-                Vec3 color;
-            } v{};
-            v.color = {0.35f, 0.95f, 0.75f};
-            for (const wchar_t* p : light) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
-            v.color = {0.1f, 0.45f, 0.4f};
-            for (const wchar_t* p : dark) v.name = ui::Name(p), ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
-            v.color = {0.6f, 1.f, 0.85f};
-            v.name = ui::Name(L"Eyes_Tint");
-            ui::Call(mesh, L"SetVectorParameterValueOnMaterials", &v);
-            struct {
-                uint64_t name;
-                float value;
-            } s{0, 2.f};
-            for (const wchar_t* p : glow) s.name = ui::Name(p), ui::Call(mesh, L"SetScalarParameterValueOnMaterials", &s);
+        // Every mesh on it: the body, and what it carries (the Hammer Crab's hammer, armour pieces).
+        static void* meshClass = ui::FindObject(L"/Script/Engine.MeshComponent");
+        struct {
+            void* cls;
+            TArray<void*> ret;
+        } c{meshClass, {}};
+        if (meshClass && ui::Call(e, L"K2_GetComponentsByClass", &c) && c.ret.Data) {
+            for (int i = 0; i < c.ret.Num; i++) GhostMesh(c.ret.Data[i]);
+            Fn<void (*)(void*)>(va::FMemory_Free)(c.ret.Data);
+        } else if (void* mesh = At<void*>(e, off::Character_Mesh)) {
+            GhostMesh(mesh);
         }
         void* dmi = At<void*>(e, off::Enemy_MeshDMI);
         if (!dmi) return;
@@ -2124,6 +2134,7 @@ private:
         if (hud != hud_) {
             hud_ = hud;
             widgets_.clear();
+            reticles_.clear();
             abilityHidden_ = false;
         }
         if (!hud) return;
@@ -2262,6 +2273,92 @@ private:
         if (!autoSize) SetSize(widget, w, h);
         return widget;
     }
+    // --- Tag reticles: the rune ring drawn on the HUD over each tagged enemy (every machine, whip held or not) ---
+
+    void DrawReticles(void* pc) {
+        static void* layout = ui::FindObject(L"/Script/UMG.Default__WidgetLayoutLibrary");
+        void* root = nullptr;
+        if (hud_ && texReticle_ && layout) {
+            void* tree = At<void*>(hud_, off::UserWidget_WidgetTree);
+            root = tree ? At<void*>(tree, off::WidgetTree_RootWidget) : nullptr;
+        }
+        double now = Now();
+        for (auto it = reticleSince_.begin(); it != reticleSince_.end();)
+            it = tagged_.count(it->first) ? std::next(it) : reticleSince_.erase(it);
+        size_t used = 0;
+        if (root && pc && InGame(pc)) {
+            for (auto& [enemy, size] : tagged_) {
+                Vec3 at;
+                if (!LocationOf(enemy, at)) continue;
+                float a[2], b[2];
+                if (!Project(layout, pc, at, a)) continue;
+                Vec3 up = at;
+                up.z += size * 0.5f;
+                if (!Project(layout, pc, up, b)) continue;
+                // Its size on screen, roughly: half of it straight up from its middle, projected.
+                float px = std::hypot(b[0] - a[0], b[1] - a[1]) * 2.f;
+                float base = std::clamp(px * 1.35f, 44.f, 420.f);
+                if (used == reticles_.size() && !AddReticle(root)) break;
+                void* w = reticles_[used++];
+                double since = reticleSince_.try_emplace(enemy, now).first->second;
+                float t = float(now - since);
+                float k = std::min(t / 0.25f, 1.f);
+                float lock = 1.f + 1.6f * (1.f - k) * (1.f - k) * (1.f - k);  // snaps in from wide
+                float pulse = 1.f + 0.07f * std::sin(t * 6.f);
+                float s = base * lock * pulse;
+                SetPosition(w, a[0], a[1]);
+                SetSize(w, s, s);
+                float angle = t * 45.f;
+                ui::Call(w, L"SetRenderTransformAngle", &angle);
+                Tint(w, {0.78f, 0.55f, 1.f, k * (0.8f + 0.2f * std::sin(t * 9.f))});
+                ui::SetVisibility(w, ui::HitTestInvisible);
+            }
+        }
+        for (size_t i = used; i < reticles_.size(); i++) ui::SetVisibility(reticles_[i], ui::Hidden);
+    }
+
+    // UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition: where a spot is in the viewport's widget space
+    // (what the HUD canvas's positions are in). false when it is behind the camera.
+    static bool Project(void* layout, void* pc, Vec3 at, float out[2]) {
+        struct {
+            void* pc;
+            Vec3 at;
+            float pos[2] = {};
+            bool viewportRelative = true;
+            bool ret = false;
+            uint8_t pad[2] = {};
+        } p{pc, at};
+        static_assert(sizeof(p) == 0x20);
+        if (!ui::Call(layout, L"ProjectWorldLocationToWidgetPosition", &p) || !p.ret) return false;
+        out[0] = p.pos[0], out[1] = p.pos[1];
+        return std::isfinite(out[0]) && std::isfinite(out[1]);
+    }
+
+    // One reticle image in the HUD's canvas, anchored top left and centred on its position.
+    bool AddReticle(void* root) {
+        void* widget = ui::NewWidget(hud_, va::UImage_StaticClass);
+        void* slot = widget ? ui::AddToCanvas(root, widget) : nullptr;
+        if (!slot) {
+            if (widget) ui::RemoveFromParent(widget);
+            return false;
+        }
+        float anchors[4] = {0.f, 0.f, 0.f, 0.f};
+        ui::Call(slot, L"SetAnchors", anchors);
+        float align[2] = {0.5f, 0.5f};
+        ui::Call(slot, L"SetAlignment", align);
+        int32_t z = -1;  // under the rest of the HUD
+        ui::Call(slot, L"SetZOrder", &z);
+        struct {
+            void* texture;
+            bool matchSize;
+        } b{texReticle_, false};
+        ui::Call(widget, L"SetBrushFromTexture", &b);
+        float pivot[2] = {0.5f, 0.5f};
+        ui::Call(widget, L"SetRenderTransformPivot", pivot);
+        reticles_.push_back(widget);
+        return true;
+    }
+
     static void SetPosition(void* widget, float x, float y) {
         float pos[2] = {x, y};
         ui::Call(ui::SlotOf(widget), L"SetPosition", pos);
@@ -2404,7 +2501,7 @@ private:
     };
     std::vector<Hushed> hushed_;                           // every machine: spawn effects left out for a raise
     std::unordered_map<void*, std::wstring> paths_;        // host: enemy class -> its path, for "rise"
-    necro::Runes runes_;                                   // every machine: the circles and brands
+    necro::Runes runes_;                                   // every machine: the raise circles
     std::unordered_map<void*, double> seenTags_;           // players' machines: tagged enemies, as the host said
     bool tagsDirty_ = false;                               // host: tags_ changed since last sent
     double nextTagSync_ = 0.0;
@@ -2423,6 +2520,10 @@ private:
     View view_;
     void* hud_ = nullptr;
     std::vector<void*> widgets_;  // all of ours in it
+    std::vector<void*> reticles_;                     // the tag reticles in it (shown as needed)
+    std::unordered_map<void*, float> tagged_;         // tagged enemies now, and their size in cm
+    std::unordered_map<void*, double> reticleSince_;  // when each got its reticle (for the lock-on)
+    void* texReticle_ = nullptr;
     void *barFill_ = nullptr, *soulIcon_ = nullptr, *soulText_ = nullptr, *notch_[kTiers] = {};
     TierWidgets tiers_[kTiers];
     bool abilityHidden_ = false;

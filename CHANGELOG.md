@@ -4,6 +4,11 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.13.1
+
+- **Tagged enemies get a reticle on the HUD instead of marks in the world.** The rune brand on the ground and the ring floating around the enemy are gone. Now a rune reticle is drawn over each tagged enemy on your screen, sized to the enemy. It snaps in when the tag lands, turns and pulses, and has a dark rim so it reads on sand, grass and snow. Every player sees it, whether or not they hold the whip.
+- **Raised undead are ghost green all over.** What an enemy carries, like the Hammer Crab's hammer and armour pieces, used to keep its normal colours.
+
 ### 0.13.0
 
 - **Greed Run, a new game mode.** A new portal in the lobby, opposite Arcade and Holdout, starts a normal run where everything is Greed. Every island reward chest is a Greed chest. A Greed chest can offer any item at the usual rarity odds, plus the game's own Greed items, with 2 more choices than usual. Every mod and perk that appears comes 1 level higher, and each level of a non-Greed item you hold carries a curse that depends on its kind:

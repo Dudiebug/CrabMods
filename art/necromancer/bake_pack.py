@@ -110,25 +110,34 @@ def raise_layers(size=512):
 
 
 def tag_halo(size=256):
-    """Three lock-on brackets on an outer ring, a thin ring inside, and twelve diamond runes between."""
+    """Three thick lock-on brackets on an outer ring, a ring inside, and twelve diamond runes between; bright
+    lines with a dark rim, so it reads on sand, grass and snow alike."""
     c = (np.arange(size) + 0.5) / size * 2 - 1
     x, y = np.meshgrid(c, c)
     r, a = np.hypot(x, y), np.arctan2(y, x)
     px = 2 / size  # a pixel
-    sm = lambda d, w: np.clip((w - d) / px + 0.5, 0, 1)
-    v = sm(np.abs(r - 0.92), 0.035) * (np.cos(3 * a) > -0.35)  # the brackets
-    v = np.maximum(v, sm(np.abs(r - 0.66), 0.012))
-    for i in range(12):
-        ang = i / 12 * 2 * np.pi
-        dx, dy = x - 0.79 * np.cos(ang), y - 0.79 * np.sin(ang)
-        u = dx * np.cos(ang) + dy * np.sin(ang)  # along the radius
-        w = -dx * np.sin(ang) + dy * np.cos(ang)
-        v = np.maximum(v, sm(np.abs(u) / 0.06 + np.abs(w) / 0.035, 1.0) * (0.7 if i % 2 else 1.0))
-    glow = 0.35 * np.exp(-((r - 0.79) / 0.16) ** 2) * (r < 1)
-    alpha = np.clip(np.maximum(v, glow), 0, 1)
-    core = v  # the lines run white-hot in the middle, violet at the edges and in the glow
-    rgb = np.array([176, 108, 255], np.float64) / 255
-    col = rgb[None, None, :] * (1 - 0.55 * core[..., None]) + 0.55 * core[..., None]
+
+    def shape(grow):  # the lines, each widened by grow (for the rim)
+        sm = lambda d, w: np.clip((w + grow - d) / px + 0.5, 0, 1)
+        v = sm(np.abs(r - 0.885), 0.055) * (np.cos(3 * a) > -0.25)  # the brackets
+        v = np.maximum(v, sm(np.abs(r - 0.62), 0.024))
+        for i in range(12):
+            ang = i / 12 * 2 * np.pi
+            dx, dy = x - 0.755 * np.cos(ang), y - 0.755 * np.sin(ang)
+            u = dx * np.cos(ang) + dy * np.sin(ang)  # along the radius
+            w = -dx * np.sin(ang) + dy * np.cos(ang)
+            v = np.maximum(v, sm((np.abs(u) / 0.075 + np.abs(w) / 0.045) * 0.045, 0.045))
+        return v
+
+    line, rim = shape(0.0), shape(0.03)
+    glow = 0.3 * np.exp(-((r - 0.75) / 0.17) ** 2) * (r < 1)
+    alpha = np.clip(np.maximum(np.maximum(line, rim * 0.9), glow), 0, 1)
+    violet = np.array([176, 108, 255], np.float64) / 255
+    dark = np.array([40, 12, 70], np.float64) / 255
+    hot = np.array([245, 230, 255], np.float64) / 255  # the lines run near white, the rim dark violet
+    col = np.where((rim > line)[..., None] & (rim > 0.05)[..., None], dark, violet)
+    col = col * (1 - 0.7 * line[..., None]) + hot * 0.7 * line[..., None]
+    col = np.where((alpha > 0)[..., None], col, violet)
     out = np.dstack([np.clip(col * 255 + 0.5, 0, 255), alpha * 255 + 0.5]).astype(np.uint8)
     return png(out)
 
