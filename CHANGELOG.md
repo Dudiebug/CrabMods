@@ -281,6 +281,23 @@ First release, as Arsenal.
 
 ## CrabMods Manager
 
+### 0.4.0
+
+The manager asks first, and runs on Linux.
+
+- **Nothing changes until you say so.** The first start shows the game folder, what it would install, every file it would add, and two questions about updates. Nothing is written until you press **Install**, or **Just browse** to look around first.
+- **Every change is shown before it's made.** Installing, uninstalling, updating, rolling back, loading a setup code and resetting to defaults all open a **Review changes** window. It lists each file it adds, replaces or removes, what it backs up, and which settings change.
+- **Updates are your choice**, for the mods and for the manager separately. You can install them automatically, or be told about them, with **Update**, **Skip this version** and **What's new**. After an update a note says what changed, for example *CrabMods updated 0.14.1 → 0.14.2*. An automatic manager update goes in when you close the manager; it never restarts while you're using it.
+- **Checks every 5 minutes** (or every minute, 15 minutes, or only when you press Check now). An unchanged release list doesn't count against GitHub's limit. **Offline** turns off all network use except Check now.
+- **Every download is checked** against the SHA-256 checksum GitHub publishes for it, and refused if it doesn't match. Releases also have a `SHA256SUMS.txt`, and the new **Help** page compares your installed files with it. It also explains why antivirus programs may flag the mod loader.
+- **It never runs a mod DLL.** Each release now publishes its item list as a catalog file, and the manager reads that.
+- **Remove all mods** takes out exactly the files the manager added and puts back any file it replaced, such as another `xinput1_3.dll`. It can also delete the mods' settings and logs.
+- **Roll back** to the previous version of CrabMods or CrabSync from its page. The newer version is then skipped until you undo it in Settings.
+- **While the game is running**, changes wait and go in when it closes. The bar at the top says what's waiting.
+- **Sort the Mods list** by type, name, rarity, installed first or newest, or click a column header. Items from the latest CrabMods update have a **NEW** badge.
+- **A native Linux version**, `CrabModsManager-x86_64.AppImage`, for Linux and Steam Deck. It keeps its files in `~/.config/CrabModsManager` and `~/.cache/CrabModsManager`, and updates itself like the Windows one. The Windows exe still runs under Proton or wine.
+- **Coming from 0.3**, it updates itself as before and keeps your mods, settings and game folder. It asks once how updates should work, and updates nothing on its own until you answer.
+
 ### 0.3.0
 
 A new manager: a real window instead of a settings editor.

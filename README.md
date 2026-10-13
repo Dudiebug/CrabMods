@@ -6,13 +6,13 @@ Native mods for **Crab Champions**, and the reverse-engineering notes and SDK th
 |---|---|---|---|
 | [**CrabSync**](crabsync/README.md) | One team, one inventory, one health bar: every pickup, crystal and hit is shared by the whole lobby. | The host only | [`CrabSync-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabSync) |
 | [**CrabMods**](crabmods/README.md) | The **Soul Whip**, a necromancer weapon that raises the enemies you kill as undead, with 20 items of its own; and 39 more new items: damage perks and relics (Hoarder, Collateral Damage, Overflow, Last Crab Standing, ...), Thick Shell, Community Support, Bullet Rain and Hellshot, a Martyr relic whose revive bubble hurts enemies, Specialist relics that make one kind of loot 3× as likely, Double or Nothing, Cursed Lottery, Lucky Charm (chest items can be level 2), Encore (perks go off twice), Combo Catalyst, Autoloader, Finishing Move, Rigged Totems, Recharge, Pathfinder (more portal choices), Enhanced Turrets as an ability mod, charms that add 5 inventory slots per level, stronger melee mods, a key totem menu to choose your unlock, Heavy Shot for every weapon, and Spiked Chests that cost 35% max health (35% for the whole team with CrabSync). In multiplayer the host's settings are used by everyone. | Every player | [`CrabMods-x.y.z.zip`](https://github.com/Dudiebug/CrabMods/releases?q=CrabMods) |
-| [**CrabMods Manager**](manager/README.md) | **The easiest way to play with these mods.** Every item is a mod you install or uninstall, with its settings beside it; keeps the mods and itself up to date; shares your whole setup as one short code; starts the game and turns a crash into a ready-made GitHub issue. Windows, or Proton/wine on Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
+| [**CrabMods Manager**](manager/README.md) | **The easiest way to play with these mods.** Every item is a mod you install or uninstall, with its settings beside it. It asks before changing anything, checks every download against its published checksum, tells you about updates (or installs them, if you want), shares your whole setup as one short code, starts the game and turns a crash into a ready-made GitHub issue. Windows, Linux and Steam Deck. | You | [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) or [`.AppImage`](https://github.com/Dudiebug/CrabMods/releases?q=manager) |
 
 The two mods work together or on their own. Each one's page has its settings, details and known issues.
 
 ## Install
 
-**The easy way:** download [`CrabModsManager.exe`](https://github.com/Dudiebug/CrabMods/releases?q=manager) and run it. It finds the game, installs every mod, and keeps them up to date. Uninstall whatever you don't want. On Linux / Steam Deck it shows the launch option from step 5 below to paste into Steam.
+**The easy way:** download the [manager](https://github.com/Dudiebug/CrabMods/releases?q=manager) (`CrabModsManager.exe` for Windows, `CrabModsManager-x86_64.AppImage` for Linux and Steam Deck) and run it. It finds the game, shows what it will install, and installs it when you press Install. Afterwards it tells you when updates are out. On Linux / Steam Deck it shows the launch option from step 5 below to paste into Steam.
 
 By hand:
 
@@ -42,8 +42,9 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 ```
 
 - `build/` gets `xinput1_3.dll` (the loader), `CrabSync.dll`, `CrabMods.dll` and `CrabModsManager.exe`.
-- `test` runs CrabSync's ledger tests and the manager's tests (with `wine` on Linux; set `WINE=` to choose one).
-- `package` makes `build/CrabSync-<version>.zip` and `build/CrabMods-<version>.zip`.
+- `test` runs CrabSync's ledger tests, the catalog check and the manager's tests (with `wine` on Linux; set `WINE=` to choose one).
+- `package` makes `build/CrabSync-<version>.zip` and `build/CrabMods-<version>.zip`, plus the files the manager installs from: `CrabMods.catalog.json`, `CrabSync.catalog.json` and `SHA256SUMS.txt`. A mod release has its zip, its DLL, `xinput1_3.dll`, its catalog and `SHA256SUMS.txt`.
+- The Linux manager is built natively: `manager/linux/build.sh test appimage` (needs `g++`, `libsdl2-dev` and `libcurl4-openssl-dev`). The [workflow](.github/workflows/manager-linux.yml) adds the AppImage to each manager release.
 - `install` copies the DLLs into a Steam install (set `CRAB_GAME` to the `Crab Champions` folder if it lives elsewhere).
 
 | Path | |
@@ -54,10 +55,11 @@ export LLVM_MINGW=/path/to/llvm-mingw   # the folder that contains bin/
 | `common/crab/` | Shared by both: game addresses, minimal Unreal Engine types, logging, hooking. |
 | `loader/` | The `xinput1_3.dll` mod loader. |
 | `tests/` | CrabSync ledger tests and manager tests. |
+| `tools/` | `dump_catalog`: writes each mod's catalog from the DLLs at build time. |
 | `re/` | Reverse-engineering notes, SDK and scripts. |
 | `sdk/` | CrabSDK: compilable C++ headers for every game and engine type, with function wrappers, for writing your own DLL mods. |
 | `third_party/minhook/` | [MinHook](https://github.com/TsudaKageyu/minhook) (BSD 2-Clause). |
-| `third_party/imgui/` | [Dear ImGui](https://github.com/ocornut/imgui) 1.91.9b (MIT), the manager's UI. |
+| `third_party/imgui/` | [Dear ImGui](https://github.com/ocornut/imgui) 1.91.9b (MIT), the manager's UI, with its Win32, Direct3D 11, SDL2 and OpenGL 3 backends. |
 | `third_party/stb/` | [stb_vorbis](https://github.com/nothings/stb) 1.22 (public domain), which decodes the necromancer's sounds. |
 
 Every address in `common/crab/game.hpp` comes from static analysis of the game binary. The mods read and call the game's own code; they do not modify any game files.
