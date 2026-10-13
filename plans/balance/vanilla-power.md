@@ -325,7 +325,7 @@ Melee-mod Iron Claws (+300%, +40% cooldown) is the biggest single Common buff in
 - Acquisition-rate estimate [I]: one chest per island with 3 choices, so about 1 item per island plus shop purchases.
 - Perks and weapon mods dominate (Σ weights ~120 Perk / ~92 WM vs Relic ~18 inside mixed pools).
 - Relics come mostly from Relic portals (≈5% of islands) and the 0.3-weight relic entries in normal pools. Expect about 3–6 relics per 30-island run, which is why relics are deliberately large (100–400%) and non-levelling.
-- Upgrade offers rise linearly with island (min(island, 50)%). After about island 20, most chests offer at least one level-up of a held item, which is the main late-game compounding source.
+- Upgrade offers rise linearly with island: per choice min(island, 50)% × 0.66 (Epic) or × 0.33 (Legendary), less for each one already offered. That is ~13% for the first choice on island 20, capped at island 50. Players report filling every slot (10 relics, 24 perks, 24 weapon mods) by the end of a first run, after which levels are the only growth.
 
 ## Open items / caveats
 - Not traced:

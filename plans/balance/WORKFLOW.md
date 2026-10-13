@@ -2,6 +2,13 @@
 
 Seven steps from idea to shipped item. The numbers come from `vanilla-power.md`, `vanilla-difficulty.md` and `audit.md` in this folder, and the vanilla items are in `re/pickup_catalog.json`.
 
+**Every number on a card carries a tag:**
+- **[C]**: from the game's code or assets. Cite the doc and section.
+- **[M]**: measured: a balance log from real runs (step 7), or something seen again and again in play.
+- **[G]**: a guess.
+
+A [G] can't decide a verdict on its own. List every [G] under **Unverified**, and measure it before or soon after the item ships.
+
 ## 1. Is it different?
 
 Write the one-line description, then find the **two closest vanilla items** in `re/pickup_catalog.json`. The new item has to differ in at least one way:
@@ -14,60 +21,86 @@ The same thing with bigger or smaller numbers doesn't count, and neither does tu
 
 Also check the **name** isn't taken by a vanilla item (relics too) or by a planned item in `plans/`.
 
-## 2. Pick the rarity, then the number
+## 2. Place it
 
-Rarity follows the **kind** of effect, not its size:
+Write these on the card before picking any number. All of them are [C].
 
-| Rarity | Kind of effect | How much stronger mid-run |
-|---|---|---|
-| Common | flat damage or a conditional bonus | ×1.1–1.2 |
-| Epic | about 2× a Common, a small proc chance, or a slow ramp | ×1.25–1.35 |
-| Legendary | a new damage source, more projectiles, or a rule change | ×1.3–2 |
-| Greed | a true multiplier **with a real drawback** | ×1.25–1.75 |
-| Relic | big, because relics never level and you only get 3–6 | like a level-3 perk |
+- **Category and rarity.** Rarity follows the **kind** of effect, not its size:
 
-To pick the number:
+  | Rarity | Kind of effect |
+  |---|---|
+  | Common | flat damage or a conditional bonus |
+  | Epic | about 2× a Common, a small proc chance, or a slow ramp |
+  | Legendary | a new damage source, more projectiles, or a rule change |
+  | Greed | a true multiplier **with a real drawback** |
+  | Relic | big, because relics never level |
 
-1. **Copy the closest vanilla item's number** as a starting point (e.g. Tasty Orange: 1% per kill, island only).
-2. Check it mid-run: a typical build has weapon-mod damage ≈ 4.5 and perk damage ≈ 1.6. So +30% perk damage is (1.6 + 0.3) / 1.6 = ×1.19, which is Common-sized.
-3. Check it at level 5, on Proc Generator (every chance ×100), and at island 28.
+- **Where its effect goes** (`vanilla-power.md` §2). This decides how much it gets diluted as the build fills:
+  - the weapon-mod pool (W, additive);
+  - the perk add pool (additive);
+  - the Greed multiply pool;
+  - crit;
+  - elemental stacks;
+  - or outside every pool, a true multiplier that never dilutes, like Death Mark.
+- **How it levels**:
+  - Linear: B × L.
+  - Hyperbolic: 1 − (1 − B)^L.
+  - HalfScaling, for procs: B × (1 + 0.5(L − 1)), then × the weapon's roll multiplier, 1–7.
+  - Limited: no longer offered once it reaches 100%.
+  - None, for relics.
+- **How often it shows up.** Its spawn weight against the total for its category and rarity (`vanilla-power.md` §1). Most weapon mods and perks are 1, ability and melee mods 0.75, relics 0.3–0.5. Base rarity odds per choice are Epic 3.75%, Legendary 0.25%, more in shops (§4).
+- **Rules it runs into** (§2):
+  - opposite elemental rings cancel each other's bonus (Fire zeroes Ice, Ice zeroes Fire, Lightning and Poison zero each other);
+  - damage types 7–10 can't crit;
+  - in multiplayer each loot roll is built from one random player's items.
 
-**Conditional items:** multiply by how often the condition is on. Rough uptimes: always-easy conditions (moving, high health) ~80%, positional ones (close range, near teammates) ~50–70%, one specific target ~15% in a horde but most of a boss fight. Write the guess on the card.
+## 3. Pick the number and rank it against vanilla
 
-**Non-damage items:** convert to something comparable. Crystals → how many Commons/Epics that buys at the current shop price (`audit.md` §1). Healing → compare to Grave Dodger, Endurance, Amber Resin. Extra choices or loot → compare to Big Chests and Limited Loot.
+1. **Start from the closest vanilla item's number** (e.g. Tasty Orange: 1% per kill, island only).
+2. **Take 4–5 vanilla items of the same category and rarity** that do something similar. Work out each one's value in the **reference builds** below with the formulas in `vanilla-power.md` §2, and line them up from weakest to strongest. Put the new item in the line.
+   - **It should land in the middle.** Strongest means nerf it. Above all of them means it belongs a rarity up. Weakest or below means buff it or move it down a rarity.
+   - It should beat a typical item one rarity down and lose to a typical item one rarity up.
+3. Check it at level 5 and on Proc Generator (every chance ×100) [C].
 
-## 3. Compare it to vanilla
+**Reference builds** are the totals of each damage pool at islands 7, 14 and 28, measured from balance logs [M] (step 7). Until there are logs, use the estimates in `vanilla-power.md` §3 and tag them [G]: mid-run weapon-mod damage ≈ 4.5 and perk damage ≈ 1.6; late, weapon-mod damage ≈ 10–20. Example: +30% perk damage mid-run is (1.6 + 0.3) / 1.6 = ×1.19, which is Common-sized.
 
-This is the balance check. Take **4–5 vanilla items of the same category and rarity** from `re/pickup_catalog.json`, the ones closest in what they do. Work out each one's mid-run value with the same sum as step 2, and line them up from weakest to strongest. Then put the new item in the line.
+**Conditional items:** multiply by how often the condition is on. Use a logged uptime [M] when there is one. Otherwise guess, tag it [G], and work out the item's value at both half and double your guess. If its rank changes between those, the condition decides whether it's balanced, so measure it before shipping.
 
-Example: for a new Common perk, line it up against Danger Close (+30% close up), Eagle Eye (+30% far away), Equalizer (+30% with an even perk count), Damage Combo (+15% per combo level) and Power Armor (+15% per armor plate).
+**Non-damage items:** convert to something comparable.
+- Crystals → how many Commons or Epics that buys at the shop price for that island ([C], `vanilla-difficulty.md` §3). Crystal income isn't traced yet, so crystals per island are [M] or [G].
+- Healing → compare to Grave Dodger, Endurance and Amber Resin, against enemy damage at that island [C].
+- Extra choices or loot → compare to Big Chests and Limited Loot.
 
-- **It should land in the middle.** The strongest spot means nerf it. Above all of them means it belongs a rarity up. The weakest spot or below means buff it or move it down a rarity.
-- **Check the rarities next to it.** It should beat a typical item one rarity down and lose to a typical item one rarity up.
-- **The side-by-side test.** Imagine it in a chest next to those vanilla items. If you would always take it, it's too strong. If you would never take it, it's too weak. "It depends on my build" is the goal.
+## 4. Does it hold up over the whole run?
 
-## 4. Does it scale with the run?
+### Slots fill up
+By the end of a first run a player has usually filled every slot: 10 relics, 24 perks and 24 weapon mods [M]. Once a category is full, a new item can't be taken. Only levels on items already held count (pickup check: `count < NumSlots`, [C]). So:
 
-Step 3 compares it mid-run. Now check that it stays worth picking from the first biome to the loops, as the game gets harder. Enemy health is a step function: flat within a biome, then ×1.5–2.2 at each biome boundary, compounding in loops. The run needs ~3.5× your starting damage by island 7, ~11× by 14, ~34× by the island 28 boss and ~87× by island 35 (`vanilla-difficulty.md` §2 and §5). Enemy damage grows much more slowly (0.9 → 7.7 by island 28), and shop prices rise about 3.7% per island (a Common is 482 crystals on island 1, 774 on island 14).
+- **Relics** are judged against the relics a player ends up with. The question is not "is this better than an empty slot" but "would this make someone's best 10".
+- **Perks and weapon mods** must be worth a slot when they're offered, mostly in biomes 1–3. From then on, an item's value comes from the levels it gains, so how it levels (step 2) is its late-run value.
+- **An item that needs a full build to be good** has no late window to shine in, because by then it can't be taken. An item that counts **empty slots** dies as the run goes on.
 
-Work out the item's value at **island 3, 14, 28 and 35** (picked up then, and picked up early and still held), next to the typical vanilla item of its rarity at the same point:
+### The game gets harder
+Work out its value at **islands 3, 14, 28, 35 and 57**: picked up then, and picked up early and levelled. Put it next to the typical vanilla item of its rarity at the same point. The bar is [C] (`vanilla-difficulty.md` §2 and §5):
 
-- **Flat additive bonuses fade.** The damage pools are additive, so each new +X% is worth less as the build fills. A Common +75% weapon mod is ×1.75 on an empty build and ×1.19 next to four other Commons. A late run sits at weapon-mod damage ≈ 10–20, where one more Common adds under 10% (`vanilla-power.md` §0 and §3). That's normal for a Common, and a problem for an Epic or Legendary.
-- **Levels are where late power comes from.** After about island 20 most chests offer a level on an item you hold, so an item that levels well (linear, or HalfScaling for procs) keeps up. One that doesn't level, or caps early, is a relic-like pick and needs to be worth it without levels.
-- **Multipliers and procs keep up.** A true ×, or something that scales with your other items (crit, elemental, proc chance), holds its value. That is what the loops require, so check it doesn't make them trivial.
-- **What it counts changes with the run.** Kills, enemies and crystals per island go up; your inventory fills up. An item that counts these grows on its own. An item that counts empty slots shrinks.
-- **Fixed amounts go stale.** A flat heal, a flat shield or a fixed crystal amount is big on island 2 and nothing on island 28. Make it a percentage of max health, or of the current price, or let it grow per biome.
-- **Survival items** are judged against enemy damage at that island, not against your damage.
+- **Enemy health** needs about 3.5× the starting damage by island 7, 11× by 14, 21× by 21, 34× by the island 28 boss, 87× by island 35 and 800× by island 57. Each biome boundary is a ×1.5–2.2 step, and loops multiply it again.
+- **Enemy damage** grows slowly: 0.9 → 7.7 by island 28. Survival items are judged against this, not against your damage.
+- **Prices** rise about 3.7% per island: a Common is 482 crystals on island 1 and 774 on island 14.
+- **Level offers** grow with the island: the chance per choice is min(island, 50)% × 0.66 for Epic chests (× 0.33 for Legendary), less for each one already offered in that chest. On island 20 that is ~13% for the first choice, and it reaches its cap at island 50.
+
+What usually happens:
+- **Flat additive bonuses fade.** A Common +75% weapon mod is ×1.75 on an empty build and ×1.17 next to five Commons. That's fine for a Common, and a problem for an Epic or Legendary.
+- **Multipliers, procs and crit keep up.** Check they don't make loops trivial.
+- **What it counts changes.** Kills, enemies and crystals per island go up, and slots fill.
+- **Fixed amounts go stale.** A flat heal, shield or crystal amount is big on island 2 and nothing on island 28. Use a percentage of max health or of the current price, or grow it per biome.
 
 Two failure modes, both a "no" here:
-- **It falls off**: strong in biome 1, dead weight by biome 3. Fix it with a multiplier, per-biome growth, or by scaling with something the player has more of later.
-- **It runs away**: it grows faster than the ×1.6–3.3 per biome the game asks for (needed damage: 3.5× → 11.4× → 20.8× → 33.8× at islands 7, 14, 21, 28), so loops stop being hard. Fix it with a cap, island-only scope, or diminishing returns.
-
-The goal is the same rank against its rarity's vanilla items at every point. "Great early, weak late" is OK for a Common, if that's the design and the card says so.
+- **It falls off**: strong in biome 1, dead weight by biome 3. "Great early, weak late" is OK for a Common only if that's the design and the card says so.
+- **It runs away**: it grows faster than the ×1.6–3.3 per biome the game asks for, so loops stop being hard. Fix it with a cap, island-only scope, or diminishing returns.
 
 ## 5. Try to break it
 
-Each question is a real past mistake. Any "yes" needs a fix: a cap, island-only, a lower rate, or a different rarity.
+Each question is a real past mistake from `audit.md`. Any "yes" needs a fix: a cap, island-only, a lower rate, or a different rarity.
 
 - Does it count something there's **lots of** (destructibles, empty slots, kills)? *Collateral Damage, Minimalist*
 - Does it **grow forever** with no cap? *Overflow*
@@ -75,22 +108,31 @@ Each question is a real past mistake. Any "yes" needs a fix: a cap, island-only,
 - Does it break the **economy** or let you skip progression? *Cursed Lottery, key totem menu*
 - Is it **dead or weak** for its rarity? *Charms at Legendary, Jack of All Trades*
 - Does it combo badly with Encore, Vampire, Overflow, Proc Generator, Money Is Power or the necro kit?
-- Does it work the same **solo and with 4 players**, and with CrabSync on? *Last Crab Standing*
+- Does it work with **1 and 4 players**, and with CrabSync on? With 4 players an island has about 5.2× the enemy health against 4× the damage [C, `vanilla-difficulty.md` §2]. Items that count players, teammates or "nearby" need checking at both ends. *Last Crab Standing*
 
 ## 6. Is it fun?
 
-At least two of these:
+This one is a judgment call, not a number. At least two of these:
 
 - You can **see** it work (popup, effect, counter).
 - You can **play toward** it (a condition, not just "+X% always").
 - It changes **what you pick next**.
 - Its drawback changes **how you play**, not just a smaller number.
 
-## 7. Card, build, review
+## 7. Card, build, measure, review
 
 - Write the card into `plans/ideas.md` (template below).
 - Build it with every number as a `CrabMods.ini` key, so tuning needs no rebuild.
-- After people have played it, add a line to `audit.md`: in line, too strong, or too weak. If it was a new kind of mistake, add it to step 5.
+- **Measure.** With `balanceLog=true` (not built yet, see `plans/TODO.md`), CrabMods writes one line per island to `CrabMods.log`:
+  - each damage pool total (weapon-mod, perk add, Greed multiply);
+  - crit chance;
+  - kills;
+  - crystals earned and spent;
+  - items and levels held, and slots used per category;
+  - for each CrabMods item, its share of the damage and how long its condition was on.
+
+  These logs replace the [G]s: the reference builds, uptimes and crystal income.
+- **Review.** After a few logged runs, add a line to `audit.md`: in line, too strong or too weak, with the logged numbers. If it was a new kind of mistake, add it to step 5.
 
 ---
 
@@ -102,15 +144,16 @@ At least two of these:
 **<One-line description>**
 
 - <Description with the real numbers>
-- Spawn weight: <w>    Scaling: <Linear | Hyperbolic | HalfScaling | none>
+- Spawn weight: <w> (<share of its category and rarity>)    Levels: <Linear | Hyperbolic | HalfScaling | Limited | none>
+- Pool: <weapon-mod | perk add | Greed multiply | crit | elemental | outside>
 - Appears in: <chests / totems>
 
 **Different from:** <vanilla A>, <vanilla B>, because <...>
-**Number:** based on <vanilla item and its number>; mid-run ×<..>; level 5 / Proc Generator / island 28: <...>
+**Number:** based on <vanilla item and its number>; islands 7 / 14 / 28 ×<..>; level 5 / Proc Generator: <...>
 **Vs vanilla:** <the 4–5 items, weakest to strongest, with the new item placed in the list; one rarity up and down>
-**Progression:** <its value at islands 3 / 14 / 28 / 35 next to its rarity's typical item; falls off, keeps up or runs away, and the fix>
+**Run:** <worth a slot when offered? value at islands 3 / 14 / 28 / 35 / 57; falls off, keeps up or runs away, and the fix>
 **Break it:** <any "yes" from step 5 and its fix, or "none">
 **Fun:** <which of step 6>
 **How:** <hooks, addresses, what's still to find>
-**Unverified:** <anything guessed, to check in game or in the exe before building>
+**Unverified:** <every [G], and how it gets measured>
 ~~~
