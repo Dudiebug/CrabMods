@@ -44,7 +44,7 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.13.4";
+constexpr const char kVersion[] = "0.14.0";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
@@ -501,6 +501,11 @@ void Overheal(void* ps, float amount) {
 }
 
 void HkHeal(void* hc, float amount) {
+    if (void* ps = hc && amount > 0.f ? PlayerOfHealth(hc) : nullptr) {
+        float bonus = 0.f;
+        ForEachEnabled([&](Item* i) { bonus += i->HealingBonus(ps); });
+        amount *= std::max(1.f + bonus, 0.f);
+    }
     float over = 0.f;
     if (hc && amount > 0.f) over = At<float>(hc, off::HC_CurrentHealth) + amount - At<float>(hc, off::HC_CurrentMaxHealth);
     oHeal(hc, amount);

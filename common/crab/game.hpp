@@ -269,6 +269,15 @@ constexpr uintptr_t ACrabPS_GetWeaponModBuff = 0x140d25fb0;
 // float(ACrabPS*, uint8 Type), the same for PS.MeleeMods (add rcx, 0x410; jmp). Melee damage is
 // meleeDA.Dmg x (1 + Sharp + Iron + Time) x (1 + Brawler); cooldown x (1 - Blender) (0x140d15abc); range x (1 + Big Claws).
 constexpr uintptr_t ACrabPS_GetMeleeModBuff = 0x140d250c0;
+// Enemies the Greed perks make harder (Greed Run curses ride on them):
+constexpr uintptr_t ACrabPS_HasPerk = 0x140d23b90;        // bool(ACrabPS*, uint8 PerkType)
+constexpr uintptr_t ACrabPS_GetPerkDebuff = 0x140d254c0;  // float(ACrabPS*, uint8 PerkType): add rcx,0x428; jmp; 0 if not held
+// float(ACrabGS*): 1 + every player's Juggernaut + Up The Ante + Rising Star debuff, the enemy spawn multiplier
+constexpr uintptr_t ACrabGS_EnemySpawnMultiplier = 0x140cf1e70;
+// Enemy setup (0x140ca5ca0) adds every player's Double Trouble debuff to the enemy health multiplier, asking
+// HasPerk first: the return addresses of those two calls.
+constexpr uintptr_t Ret_EnemyHealthHasDoubleTrouble = 0x140ca5da7;
+constexpr uintptr_t Ret_EnemyHealthDoubleTrouble = 0x140ca5db5;
 // ACrabPS::UpdateMaxHealth adds GetBuff(Perks, Banana) to the max health multiplier; return address of that call.
 constexpr uintptr_t Ret_MaxHealthMultiplierBanana = 0x140d28ad3;
 // void(ACrabWeapon*): FireRate (+0x2C0) = 1 - (debuffs) + GetWeaponModBuff(RapidFire) + ..., then the shot interval.
@@ -381,6 +390,9 @@ constexpr uintptr_t ACrabPlayerC_ServerAbility_Impl = 0x140d1a430;  // only call
 // void(ACrabPlayerC*): the "Ability" input action on the owning machine (any key): spends a charge, starts the
 // cooldown, plays the telegraph, sends ServerAbility and sets the timer that spawns the ability (0x140d1bd10).
 constexpr uintptr_t ACrabPlayerC_AbilityPressed = 0x140d10c00;
+// void(ACrabPlayerC*): the "Melee" input action on the owning machine: checks the melee cooldown (+0xA28), starts
+// it, lunges (LaunchCharacter, vtable +0x7D8, on this machine) and sends ServerMelee (stub 0x140d7e460).
+constexpr uintptr_t ACrabPlayerC_MeleePressed = 0x140d15980;
 // void(UCrabGI*): builds the lobby's weapon, ability and melee lists from SpawnablesDA (once, guarded by GI+0x248).
 constexpr uintptr_t UCrabGI_BuildLoadoutLists = 0x140cda5c0;
 }  // namespace va
@@ -508,6 +520,7 @@ constexpr int ProjInfo_Dir = 0x08;  // FVector
 constexpr int Hit_Size = 0x88;
 constexpr int Hit_Time = 0x04;
 constexpr int Hit_ImpactPoint = 0x18;
+constexpr int Hit_TraceStart = 0x3C;
 constexpr int Hit_TraceEnd = 0x48;
 constexpr int Hit_bBlockingHit = 0x5D;  // bit 0
 constexpr int C_Weapons = 0x538;        // TArray<ACrabWeapon*>

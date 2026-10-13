@@ -1,136 +1,182 @@
 # Shellbreaker: design
 
-Status: framework proposal, 2026-10-12. Nothing is built. The numbers below are starting points that still have to go through `plans/balance/`.
+Status: proposal, 2026-10-12. Nothing in game is built yet; the model is. The numbers below are starting points that still have to go through `plans/balance/`.
 
-Shellbreaker is a melee primary: a **short, stubby sword** in the claw, and from its pommel an **extending chain to a spiked mace**. Your normal attack (M1) is a fixed combo string. Your power comes from up to **six Forms**: special attacks you find as loot during the run, the way you find weapon mods now. A Form's **rarity** sets how strong and how capable it is. **Levels** from duplicate drops make it stronger.
-
-The fantasy is a sword-art fighter: lightning-fast flash steps, flaming wheel strikes, sweeping water slashes, swinging the mace on its chain, and swinging across the island on it.
+Shellbreaker is a melee primary, kept simple: **a handle in the claw, a chain, and a blade on the chain's end**. Left click swings it, right click aims a hook. It **replaces your melee** while you hold it, the way the Soul Whip replaces your ability.
 
 ## 1. The weapon
 
 - **The model** (`art/shellbreaker/gen_weapon.py`), to scale with the crab (0.9 m tall, 1.5 m across):
-  - **Sword:** about 70 cm overall. A 40 cm blade, 20 cm wide, double-edged and leaf-shaped, with a glowing ridge a Form can tint (lightning yellow, flame orange, water blue). A shell-orange crossguard with claw-tip ends, a leather grip, and a gold pommel with a ring.
-  - **Chain:** 5 cm iron links from the pommel's ring, about 1.1 m at rest. It lengthens by adding links.
-  - **Mace:** an iron ball 20 cm across with 14 shell spikes.
-- **M1: the sword string.** Three slashes and a finisher, about 2.5 m reach. This is the steady damage and doesn't change over the run.
-- **The chain and mace.** The chain pays out up to about 25 m. Several Forms throw or whirl the mace (Mace Swing, Chain Reap, Anchor Pull). It's the whip's rope physics (`necro_lash.hpp`) with a length that changes as it pays out and reels in.
-- **Damage band.** M1 alone sits at the low end of the primary band (about 75 sustained DPS). Forms bring a full kit up to the band's middle and top, never past it (see section 5).
+  - **Handle:** about 30 cm. A leather grip, a shell-orange end knob with three claw tips, and a gold cap with an eye for the chain.
+  - **Chain:** heavy 7.5 cm iron links from the handle's eye, 20 of them: about 1.5 m at rest. With the arm and blade, the blade sits about 2.1 m from the claw.
+  - **Blade:** a 48 cm leaf blade, double-edged, on a shell-orange socket with two back-swept barbs (they're what catch in the hook). A glowing ridge runs down its middle; an element can tint it.
+- **The chain changes length.** The game adds links as it pays out and drops them as it reels in, on the whip's rope physics (`necro_lash.hpp`). Swings use the resting length; the hook pays out up to 20 m. A longer chain is a natural upgrade later (section 5).
 
-## 2. Forms (the abilities)
+## 2. Controls
 
-- **Six slots, at most.** Each slot is a key: M2, the melee key, the ability key, and three extra keys (V, C and X by default, rebindable in `[shellbreaker]`, like the necro raise keys).
-- **Forms are loot.** They drop from chests only for players holding Shellbreaker, the same way necro items only drop for whip holders.
-- **Picking up a Form when all six slots are full** asks which one it replaces. This reuses the game's key totem choice UI.
-- **Every Form has a cooldown.** There's no stamina bar to manage. Flow (section 4) shortens cooldowns.
-- **Every Form has a tag:** Movement, Area, Single target, Control or Defense. A good kit mixes them; six Area Forms is a weak kit.
+| Input | What it does |
+|---|---|
+| **Left click** | The swing string (section 3). Hold to keep swinging. |
+| **Right click (hold)** | Aim the hook. A reticle shows where it will land and what it will do: pull, get pulled, or swing. |
+| **Left click while aiming** | Throw the hook (section 4). Letting go of right click without throwing cancels. |
+| **Melee key** | Nothing. Shellbreaker *is* your melee: your equipped melee is disabled while you hold it. |
+| **Ability key** | Your normal ability, unchanged. |
 
-## 3. Rarity and levels
+- **Melee mods don't drop** for players holding Shellbreaker, the same way some items don't drop for whip holders. Any you already have stay in your inventory and work again if you switch weapons.
 
-The game's own rarities are used:
+## 3. The swing string (left click)
 
-| Rarity | Base power | What changes besides numbers |
-|---|---|---|
-| Common | ×1.0 | The basic version of the move |
-| Epic | ×1.3 | One extra property (an extra hit, a status effect, a shorter cooldown) |
-| Legendary | ×1.7 | The full version of the move. Some Forms only exist at Legendary. |
-| Greed (Greed Run) | ×2.0 | Legendary, plus a curse like the other Greed items |
+Quick, physics-driven swings that flow into each other. The chain stays at its resting length, so each swing reaches about 2.5–3 m and hits everything in its arc.
 
-- **Levels:** a duplicate of a Form you already hold adds a level, up to level 5. Each level adds **+12% power** (damage, or the main number of a utility Form), so a maxed Form is about +50%.
-- **Milestones:** levels 3 and 5 each add a small extra, for example one more hit, or a longer stun.
-- **A higher-rarity copy** of a Form you hold replaces it and keeps your levels.
-- **Evolutions:** a few Forms evolve into their Legendary-only big brother at level 5 Legendary (Lightning Step → Eightfold Lightning). You can also find the evolved Form directly as a Legendary drop.
+| # | Swing | Time | Damage per hit |
+|---|---|---|---|
+| 1 | **Sweep** right to left | 0.20 s | 20 |
+| 2 | **Sweep back** left to right | 0.20 s | 20 |
+| 3 | **Chop** from top right to bottom left | 0.20 s | 20 |
+| 4 | **Rebound:** the blade's momentum carries it back up, bottom left to top right | 0.15 s | 15 |
+| 5 | **Overhead circle:** one full loop above your head, hitting all around you | 0.35 s | 35 |
 
-## 4. Flow and Shell Break
+- The full string is 1.1 s. Holding left click loops it; stopping for 0.6 s resets it to swing 1.
+- **The rule: base 100 DPS, whatever you're doing.** Every swing deals **100 × its length in seconds** to each enemy it hits, so whether you land the whole string or keep resetting into sweeps, it's 100 per second on a target. That's the same base every weapon is held to.
+- **Fire rate** speeds the whole string up (more DPS, same per-hit damage), and **damage** items scale each hit, like any gun.
+- The rebound (4) comes from the rope physics, not a canned animation: the chop's momentum swings the blade back up.
 
-- **Flow** is a meter that fills from hits while in the air or dashing, from using different Forms back to back, and from parries. Getting hit, or using the same Form over and over, drains it.
-- **Tiers:** Ripple → Wave → Surge → Riptide. Each tier makes Form cooldowns **10% shorter** and adds **+5% damage**, so Riptide is −30% cooldowns and +15% damage at most.
-- **Shell Break:** Shellbreaker's hits crack enemy shells. A broken shell leaves the enemy **exposed for 2 s**: it takes +50% damage and its attacks are interrupted. Each enemy can only be exposed again after **8 s**, so it can't be stun-locked. On bosses, exposed is a short stagger, not a stun.
+## 4. The hook (right click)
 
-## 5. No one-shots: the damage rules
+Aim with right click, throw with left click. **Cooldown 6 s.** The blade flies out up to 20 m, paying out chain, and does what it hits:
 
-Every Form follows these rules, at every rarity and level:
+- **A small or medium enemy:** yanked to you and stunned 0.5 s, landing in front of your next swing. The hook hit deals one sweep's damage (20).
+- **An elite or a boss:** too heavy, so **you** are pulled to it instead.
+- **A wall, tree or rock:** the barbs bite and you **swing on the chain**:
+  - Pendulum physics: your momentum carries you through the arc.
+  - **Left click reels in**: a shorter chain swings faster.
+  - **Jump lets go** and flings you along your swing; the blade pulls free and snaps back to you.
+  - The blade is the anchor, so there's no attacking mid-swing. The swing is for getting around.
+- **Nothing (a miss):** the blade reels back. Half the cooldown is refunded.
 
-1. **A Form's damage per use is at most what the band allows over its cooldown.** If Lightning Step has an 8 s cooldown, one use deals at most about 8 s × 40 DPS of its share. Burst is front-loaded, but it's never extra damage on top of the band.
-2. **No execute effects.** Nothing kills an enemy below a health threshold, and nothing deals a percentage of max health.
-3. **Hits on the same enemy from one Form fall off:** full damage for the first 3 hits, then 50%. Eightfold Lightning's eight hits can't all land full damage on one target; it's meant for crowds.
-4. **Elites take 70% and bosses 50%** of a Form's burst. This matches how the game's own big hits treat them.
-5. **A full maxed kit** (six Legendary level 5 Forms at Riptide) lands around 1.3× the top of the primary band. That's the same ceiling a strong late-game gun build reaches, not a room-clearer.
+## 5. Growing it later
 
-## 6. Starting roster (12 Forms)
+No separate upgrade system. Shellbreaker gets stronger the way every weapon does (weapon mods, elements, crits, fire rate), because each hit fires the Soul Whip's invisible hit projectile. Later, a small set of Shellbreaker items (like the whip's necro items) can add to the moves, for example:
 
-Names are our own. The style is inspired by sword-art anime; nothing is copied from one.
+- **Longer chain:** wider swings, a longer hook.
+- **Second hook charge.**
+- **The overhead circle pulls enemies in.**
+- **The hook stuns longer** or sets enemies burning.
 
-### Lightning
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Lightning Step** | Movement / Single target | A blinding flash step about 10 m forward. You can't be hit during it, and it cuts everything you pass through. | It shocks what it cuts. | 2 steps in a row, the second toward the nearest enemy. | 8 s |
-| **Eightfold Lightning** (Legendary only, or evolved) | Area | — | — | 8 flash steps zig-zagging between the nearest enemies, each a cut, then a thunderclap where you finish. | 18 s |
-
-### Flame
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Fire Wheel** | Area | A forward flip that carves a burning vertical arc in front of you. | It leaves a burning trail on the ground. | The wheel rolls on for 6 m after you land. | 9 s |
-| **Rising Sun Spiral** | Control | A spinning uppercut that launches enemies around you and sets them burning. | Bigger radius. | You rise with them and can follow up in the air. | 12 s |
-
-### Water
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Flowing Cut** | Single target | A long smooth combo of 5 slashes that steers toward your aim. | Each slash hops to a nearby enemy. | 8 slashes, and the last one breaks shells outright. | 10 s |
-| **Whirlpool** | Control | A spin that pulls nearby enemies in. | It slows them. | It holds them in place for 1.5 s. | 14 s |
-
-### Wind
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Gale Crescent** | Area | A crescent blade of wind that flies 15 m. | It pierces. | 3 crescents in a fan. | 7 s |
-
-### The chain
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Mace Swing** | Movement | Throw the mace into a tree, rock, wall or enemy and swing on the chain (pendulum physics, reel in with M1, release to fling). 15 m chain. | 25 m chain, and hitting an enemy on the way out stuns it briefly. | You can re-throw once mid-air to chain a second swing. | 6 s |
-| **Chain Reap** | Area | The mace whirls around you on the full chain once. | Twice. | It drags hit enemies toward you. | 11 s |
-| **Anchor Pull** | Control | Hook an enemy and yank it to you. Elites and bosses pull you to them instead. | It exposes the enemy (section 4). | Hook up to 3 enemies at once. | 9 s |
-
-### Shell
-
-| Form | Tag | Common | Epic | Legendary | Cooldown |
-|---|---|---|---|---|---|
-| **Shellquake** | Area | Leap up and slam down: a shockwave that cracks shells. | Bigger shockwave. | An aftershock 0.5 s later. | 12 s |
-| **Iron Shell** | Defense | A 0.4 s parry stance. Blocking a hit counters it. | The counter exposes the attacker. | A successful parry resets your other cooldowns by 2 s. | 6 s |
-
-All damage Forms deal the game's own element status where they have one (Lightning: shock, Flame: burn), so the elemental items you already find work with them.
-
-## 7. How it's built: the whip's way
+## 6. How it's built: the whip's way
 
 Everything is made the way the Soul Whip was: authored in Blender and Python, baked into CrabMods.dll's pack, and played from code. There's no Unreal Editor and no extra pak.
 
-- **Crab animation.** Each Form is posed on the real SK_Crab skeleton in Blender (`crabrig.py` already loads, poses and skins it) at the game's real speeds. It's baked to a `*.crabanim` file in the pack: bone rotations per frame, plus timing marks for the hits. In game the mod gives the crab a `PoseableMeshComponent` with the same mesh during the move. It copies the crab's current pose, plays our frames on top, then hands back.
-- **The sword, chain and mace.** Meshes are built from triangle lists like the whip's (`sword`, `link` and `mace` `.crabmesh`). The links are laid along the whip's rope physics, every other one turned a quarter, with a variable length.
-- **Effects** (lightning, flame arcs, water ribbons, wind crescents) are meshes and trails baked from Blender, glowing like the whip's soul light.
-- **Sounds** are made by the same generator as the necromancy sounds and preview-mixed the same way before they ship.
+- **Crab animation.** Each swing is posed on the real SK_Crab skeleton in Blender (`crabrig.py` already loads, poses and skins it) at the game's real speeds. It's baked to a `*.crabanim` file in the pack: bone rotations per frame, plus timing marks for the hits. In game the mod gives the crab a `PoseableMeshComponent` with the same mesh during the move. It copies the crab's current pose, plays our frames on top, then hands back.
+- **The handle, chain and blade.** Meshes are built from triangle lists like the whip's (`handle`, `link` and `blade` `.crabmesh`). The links are laid along the whip's rope physics, every other one turned a quarter, with a variable length. The swings drive the rope's end; the physics does the rest.
+- **Effects:** a blade trail on each swing, glowing like the whip's soul light.
+- **Sounds** are made by the same generator as the necromancy sounds (chain rattle, blade whoosh, hook bite) and preview-mixed the same way before they ship.
 - **Hits** fire the same invisible hit projectile as the Soul Whip bolt, so weapon mods, elements, crits and on-hit effects still apply.
-- **Multiplayer:** the host owns cooldowns, Flow, shells and damage. Every machine plays each player's Form animation and effects when told it started, as with the whip's rope.
+- **Multiplayer:** the host owns the hook's cooldown and damage. Every machine plays each player's swings, rope and hook when told they started, as with the whip's rope.
 
-## 8. Order of work
+## 7. Order of work
 
 1. **Two tests in game:**
-   - Play one baked animation on the crab through a `PoseableMeshComponent`.
-   - Move the crab along a swing (and launch an enemy).
-2. **Preview videos in Blender** at real speeds, with sound: Mace Swing, Lightning Step, Fire Wheel.
-3. **First version:**
-   - M1 string, Flow and Shell Break.
-   - 6 Forms: Lightning Step, Fire Wheel, Flowing Cut, Mace Swing, Shellquake, Iron Shell.
-   - Rarity and levels.
-4. **Second version:** the other 6 Forms, Eightfold Lightning's evolution, and Shellbreaker items (like the whip's 20).
+   - Play one baked swing on the crab through a `PoseableMeshComponent`.
+   - Move the crab along a hook swing (and yank an enemy).
+2. **Preview video in Blender** at real speed, with sound: the swing string and a hook swing.
+3. **First version:** the swing string, the hook, melee disabled, melee mods kept out of the loot.
+4. **Later:** Shellbreaker items (section 5).
 
 ## Open questions
 
-1. **Keys:** are six keys too many on a controller? A radial menu on one button could be an alternative.
-2. **Greed rarity:** does Shellbreaker get Greed Forms only in Greed Run, like the other Greed items?
-3. **Shell Break:** melee only, or do guns crack shells too? Melee only gives Shellbreaker a clear job.
-4. **RE:** does moving the crab ourselves every frame (Mace Swing) work smoothly in multiplayer? That's test 1.
-5. **Scaling:** check whether melee damage goes through the perk pool and crits before tuning (see `balance/vanilla-power.md`).
+1. **Right click:** what does the game already bind to it, and does that need blocking while Shellbreaker is held?
+2. **Area at single-target DPS:** every swing hits everything in its arc at the full 100. The balance audit cut the Soul Whip from 100 to 70 for hitting an area (`balance/audit.md`). Fine as a melee weapon's reward for being close, or trim it?
+3. **RE:** does moving the crab ourselves every frame (the hook swing) work smoothly in multiplayer? That's test 1.
+4. **Rope limits:** how long a chain (how many links) the rope sim handles before it gets unstable.
+
+## Full build (2026-10-12, unreleased, untested in game)
+
+Code: `crabmods/items/shellbreaker.cpp` (ini `[shellbreaker]`), the chain sim `shell_chain.hpp`, the loot
+`shell_loot.cpp` / `shell_loot.hpp`. Art and sounds are in `crabmods/assets/shell.pack` (resource 101). It's baked by
+`art/shellbreaker/bake_pack.py`, after `gen_weapon.py` and `gen_sounds.py`. Built into build/CrabMods.dll; not
+installed, packaged, tagged or released.
+
+**Getting it**
+- A lobby pedestal two places left of the Crossbow, one past the Soul Whip's. Each machine copies the stone itself;
+  the host spawns the pickup. It's removed when the lobby ends.
+- `spawnKey` (default none) still spawns a test pickup in front of you.
+- On pickups, the model itself is shown: the handle spins and bobs, with the chain coiled under it and the blade at
+  the end.
+
+**The string (LMB)**
+- Five physics swings, `swingSeconds` each.
+- Damage per swing is dps × swingSeconds × weight. Weights are 0.91 / 0.91 / 0.91 / 0.68 / 1.59 (the plan's
+  20/20/20/15/35), averaging 1, so the string is 100 DPS.
+- Fire-rate bonuses speed the swings up.
+- The string restarts after a pause longer than a swing + 0.6 s.
+
+**The hook (RMB + LMB)**
+- Charges: 1 + Grappler. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth. A miss gives half of
+  it back.
+- What it does depends on what it hits:
+  - A light enemy (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp) is yanked to you.
+  - A heavy enemy pulls you to it.
+  - Terrain swings you on the chain: hold LMB to reel in, Space to hop off, RMB to drop.
+- On any enemy, the host deals `hookDamage` 20 (+ Undertow) as a Lesser burst, plus Frost Chain's ice.
+- Every machine draws everyone's hook rope. The host relays `shell rope ...` messages to the other players.
+
+**Sounds**
+- Synthesized (gen_sounds.py) and played through necro's mixer: swing ×4, circle, throw ×2, bite ×2, and equip
+  (equip also plays, quieter, when a hook charge returns).
+- Swing, throw and bite sounds are positional, for every player.
+- They follow the game's Master × Gameplay volume, times `soundVolume`.
+
+**Its loot (`shell_loot.cpp`)**
+- 12 items that only drop for holders. Melee mods stop dropping for them.
+- Type bytes 220–224 for weapon mods and 220–223 for perks; relics 220–222. Item orders 230–241.
+
+| Item | Kind, rarity | Per level (ini) | Effect |
+|---|---|---|---|
+| Long Chain | weapon mod, Common | links = 4 | chain +4 links: reach, circle and hook range × (20+4L)/20, capped at ×2.5 |
+| Wide Arc | weapon mod, Common | radiusPercent = 15 | swing and circle radius +15% |
+| Whirlwind | weapon mod, Epic | pullSpeed = 500 | the circle drags enemies (not bosses) within 2.5 × circle radius toward you |
+| Executioner | weapon mod, Epic | damagePercent = 75 | chop and rebound +75% |
+| Searing Edge | weapon mod, Epic | fireStacks = 2 | every swing hit applies fire stacks |
+| Riptide | perk, Epic | damagePercent = 35 | +35% damage for 4 s after the hook lands (an enemy or a wall) |
+| Quick Draw | perk, Common | cooldownPercent = 15 | hook cooldown ÷ (1 + 15%·L), floor ⅙ |
+| Undertow | perk, Common | damagePercent = 75 | the hook's own hit +75% |
+| Rhythm | perk, Common | damagePercent = 30 | overhead circle +30% |
+| Grappler | relic, Legendary | charges = 1 | +1 hook charge |
+| Kraken's Grasp | relic, Legendary | extraEnemies = 2 | yanks hard and elite enemies too; the 2 nearest come along |
+| Frost Chain | relic, Epic | iceStacks = 10 | the hook's hit applies ice |
+
+**Animation, timing, FX and HUD**
+- **Body:** each swing plays a montage on the crab, on every machine, borrowed from the game's own weapons (found
+  through the Spawnables DA, which loads them all: `Abilities` 0xE8, `MeleeWeapons` 0xF8).
+  - The sweeps: the Katana's slash (`DA_Melee_Katana` → `AM_Crab_Melee_Katana`).
+  - The chop: the Hammer's slam (`DA_Melee_Hammer` SlamMontage 0xE8 → `AM_Crab_Melee_HammerSlam`).
+  - The circle: the Hammer's swing (`DA_Melee_Hammer` Montage 0xC8 → `AM_Crab_Melee_Hammer`).
+  - The rebound keeps the weapon's fire montage.
+  - The hook's throw: `AM_Crab_Grenade_Throw` (from `DA_Ability_Grenade`, which the game's Grappling Hook also uses),
+    on the thrower's machine and on others when the rope starts flying.
+  - Each is sped up or slowed (×0.5–×4) to fit the swing's time. A missing one falls back to the claw's swing.
+- **Melee hit blocked:** the Katana, slam and claw montages carry the "Melee" notify, which calls
+  `UCrabPlayerAnimInstance::AnimNotify_Melee` (a real melee hit). Its native exec thunk is swapped at the UFunction's
+  Func (0xD8) after a check, so it does nothing for holders.
+  - If the check fails, those montages are skipped (the log says so); the Hammer swing and the throw still play.
+- **Per-swing timing:** each swing lasts its weight of the string: 0.20 / 0.20 / 0.20 / 0.15 / 0.35 s at the
+  defaults. In OnShot the weapon's own interval (`+0x2C4`) is set to the next swing's time, from its own fire-rate
+  multiplier (`+0x2C0`). Nothing shared is touched, so host and clients each time their own weapon.
+
+**Checked statically (in the game binary and pak, 2026-10-12)**
+- **No lag:** Fire (0x140d6a5d0) calls FireProjectiles (0x140d6a936, where OnShot runs) and only then re-arms its
+  one-shot timer from `+0x2C4` (read 0x140d6aea8, bLoop false 0x140d6af36). The trigger-press path (0x140d6e382)
+  reads it too. So the interval set in OnShot times the very next shot.
+- **No lunge:** none of the borrowed montages' sequences has root motion.
+- **Notifies:** "Melee" is in `AM_Crab_Melee`, `_Katana` and `_HammerSlam`; not in `_Hammer` or
+  `AM_Crab_Grenade_Throw`.
+- **Offsets** from the SDK dump: MeleeDA Montage 0xC8 / SlamMontage 0xE8, AbilityDA Montage 0xC8, Spawnables
+  arrays above; `Montage_Play`'s parameter layout is asserted at compile time.
+
+**Untested (check these first in game; needs installing)**
+- How each borrowed montage looks at its new speed with the chain's physics.
+- Swinging on the hook launches the crab every frame on its own machine, so a multiplayer client may rubber-band.
+- Remote ropes trust the host's word. A rope with no "back" message clears itself after 12 s.
+- Searing Edge fires on any type-0/1 hit a holder deals. Today that's only the swings.
+- The impact FX may scale with the burst radius.

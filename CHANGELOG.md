@@ -4,6 +4,21 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.14.0
+
+- **New weapon: Shellbreaker.** A barbed blade on a chain, on its own pedestal in the lobby (left of the Soul Whip) and in the weapon list. Left click swings a string of five (two sweeps, a chop, the rebound, a circle over the head) that hits as far as the Katana's melee; right click aims a hook that reaches 60 m, yanks small enemies to you, pulls you to big ones and lets you swing from walls and floors. It does 100 damage a second to start, and damage perks, weapon mods and fire rate grow it like any gun. It replaces your melee while you hold it. The crab plays the game's Katana, Hammer and grenade-throw animations with it, and the chain swings with real physics. Settings are in `[shellbreaker]`.
+- **12 Shellbreaker items** that only drop while you hold it: Long Chain, Wide Arc, Whirlwind, Executioner and Searing Edge (weapon mods), Riptide, Quick Draw, Undertow and Rhythm (perks), and Grappler, Kraken's Grasp and Frost Chain (relics).
+- **Snap Decision** (Greed perk): once each biome, a coin flip. Half your mods and perks double in level, or half of them are destroyed.
+- **Wild Card** (Greed relic): each island you clear, a 20% chance your whole inventory is randomized like a Randomize totem, keeping each slot's kind and level.
+- **Greed Run: every perk is a big gamble with a real price.** A Greed perk comes 2 levels higher, so it's 3x as strong. Every level you hold also makes the run harder, in a way that more items can't buy back. The curses are the game's own Greed perk rules (Juggernaut's extra enemies, Double Trouble's enemy health) or costs that only grow, never stats your other items would add back:
+  - Damage perks (Damage Combo, Eagle Eye, Tasty Orange, the auras' kill effects ...): +10% more enemies spawn per level, so a level 3 perk is +30% enemies.
+  - Health and Critical perks (Mango, Banana, Fortitude, Sharpshooter, Mega Crit ...): enemies get +15% health per level.
+  - Speed and close-range perks (Speed Demon, Danger Close, the auras, Silver Lining): enemies hit you 12% harder per level.
+  - Luck perks (Driller, Streamer Loot, Double Vision, Faulty Chests ...): better loot, but enemies get +15% health per level.
+  - Economy perks: you lose 3% of your crystals each time you're hit, per level. A few more cost healing or ability cooldown.
+
+  More enemies and tougher enemies add up over the whole team, like the game's Greed perks. Mods come 1 level higher with smaller curses of the same kinds. Every item's text shows its price before you pick it up. Settings: `perkExtraLevels` (2), `perkCurseScale` and `modCurseScale` (100%). The old per-curse settings (`maxHealthPerLevel` ...) are gone and do nothing if they're still in your `CrabMods.ini`.
+
 ### 0.13.4
 
 - **Big Claws and Blender have caps.** Big Claws gives +3% melee range a level, up to +35% (it was +40% a level with no cap). Blender takes 15% off the melee cooldown a level, up to 75% (it was 30% a level, so level 4 had no cooldown at all). The inventory shows what each one gives you now. The new settings are `bigClawsPerLevel`, `bigClawsMax`, `blenderPerLevel` and `blenderMax`. An existing `CrabMods.ini` keeps its old `bigClawsPercent` and `blenderPercent` lines, which now do nothing.
@@ -290,6 +305,10 @@ First release.
 - `--selftest` writes what it found to a text file, without a window.
 
 ## CrabSync
+
+### 1.0.8
+
+- **Fixed continuing a saved run losing your whole inventory.** Loading the save in the lobby restored your items, then CrabSync's next check wrote the lobby's empty team over them before the run started. A save restored in the lobby now starts the team from the saved items.
 
 ### 1.0.7
 

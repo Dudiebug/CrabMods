@@ -61,3 +61,18 @@ The game has only a handful of Greed items, so the mode makes a Greed version of
 - Hand-made Greed versions (Glass Cannon, Banana, Collector, Money Is Power ...).
 - A "GREED RUN" sign over the portal like the "MINIGAMES" one.
 - In-game checks: the portal's spot (on the ground?), the shop's pickups get the level, the Random totem.
+
+## Built (0.13.5): every perk is a gamble with a real price
+
+User's goal (2026-10-12): every perk has a large upside and a large downside. The user's feedback on the first try: stat curses (−damage, −max health, −fire rate) aren't real costs. They sat in the same additive pools as the items, so more items cancelled them, and they faded as a run scaled. User's direction: "more damage but more enemies spawn", "more health but enemies get more health".
+
+- **Upside:** a Greed perk comes `perkExtraLevels` (2) higher, a level 3 perk at 3x. Mods +1.
+- **Downside:** each perk has its own curse per level (`kPerkCurses`), and all of them are costs no item cancels:
+  - **More enemies:** hooks `ACrabGS` spawn multiplier `0x140cf1e70` (1 + every player's Juggernaut / Up The Ante / Rising Star debuff) and adds the team's curse, at most +300%.
+  - **Tougher enemies:** enemy setup `0x140ca5ca0` adds every player's Double Trouble debuff, asking `HasPerk` first. The `HasPerk` (`0x140d23b90`) and `GetPerkDebuff` (`0x140d254c0`) hooks add the curse at those two return addresses (`0x140ca5da7`, `0x140ca5db5`), at most +400% a player.
+  - **Enemies hit harder:** a multiplier on damage taken.
+  - **Healing:** `Item::HealingBonus` in `UCrabHC::Heal`, applied after everything.
+  - **Crystal share:** a share of your crystals lost per hit.
+  - **Ability cooldown:** stretched.
+  - (Chest choices were tried for luck perks and dropped: the user called that choice really bad, since it takes away the loot those perks are for.)
+- Themes: damage perks → more enemies, health and crit perks → tougher enemies, speed and close-range perks → enemies hit harder, economy → crystals, luck → tougher enemies. A perk not in the table (another mod's) gets one by loot pool; mods get smaller ones by pool. `perkCurseScale` and `modCurseScale` size them.

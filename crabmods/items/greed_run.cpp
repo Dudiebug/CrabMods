@@ -7,9 +7,14 @@
 //   portal takes the mode the run was saved with (GreedRun.state next to the DLL). The host tells every player.
 // - Host, the run: every island reward chest is a Greed chest, and a Greed chest's roll offers every item (any loot
 //   pool, the usual rarity odds, the game's own Greed items too) with extraChoices more choices.
-// - Every item is its Greed version: each pickup that appears (chests, totems, the shop) is extraLevels higher, and
-//   each level of a non-Greed item you hold carries a curse picked by the item's loot pool. Every machine shows it:
-//   the card says "Greed" in the Greed colour, and the item's text gets its curse.
+// - Every item is its Greed version: each pickup that appears (chests, totems, the shop) comes higher (mods
+//   extraLevels, perks perkExtraLevels: a level 3 perk is 3x as strong), and each level of a non-Greed item you hold
+//   carries a curse. Every machine shows it: the card says "Greed" in the Greed colour, the item's text its curse.
+// - Curses are costs no item can cancel (no stat that more damage or health items would just add back): the fight
+//   gets harder through the game's own Greed perk rules (more enemies like Juggernaut, tougher enemies like Double
+//   Trouble, enemies hitting harder), or crystals, healing and ability cooldown. Each perk has its
+//   own, themed on it (kPerkCurses): damage perks spawn more enemies, health perks give enemies more health. Mods
+//   get a smaller one by loot pool. Enemy curses add up over the whole team, as the game's Greed perks do.
 #include <windows.h>
 
 #include <algorithm>
@@ -31,19 +36,112 @@ namespace {
 
 constexpr wchar_t kTag[] = L"greedRun ";  // host to player: "greedRun 1" / "greedRun 0"
 
-// What each item's levels cost, by its loot pool.
-enum Curse { MaxHealth, DamageTaken, FireRate, Damage, Crystals, Cooldown, OtherMaxHealth, kCurses };
+enum Curse {
+    MoreEnemies,     // more enemies spawn (as Juggernaut), the whole team's added up
+    TougherEnemies,  // enemies have more health (as Double Trouble), the whole team's added up
+    DamageTaken,     // enemies hit you harder
+    Healing,         // less healing
+    CrystalShare,    // a share of your crystals lost each time you're hit
+    Cooldown,        // longer ability cooldown
+    kCurses
+};
 
-Curse CurseOf(uint8_t lootPool) {
+// A curse per level held, in percent.
+struct PerkCurse {
+    const char* perk;  // DA_Perk_<perk>
+    Curse curse;
+    float perLevel;
+};
+
+// The sizes. A Greed perk comes at level 3, so it costs 3x these: one damage perk is +30% enemies.
+constexpr float kMore = 10, kTougher = 15, kHarder = 12, kHeal = 15, kCrystals = 3, kCooldown = 15;
+
+// Each perk's own curse: damage perks spawn more enemies, health perks give enemies more health, close range and
+// speed perks get you hit harder, economy perks cost crystals, luck perks (better loot) make enemies tougher.
+constexpr PerkCurse kPerkCurses[] = {
+    // Damage
+    {"DamageCombo", MoreEnemies, kMore}, {"DangerClose", DamageTaken, kHarder}, {"EagleEye", MoreEnemies, kMore},
+    {"EnhancedTurrets", MoreEnemies, kMore}, {"Equalizer", TougherEnemies, kTougher},
+    {"ExplosiveArmor", DamageTaken, kHarder}, {"PowerArmor", Healing, kHeal}, {"Assassin", TougherEnemies, kTougher},
+    {"Checklist", MoreEnemies, kMore}, {"Collector", CrystalShare, kCrystals}, {"CrimsonHaze", MoreEnemies, kMore},
+    {"DamageAura", DamageTaken, kHarder}, {"ExplodingEnemies", MoreEnemies, kMore},
+    {"Gemstone", TougherEnemies, kTougher}, {"OrbitingScythes", MoreEnemies, kMore},
+    {"SilverLining", DamageTaken, kHarder}, {"TastyOrange", MoreEnemies, kMore},
+    // Critical
+    {"AntiCrit", TougherEnemies, kTougher}, {"CriticalArrow", MoreEnemies, kMore},
+    {"CriticalThinking", TougherEnemies, kTougher}, {"HotShot", TougherEnemies, kTougher},
+    {"PowerPunch", TougherEnemies, kTougher}, {"Sharpshooter", TougherEnemies, kTougher},
+    {"CriticalBlast", MoreEnemies, kMore}, {"MegaCrit", TougherEnemies, kTougher},
+    {"CriticalLightning", MoreEnemies, kMore},
+    // Elemental
+    {"ElementalExpert", TougherEnemies, kTougher}, {"ElementalSpecialist", TougherEnemies, kTougher},
+    {"Firestarter", Healing, kHeal}, {"HighVoltage", MoreEnemies, kMore}, {"HotSteam", TougherEnemies, kTougher},
+    {"IceCold", MoreEnemies, kMore}, {"PoisonousArmor", DamageTaken, kHarder}, {"PotentMagic", Cooldown, kCooldown},
+    {"Toxic", TougherEnemies, kTougher}, {"FireAura", DamageTaken, kHarder}, {"IceAura", DamageTaken, kHarder},
+    {"LightningAura", DamageTaken, kHarder}, {"PoisonAura", DamageTaken, kHarder},
+    {"FlammableArmor", DamageTaken, kHarder}, {"ElectricEnemies", MoreEnemies, kMore},
+    {"FlammableEnemies", MoreEnemies, kMore}, {"FreezingEnemies", MoreEnemies, kMore},
+    {"PoisonousEnemies", MoreEnemies, kMore}, {"IceDash", Cooldown, kCooldown}, {"LightningDash", Cooldown, kCooldown},
+    // Speed
+    {"SpeedDemon", DamageTaken, kHarder}, {"Stamina", DamageTaken, kHarder}, {"SpeedIsPower", MoreEnemies, kMore},
+    {"DaggerDash", DamageTaken, kHarder}, {"Powerslide", DamageTaken, kHarder},
+    // Luck: better loot, tougher enemies
+    {"BountyHunter", TougherEnemies, kTougher}, {"Driller", TougherEnemies, kTougher}, {"StreamerLoot", TougherEnemies, kTougher},
+    {"DoubleVision", TougherEnemies, kTougher}, {"PerformanceBonus", DamageTaken, kHarder},
+    {"CrystalAsteroids", TougherEnemies, kTougher}, {"FaultyChests", TougherEnemies, kTougher},
+    {"RareTreasure", TougherEnemies, kTougher},
+    // Health: you get tougher, so do they
+    {"Banana", TougherEnemies, kTougher}, {"Bulletproof", MoreEnemies, kMore}, {"Bullseye", TougherEnemies, kTougher},
+    {"Endurance", TougherEnemies, kTougher}, {"Fortitude", TougherEnemies, kTougher},
+    {"HardTarget", MoreEnemies, kMore}, {"Mango", TougherEnemies, kTougher}, {"PersonalSpace", TougherEnemies, kTougher},
+    {"Regenerator", MoreEnemies, kMore}, {"Scavenger", TougherEnemies, kTougher},
+    {"ValuedCustomer", CrystalShare, kCrystals}, {"Vitality", DamageTaken, kHarder},
+    {"AmberResin", TougherEnemies, kTougher}, {"GraveDodger", DamageTaken, kHarder},
+    {"GrimReaper", TougherEnemies, kTougher}, {"HealthIsPower", TougherEnemies, kTougher},
+    {"Survivor", MoreEnemies, kMore},
+    // Economy: money costs money
+    {"CrystalCombo", CrystalShare, kCrystals}, {"BonusCrystals", CrystalShare, kCrystals},
+    {"Snatcher", DamageTaken, kHarder}, {"GoldCoating", CrystalShare, kCrystals}, {"Paycheck", CrystalShare, kCrystals},
+    {"SpecialDelivery", CrystalShare, kCrystals}, {"TonysBlackCard", CrystalShare, kCrystals},
+    {"MoneyIsPower", CrystalShare, 4},
+    // Skill
+    {"CrystalFertilizer", MoreEnemies, kMore}, {"Magnify", TougherEnemies, kTougher}, {"Slugger", MoreEnemies, kMore},
+    {"AllYouCanEat", Cooldown, kCooldown}, {"BigChests", TougherEnemies, kTougher}, {"Shockwave", DamageTaken, kHarder},
+    {"SturdyTotems", Cooldown, kCooldown}, {"TotemEnthusiast", Cooldown, kCooldown},
+    {"BonusChests", MoreEnemies, kMore}, {"CarePackage", TougherEnemies, kTougher}, {"LevelUp", TougherEnemies, kTougher},
+    // CrabMods
+    {"ArmyOfTheDead", MoreEnemies, kMore}, {"Legion", MoreEnemies, kMore}, {"HollowHunger", Healing, kHeal},
+    {"Autoloader", Cooldown, kCooldown}, {"ComboCatalyst", MoreEnemies, kMore},
+    {"CollateralDamage", DamageTaken, kHarder}, {"FinishingMove", TougherEnemies, kTougher},
+    {"Overflow", TougherEnemies, kTougher}, {"ThickShell", MoreEnemies, kMore}, {"Underdog", DamageTaken, kHarder},
+    {"Untouchable", MoreEnemies, kMore}, {"Hoarder", CrystalShare, kCrystals}, {"Pathfinder", TougherEnemies, kTougher},
+    {"RiggedTotems", Cooldown, kCooldown}, {"JackOfAllTrades", TougherEnemies, kTougher},
+    {"Minimalist", TougherEnemies, kTougher}, {"CommunitySupport", MoreEnemies, kMore},
+    {"GreedIsPower", TougherEnemies, kTougher}, {"GrimHarvest", Healing, kHeal}, {"HungryGhosts", MoreEnemies, kMore},
+    {"LastRites", TougherEnemies, kTougher}, {"PlagueBearers", MoreEnemies, kMore},
+    {"SnapDecision", Cooldown, kCooldown}, {"SoulJar", TougherEnemies, kTougher},
+};
+
+// A perk not in the table: a curse by its loot pool.
+PerkCurse PerkCurseOf(uint8_t lootPool) {
     switch (lootPool) {
-    case pool::Damage: return MaxHealth;
-    case pool::Critical: case pool::Speed: return DamageTaken;
-    case pool::Elemental: return FireRate;
-    case pool::Luck: case pool::Health: return Damage;
-    case pool::Economy: return Crystals;
-    case pool::Skill: return Cooldown;
+    case pool::Critical: case pool::Health: case pool::Luck: return {nullptr, TougherEnemies, kTougher};
+    case pool::Speed: return {nullptr, DamageTaken, kHarder};
+    case pool::Economy: return {nullptr, CrystalShare, kCrystals};
+    case pool::Skill: return {nullptr, Cooldown, kCooldown};
     }
-    return OtherMaxHealth;
+    return {nullptr, MoreEnemies, kMore};
+}
+
+// A mod's or relic's smaller curse, by its loot pool.
+PerkCurse ModCurseOf(uint8_t lootPool) {
+    switch (lootPool) {
+    case pool::Damage: case pool::Critical: case pool::Health: case pool::Luck: return {nullptr, TougherEnemies, 5};
+    case pool::Speed: return {nullptr, DamageTaken, 4};
+    case pool::Economy: return {nullptr, CrystalShare, 1};
+    case pool::Skill: return {nullptr, Cooldown, 5};
+    }
+    return {nullptr, MoreEnemies, 3};
 }
 
 using EnterPortalFn = void (*)(void*);
@@ -60,23 +158,19 @@ public:
 
     std::string DefaultIni() const override {
         return R"(# Greed Run, a game mode: a portal in the lobby, opposite the minigames, starts a normal run where everything is
-# Greed. Every chest is a Greed chest that can offer any item, every item comes extraLevels higher, and each level of
-# an item you hold carries a curse picked by its kind. You can always leave a chest's items on the ground.
+# Greed. Every chest is a Greed chest that can offer any item, and every item comes higher but carries a curse for
+# each level you hold: more enemies, tougher enemies, enemies hitting harder, less healing, lost crystals
+# or a longer ability cooldown. Every item's text shows its curse. You can always leave an item behind.
 enabled = true
 
-# Levels added to every mod and perk that appears (relics stay level 1).
+# Levels added to every perk that appears (2 = a level 3 perk, 3x as strong), and to every mod (relics stay level 1).
+perkExtraLevels = 2
 extraLevels = 1
+# Size of every curse, in percent of the built-in amounts: perks' own, and the smaller ones of mods and relics.
+perkCurseScale = 100
+modCurseScale = 100
 # Choices added to every Greed chest (it has 1 of its own).
 extraChoices = 2
-
-# Curses for each level held, in percent (crystals: crystals lost per hit). By the item's kind:
-maxHealthPerLevel = 4       # Damage items: less max health
-damageTakenPerLevel = 4     # Critical and Speed items: more damage taken
-fireRatePerLevel = 3        # Elemental items: slower fire rate
-damagePerLevel = 3          # Luck and Health items: less damage
-crystalsPerHit = 5          # Economy items: crystals lost each time you're hit
-cooldownPerLevel = 5        # Skill items: longer ability cooldown
-otherMaxHealthPerLevel = 3  # relics and everything else: less max health
 
 # Where the portal stands in the lobby (the mirror of the Arcade and Holdout portals).
 portalX = -5757
@@ -87,22 +181,19 @@ portalZ = 1000
     void Set(const std::string& k, const std::string& v) override {
         if (k == "enabled") enabled_ = ParseBool(v);
         else if (k == "extraLevels") extraLevels_ = std::clamp(int(ParseFloat(v)), 0, 10);
+        else if (k == "perkExtraLevels") perkExtraLevels_ = std::clamp(int(ParseFloat(v)), 0, 10);
+        else if (k == "perkCurseScale") perkScale_ = std::max(ParseFloat(v), 0.f) / 100.f;
+        else if (k == "modCurseScale") modScale_ = std::max(ParseFloat(v), 0.f) / 100.f;
         else if (k == "extraChoices") extraChoices_ = std::clamp(int(ParseFloat(v)), 0, 10);
-        else if (k == "maxHealthPerLevel") per_[MaxHealth] = Pct(v);
-        else if (k == "damageTakenPerLevel") per_[DamageTaken] = Pct(v);
-        else if (k == "fireRatePerLevel") per_[FireRate] = Pct(v);
-        else if (k == "damagePerLevel") per_[Damage] = Pct(v);
-        else if (k == "crystalsPerHit") per_[Crystals] = std::max(ParseFloat(v), 0.f);
-        else if (k == "cooldownPerLevel") per_[Cooldown] = Pct(v);
-        else if (k == "otherMaxHealthPerLevel") per_[OtherMaxHealth] = Pct(v);
         else if (k == "portalX") portal_.x = ParseFloat(v);
         else if (k == "portalY") portal_.y = ParseFloat(v);
         else if (k == "portalZ") portal_.z = ParseFloat(v);
     }
     bool Enabled() const override { return enabled_; }
     std::string Describe() const override {
-        return "+" + std::to_string(extraLevels_) + " levels, +" + std::to_string(extraChoices_) +
-               " choices, curses per level";
+        return "+" + std::to_string(extraLevels_) + " levels (perks +" + std::to_string(perkExtraLevels_) + "), +" +
+               std::to_string(extraChoices_) + " choices, curses per level (perks x" + Num(perkScale_) + ", mods x" +
+               Num(modScale_) + ")";
     }
     std::string Title() const override { return "Greed Run"; }
     const char* CatalogKind() const override { return "Game mode"; }
@@ -110,9 +201,15 @@ portalZ = 1000
     bool Active() const { return enabled_ && active_; }
 
     void InstallHooks() override {
+        retHasPerk_ = Addr(va::Ret_EnemyHealthHasDoubleTrouble);
+        retPerkDebuff_ = Addr(va::Ret_EnemyHealthDoubleTrouble);
         Hook(va::ACrabGM_EnterChosenPortal, &HkEnterPortal, &oEnterPortal, "ACrabGM::EnterChosenPortal");
         Hook(va::ACrabPortal_InitUI, &HkInitUI, &oInitUI, "ACrabPortal::InitUI");
         Hook(va::ACrabPortal_UpdateUI, &HkUpdateUI, &oUpdateUI, "ACrabPortal::UpdateUI");
+        Hook(va::ACrabGS_EnemySpawnMultiplier, &HkSpawnMultiplier, &oSpawnMultiplier,
+             "ACrabGS enemy spawn multiplier (Greed Run: more enemies)");
+        Hook(va::ACrabPS_HasPerk, &HkHasPerk, &oHasPerk, "ACrabPS::HasPerk (Greed Run: tougher enemies)");
+        Hook(va::ACrabPS_GetPerkDebuff, &HkPerkDebuff, &oPerkDebuff, "ACrabPS::GetPerkDebuff (Greed Run: tougher enemies)");
     }
 
     // --- The portal and the mode ---------------------------------------------------------------------------
@@ -213,7 +310,7 @@ portalZ = 1000
             // player just dropped (they had it at that level already).
             if (At<uint8_t>(pickup, off::Actor_Role) != ROLE_Authority || g_droppingPickup || !Levels(da)) return;
             if (WorldOf(pickup) != world_ || !leveled_.insert(pickup).second) return;
-            level = uint8_t(std::min(int(level) + extraLevels_, 255));
+            level = uint8_t(std::min(int(level) + (IsPerk(da) ? perkExtraLevels_ : extraLevels_), 255));
             return;
         }
         void* card = At<void*>(pickup, off::Pickup_UI);
@@ -230,18 +327,9 @@ portalZ = 1000
 
     // --- Curses ------------------------------------------------------------------------------------------------
 
-    float MaxHealthMultiplierBonus(void* ps) override {
+    float HealingBonus(void* ps) override {
         if (!Active()) return 0.f;
-        CurseLevels l = Held(ps);
-        return std::max(-(l[MaxHealth] * per_[MaxHealth] + l[OtherMaxHealth] * per_[OtherMaxHealth]), -kFloor);
-    }
-    float DamageBonus(void* ps) override {
-        if (!Active()) return 0.f;
-        return std::max(-Held(ps)[Damage] * per_[Damage], -kFloor);
-    }
-    float FireRateBonus(void* ps) override {
-        if (!Active()) return 0.f;
-        return std::max(-Held(ps)[FireRate] * per_[FireRate], -kFloor);
+        return std::max(-Held(ps)[Healing], -kMaxHealingCut);
     }
     void OnTakeDamage(void* hc, void* info) override {
         if (!Active()) return;
@@ -249,27 +337,17 @@ portalZ = 1000
         float& damage = At<float>(info, off::DamageInfo_Damage);
         if (!ps || damage <= 0.f) return;
         CurseLevels l = Held(ps);
-        damage *= 1.f + l[DamageTaken] * per_[DamageTaken];
-        int lose = std::min(int(l[Crystals] * per_[Crystals]), At<int>(ps, off::PS_Crystals));
+        damage *= 1.f + l[DamageTaken];
+        int have = At<int>(ps, off::PS_Crystals);
+        int lose = std::min(int(have * std::min(l[CrystalShare], kMaxCrystalShare)), have);
         if (lose > 0) Fn<void (*)(void*, int)>(va::ACrabPS_AddCrystals)(ps, -lose);
     }
     // The cooldown counts down 0.25 s per tick; giving part of it back makes it last 1 + k times as long.
     void OnCooldownTick(void* c, void* ps) override {
         if (!Active()) return;
-        float k = Held(ps)[Cooldown] * per_[Cooldown];
+        float k = Held(ps)[Cooldown];
         float& cd = At<float>(c, off::PlayerC_AbilityCooldown);
         if (k > 0.f && cd > 0.f) cd += 0.25f * k / (1.f + k);
-    }
-    // Fire rate is worked out when weapons change: work it out again when the Elemental levels do.
-    void OnFrame(void* world, float) override {
-        if (!enabled_) return;
-        ForEachPlayer(world, [&](void* ps) {
-            float f = Active() ? Held(ps)[FireRate] : 0.f;
-            auto [it, fresh] = fireRate_.try_emplace(ps, f);
-            if (fresh || it->second == f) return;
-            it->second = f;
-            RefreshFireRate(ps);
-        });
     }
 
     std::string InventoryNote(void* ps, void* da) override {
@@ -277,12 +355,15 @@ portalZ = 1000
         int level = 0;
         for (Kind k : kKinds) level += LevelOf(ps, k, da);
         if (!level) return {};
-        Curse c = CurseOf(At<uint8_t>(da, off::DA_LootPool));
-        return "Greed curse: " + CurseText(c, level * per_[c]);
+        const Spec& sp = SpecOf(da);
+        return "Greed curse: " + CurseText(sp.curse, level * Amount(sp));
     }
 
 private:
-    static constexpr float kFloor = 0.9f;  // curses never take more than 90% of max health, damage or fire rate
+    static constexpr float kMaxHealingCut = 0.9f;    // healing never drops below 10%
+    static constexpr float kMaxCrystalShare = 0.5f;  // no hit takes more than half your crystals
+    static constexpr float kMaxMoreEnemies = 3.f;    // the team's curses add at most +300% enemies
+    static constexpr float kMaxTougher = 4.f;        // and at most +400% enemy health a player
     static constexpr Kind kKinds[] = {Kind::WeaponMod, Kind::AbilityMod, Kind::Perk, Kind::Relic, Kind::MeleeMod};
 
     struct CurseLevels {
@@ -290,7 +371,6 @@ private:
         float operator[](Curse c) const { return n[c]; }
     };
 
-    static float Pct(const std::string& v) { return std::max(ParseFloat(v), 0.f) / 100.f; }
     static uint8_t Island(void* context) {
         void* gs = GameStateOf(context);
         return gs ? At<uint8_t>(gs, off::GS_CurrentIslandType) : 0;
@@ -312,13 +392,45 @@ private:
         return false;
     }
 
-    // The player's levels of non-Greed items, by curse.
-    CurseLevels Held(void* ps) const {
+    static bool IsPerk(void* da) { return da && IsA(da, StaticClass(Info(Kind::Perk).staticClass)); }
+
+    // An item's curse: a perk's own (kPerkCurses, else by its pool), a mod's or relic's by its pool. Looked up
+    // once per item.
+    struct Spec {
+        Curse curse;
+        bool perk;
+        float perLevel;  // in percent
+    };
+    const Spec& SpecOf(void* da) {
+        auto it = specs_.find(da);
+        if (it != specs_.end()) return it->second;
+        uint8_t lootPool = At<uint8_t>(da, off::DA_LootPool);
+        PerkCurse mc = ModCurseOf(lootPool);
+        Spec sp{mc.curse, false, mc.perLevel};
+        if (IsPerk(da)) {
+            PerkCurse pc = PerkCurseOf(lootPool);
+            std::string name = ObjectName(da);
+            if (name.rfind("DA_Perk_", 0) == 0) name.erase(0, 8);
+            for (const PerkCurse& c : kPerkCurses)
+                if (name == c.perk) pc = c;
+            sp = {pc.curse, true, pc.perLevel};
+        }
+        return specs_.emplace(da, sp).first->second;
+    }
+    float Amount(const Spec& sp) const {
+        float scale = sp.perk ? perkScale_ : modScale_;
+        return sp.perLevel / 100.f * scale;
+    }
+
+    // The player's curses: each non-Greed item's curse times its level, added up by kind.
+    CurseLevels Held(void* ps) {
         CurseLevels l;
         if (!ps) return l;
         for (Kind k : kKinds)
             ForEachItem(ps, Info(k).playerArray, [&](void* da, int level) {
-                if (At<uint8_t>(da, off::DA_Rarity) != rarity::Greed) l.n[CurseOf(At<uint8_t>(da, off::DA_LootPool))] += level;
+                if (At<uint8_t>(da, off::DA_Rarity) == rarity::Greed) return;
+                const Spec& sp = SpecOf(da);
+                l.n[sp.curse] += level * Amount(sp);
             });
         return l;
     }
@@ -326,12 +438,12 @@ private:
     std::string CurseText(Curse c, float amount) const {
         std::string pct = Num(AssetItem::Round(amount * 100.f)) + "%";
         switch (c) {
-        case MaxHealth: case OtherMaxHealth: return "-" + pct + " max health";
-        case DamageTaken: return "+" + pct + " damage taken";
-        case FireRate: return "-" + pct + " fire rate";
-        case Damage: return "-" + pct + " damage";
-        case Crystals: return "lose " + Num(amount) + " crystals when hit";
+        case MoreEnemies: return "+" + pct + " enemies (the whole team)";
+        case TougherEnemies: return "+" + pct + " enemy health (the whole team)";
+        case DamageTaken: return "enemies hit you " + pct + " harder";
         case Cooldown: return "+" + pct + " ability cooldown";
+        case Healing: return "-" + pct + " healing";
+        case CrystalShare: return "lose " + pct + " of your crystals when hit";
         default: return {};
         }
     }
@@ -350,9 +462,11 @@ private:
     void MarkItems(void* lm) {
         auto mark = [&](void* da) {
             if (!da || At<uint8_t>(da, off::DA_Rarity) == rarity::Greed) return;
-            Curse c = CurseOf(At<uint8_t>(da, off::DA_LootPool));
-            std::string t = CurseText(c, per_[c]);
-            std::wstring suffix = L"\nGreed: " + std::wstring(t.begin(), t.end()) + L" per level";
+            const Spec& sp = SpecOf(da);
+            std::string t = CurseText(sp.curse, Amount(sp)) + " per level";
+            if (sp.perk && perkExtraLevels_ > 0)
+                t = "comes " + std::to_string(perkExtraLevels_) + " levels higher, but " + t;
+            std::wstring suffix = L"\nGreed: " + std::wstring(t.begin(), t.end());
             for (int field : {off::DA_Description, off::DA_LevelDescription}) {
                 const auto& s = At<TArray<wchar_t>>(da, field);
                 std::wstring now = s.Data && s.Num > 1 ? std::wstring(s.Data, s.Num - 1) : L"";
@@ -407,8 +521,8 @@ private:
         void* card = At<void*>(portal, off::Pickup_UI);
         if (!card) return;
         wchar_t name[] = L"Greed Run";
-        wchar_t text[] = L"A new run where everything is Greed: every chest, every item. Every item comes a level "
-                         L"higher, and every level you hold has a curse";
+        wchar_t text[] = L"A new run where everything is Greed: every chest, every item. Perks come 3x as strong, "
+                         L"but each one brings more enemies, tougher enemies or another price of its own";
         TArray<wchar_t> n{name, int(std::size(name)), int(std::size(name))};
         TArray<wchar_t> t{text, int(std::size(text)), int(std::size(text))};
         Fn<void (*)(void*, const void*)>(va::InteractUI_SetName)(card, &n);
@@ -421,6 +535,42 @@ private:
     static void HkUpdateUI(void* portal) {
         oUpdateUI(portal);
         Relabel(portal);
+    }
+
+    // --- Enemies (host) ----------------------------------------------------------------------------------------
+    //
+    // The game adds up every player's Juggernaut, Up The Ante and Rising Star for the enemy spawn multiplier, and
+    // every player's Double Trouble for each new enemy's health multiplier. The curses join those sums.
+
+    using SpawnMultiplierFn = float (*)(void*);
+    using HasPerkFn = bool (*)(void*, uint8_t);
+    using PerkDebuffFn = float (*)(void*, uint8_t);
+    static inline SpawnMultiplierFn oSpawnMultiplier;
+    static inline HasPerkFn oHasPerk;
+    static inline PerkDebuffFn oPerkDebuff;
+    static inline uintptr_t retHasPerk_ = 0, retPerkDebuff_ = 0;
+
+    static float HkSpawnMultiplier(void* gs) {
+        float r = oSpawnMultiplier(gs);
+        GreedRun& self = *g_self;
+        if (!gs || !self.Active()) return r;
+        float more = 0.f;
+        auto& players = At<TArray<void*>>(gs, off::GS_PlayerArray);
+        for (int i = 0; i < players.Num; i++)
+            if (IsA(players.Data[i], StaticClass(va::ACrabPS_StaticClass))) more += self.Held(players.Data[i])[MoreEnemies];
+        return r + std::min(more, kMaxMoreEnemies);
+    }
+    float Tougher(void* ps) { return Active() && ps ? std::min(Held(ps)[TougherEnemies], kMaxTougher) : 0.f; }
+    static bool HkHasPerk(void* ps, uint8_t type) {
+        bool r = oHasPerk(ps, type);
+        if (!r && reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == retHasPerk_)
+            r = g_self->Tougher(ps) > 0.f;
+        return r;
+    }
+    static float HkPerkDebuff(void* ps, uint8_t type) {
+        float r = oPerkDebuff(ps, type);
+        if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == retPerkDebuff_) r += g_self->Tougher(ps);
+        return r;
     }
 
     // Host: the party is going through a portal. A new run is a Greed Run when it is the Greed Run portal; a
@@ -463,8 +613,10 @@ private:
     bool enabled_ = true;
     bool active_ = false;
     int extraLevels_ = 1;
+    int perkExtraLevels_ = 2;
+    float perkScale_ = 1.f;
+    float modScale_ = 1.f;
     int extraChoices_ = 2;
-    float per_[kCurses] = {0.04f, 0.04f, 0.03f, 0.03f, 5.f, 0.05f, 0.03f};
     Vec3 portal_{-5757.f, 5000.f, 1000.f};
 
     void* world_ = nullptr;
@@ -476,7 +628,7 @@ private:
     std::unordered_set<void*> told_;
     std::unordered_set<void*> leveled_;
     std::vector<void*> lowered_;
-    std::unordered_map<void*, float> fireRate_;
+    std::unordered_map<void*, Spec> specs_;
     std::unordered_map<std::pair<void*, int>, std::wstring, PairHash> original_;
 };
 

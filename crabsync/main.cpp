@@ -24,7 +24,7 @@ using namespace crabsync;
 
 namespace {
 
-constexpr const char kVersion[] = "1.0.7";
+constexpr const char kVersion[] = "1.0.8";
 
 Config g_cfg;
 Ledger g_ledger;
@@ -506,6 +506,13 @@ void HkRestoreAutoSave(void* ps, void* save) {
     // The player's state was replaced wholesale (island travel re-upload). Treat it as a new baseline
     // rather than as items gained; the next poll overwrites it with the team inventory.
     if (At<uint8_t>(ps, off::Actor_Role) == ROLE_Authority) {
+        if (g.lastIsland == uint8_t(IslandType::Lobby)) {
+            // Continuing a saved run from the lobby: the saved items are the run's, so the team starts
+            // from them instead of the empty lobby team overwriting them.
+            g_ledger.reset();
+            CRAB_LOG("%s: saved run restored in the lobby, team inventory rebuilt from it", PlayerName(ps).c_str());
+            return;
+        }
         g_ledger.forget(reinterpret_cast<PlayerKey>(ps));
         CRAB_LOG("%s: autosave restored", PlayerName(ps).c_str());
     }

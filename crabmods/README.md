@@ -1,6 +1,6 @@
 # CrabMods
 
-**New items for Crab Champions.** 58 items and a new weapon (the Soul Whip, with 20 items of its own): perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
+**New items for Crab Champions.** 60 items and two new weapons (the Soul Whip, with 20 items of its own, and Shellbreaker, with 12): perks, relics, weapon mods, ability mods and a melee mod, plus stronger melee mods and a key totem menu that lets you choose your unlock. Each one drops from chests and rewards like the game's own.
 
 > **Status: early (0.4.0), not yet tested in-game.** Please report what you see, with `CrabMods.log` attached.
 
@@ -44,6 +44,8 @@
 | **Summoner Specialist** | relic | Epic | The Soul Whip's 20 pickups are offered **3×** as often to you, and can come out of all your chests. Only drops while you hold the Soul Whip. |
 | **Double or Nothing** | Greed relic | Greed | At the end of each island you get **twice as many** reward chests, or **none at all** (50/50). It counts every chest the island gives you (bonus chests, Care Package, totems) and rolls before High Roller. |
 | **Cursed Lottery** | Greed relic | Greed | **15,000 crystals** when you pick it up, plus 100% more for every 14 islands into the run (30,000 on island 14), but while you hold it you only get **0.01%** of the crystals you'd gain, and **Money Is Power does nothing** (its card says so). It **can't be dropped**. Rare (spawn weight 0.15). |
+| **Snap Decision** | Greed perk | Greed | Once in each biome (at the first island you clear in it), a coin flip: heads, **half your mods and perks double in level**; tails, **half of them are destroyed**. Relics, charms and Snap Decision itself are never touched. |
+| **Wild Card** | Greed relic | Greed | Each island you clear, a **20%** chance that your whole inventory is **randomized**, as a Randomize totem does: every mod, perk and relic becomes a random one of the same kind at the same level. Charms and Wild Card stay. |
 | **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
 | **Finishing Move** | perk | Epic | Enemies you kill with a **critical hit** drop **+50% crystals**. |
 | **Rigged Totems** | perk | Epic | Health, Chance and Gamble totems are **25% more likely to go your way** (a 50% totem becomes 62.5%). |
@@ -62,6 +64,26 @@
 | Item | Type | Effect |
 |---|---|---|
 | **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 75). You can have up to 20 undead at once. Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. They get half your damage bonus. Their kills give you half the souls, and their crystals drop, but your on-kill perks and relics don't go off. Each costs 1% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give half their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
+| **Shellbreaker** | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Soul Whip. A barbed blade on a 40-link chain, held by a handle in the claw, with no ammo. **Left click** swings a string of five: right to left, left to right, a chop, the rebound and a circle over the head. Each swing bursts 10 m wide, 7 m in front of you, and the circle hits everything within 18.5 m, as the Katana does. Over the string it does **100 damage a second**, each swing its share by its length (0.32 / 0.32 / 0.32 / 0.24 / 0.56 s). Fire rate makes the string faster, and damage perks and weapon mods scale its hits like a gun's. **Right click** aims the **hook** and left click throws it, up to 60 m (one charge, 6 s cooldown; a miss gives half back). It yanks fodder and medium enemies to you, pulls you to heavier ones, and on a wall or the floor you swing from it on the chain (hold left click to reel in). It **replaces your melee** while you hold it, and its own items drop instead of melee mods. The crab's body plays the game's own Katana, Hammer and Grenade-throw animations with it. It has its own model (the chain swings with real physics), sounds and a hook display where the melee slot was. |
+
+### Shellbreaker loot
+
+These only drop for players **holding Shellbreaker**, from chests of their loot pool and from any-pool chests. Numbers are per level.
+
+| Item | Type | Rarity | Effect |
+|---|---|---|---|
+| **Long Chain** | weapon mod | Common | **+4 links**: the swings, the circle and the hook reach farther in proportion (up to ×2.5). |
+| **Wide Arc** | weapon mod | Common | Swings hit a **15%** wider area. |
+| **Whirlwind** | weapon mod | Epic | The overhead circle **drags nearby enemies** (not bosses) toward you. |
+| **Executioner** | weapon mod | Epic | The chop and its rebound deal **+75%** damage. |
+| **Searing Edge** | weapon mod | Epic | Every swing hit applies **2 fire** stacks. |
+| **Riptide** | perk | Epic | **+35% damage** for 4 s after your hook lands on an enemy or a wall. |
+| **Quick Draw** | perk | Common | The hook recharges about **15%** faster (never below a sixth of its cooldown). |
+| **Undertow** | perk | Common | The hook's own hit deals **+75%**. |
+| **Rhythm** | perk | Common | The overhead circle deals **+30%**. |
+| **Grappler** | relic | Legendary | **+1 hook charge**; they recharge one at a time. |
+| **Kraken's Grasp** | relic | Legendary | The hook yanks **hard and elite** enemies too (never bosses), and drags the **2 nearest** others along. |
+| **Frost Chain** | relic | Epic | The hook's hit applies **10 ice**. |
 
 ### Soul Whip loot
 
@@ -118,7 +140,7 @@ Charms are a kind of item of their own, and they're what give you more inventory
 
 | Mode | Effect |
 |---|---|
-| **Greed Run** | A portal in the lobby, opposite Arcade and Holdout, starts a normal run where **everything is Greed**. Every island reward chest is a Greed chest that can offer any item at the usual rarity odds (plus the game's own Greed items), with **2 more choices**. Every mod and perk that appears comes **1 level higher**, and each level of a non-Greed item you hold carries a **curse** by its kind: Damage −4% max health, Critical and Speed +4% damage taken, Elemental −3% fire rate, Luck and Health −3% damage, Economy lose 5 crystals when hit, Skill +5% ability cooldown, everything else −3% max health (never more than 90% off). Cards and item texts show it. You can always leave a chest's items on the ground. Coming back to the lobby ends the mode; a continued Greed Run stays one. Greed versions never show up outside this mode. |
+| **Greed Run** | A portal in the lobby, opposite Arcade and Holdout, starts a normal run where **everything is Greed**. Every island reward chest is a Greed chest that can offer any item at the usual rarity odds (plus the game's own Greed items), with **2 more choices**. **Every perk is a big gamble:** it comes **2 levels higher** (3× as strong), and each level you hold makes the run harder in a way more items can't buy back. Damage perks make **+10% more enemies** spawn a level, Health and Critical perks give enemies **+15% health** a level, Speed and close-range perks make enemies **hit 12% harder**, Luck perks also give enemies **+15% health**, and Economy perks **lose 3% of your crystals** each hit. Each perk's price is themed on it. Enemy curses add up over the whole team. Mods come **1 level higher** with smaller curses of the same kinds. Cards and item texts show it. You can always leave a chest's items on the ground. Coming back to the lobby ends the mode; a continued Greed Run stays one. Greed versions never show up outside this mode. |
 
 
 - Extra copies stack: each level of an item adds its bonus again (two Jacks of All Trades give +6% per tag).
@@ -241,10 +263,16 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `soundVolume` | `80` | **Your own**: the Soul Whip kit's sounds, in percent (0 is silent). They also follow the game's Master and Gameplay volume sliders. |
 | `[longLash]` ... `[phylactery]` (the Soul Whip loot) | one number each | | `rangePercent`, `souls`, `radiusPercent`, `damagePercent`, `enemies`, `healthPercent`, `discountPercent`, `extraFodder`, `chancePercent`, `soulsPercent`, `refundPercent`, `poisonStacks`, `undead`, `upkeepCutPercent`, `percent`, `minSouls`: the bold numbers in the table above, per level. Plus `enabled` and `rarity`. |
 | `[bandolier]`, `[toolBelt]`, `[scabbard]`, `[backpack]`, `[reliquary]` | `slotsPerLevel` | `5` | Slots per level (1 to 50). |
+| `[shellbreaker]` | `dps`, `swingSeconds` | `100`, `0.35` | Damage a second over the swing string, and a swing's average length. |
+| | `reach`, `hitRadius`, `circleRadius` | `700`, `1000`, `1850` | Where a swing bursts (cm in front), its radius, and the circle's radius. |
+| | `chainLinks`, `hookRange`, `hookCooldown`, `hookSpeed`, `hookDamage` | `40`, `6000`, `6`, `10000`, `20` | The chain, and the hook's reach (cm), cooldown (s), flight speed and hit damage. |
+| | `hookKey`, `soundVolume` | `Mouse2`, `0.8` | **Your own**: the hook key and the weapon's sound volume. |
+| `[snapDecision]` | `doubleChance`, `sharePercent` | `50`, `50` | The chance of heads, and the share of your mods and perks a flip touches. |
+| `[wildCard]` | `chancePercent` | `20` | The chance per island cleared. |
 | `[greedRun]` | `enabled` | `true` | Off: no Greed Run portal. |
-| | `extraLevels`, `extraChoices` | `1`, `2` | Extra levels on each Greed pickup, and extra choices in a Greed chest. |
-| | `maxHealthPerLevel`, `damageTakenPerLevel`, `fireRatePerLevel`, `damagePerLevel`, `cooldownPerLevel`, `otherMaxHealthPerLevel` | `4`, `4`, `3`, `3`, `5`, `3` | Curse sizes in percent per level held. |
-| | `crystalsPerHit` | `5` | Economy curse: crystals lost per hit, per level. |
+| | `extraLevels`, `extraChoices` | `1`, `2` | Extra levels on each Greed mod, and extra choices in a Greed chest. |
+| | `perkExtraLevels` | `2` | Extra levels on each Greed perk. |
+| | `perkCurseScale`, `modCurseScale` | `100`, `100` | Size of the perks' and the mods' curses, in percent of the built-in amounts. |
 | `[fireSpecialist]` ... `[summonerSpecialist]` | `multiplier` | `3` | How many times as likely. |
 | | `otherChests` | `1` | How likely their pickups are in your chests of other loot pools (Speed, Health, ...), compared with that chest's own pickups. `0` keeps them in their own chests. |
 
@@ -311,6 +339,7 @@ The effects:
 - **Hellshot** puts every bullet of a spread shot under your aim, with a little scatter; the game's own formation (side by side, ...) is lost.
 - **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
 - **Soul Whip** is tested only by reading the game's code, not in play yet: its pedestal, model, lash, HUD and sounds are all new and unchecked in game. If its art can't be built on your machine, it falls back to the Sniper's look (your log says why). Its sounds don't follow the game's volume settings (`soundVolume` sets them). It isn't kept as your weapon between runs. If something looks wrong, please open an issue with your `CrabMods.log`.
+- **Shellbreaker** is new: tested in play only briefly. Its hook swing launches you on your own machine, so a client in multiplayer may rubber-band while swinging. Every player needs CrabMods 0.14.0 to see its chain and animations.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 

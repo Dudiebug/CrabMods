@@ -104,6 +104,8 @@ public:
     // Extra fire rate for this player's weapons (0.12 = one Rapid Fire level), added beside Rapid Fire's when
     // the game recomputes a weapon's fire rate (on every machine). Call RefreshFireRate(ps) when it changes.
     virtual float FireRateBonus(void* ps) { return 0.f; }
+    // Extra healing for this player (-0.2 = 20% less), applied to every heal they get (UCrabHC::Heal).
+    virtual float HealingBonus(void* ps) { return 0.f; }
     // Weapon fire, on the machine that controls the player (its shots deal the damage; the others see copies).
     // true: this player's next shot falls from above the aim point, the way Ice Staff fires.
     virtual bool ShotsFromAbove(void* ps) { return false; }

@@ -65,7 +65,8 @@ version_of() { sed -n 's/.*kVersion\[\] = "\(.*\)";/\1/p' "$1"; }
 version_res loader 1.0.0 "Crab Champions mod loader" xinput1_3.dll
 version_res CrabSync "$(version_of crabsync/main.cpp)" "CrabSync for Crab Champions" CrabSync.dll
 version_res CrabMods "$(version_of crabmods/main.cpp)" "CrabMods for Crab Champions" CrabMods.dll \
-    "100 RCDATA \"$ROOT/crabmods/assets/necro.pack\""
+    "100 RCDATA \"$ROOT/crabmods/assets/necro.pack\"
+101 RCDATA \"$ROOT/crabmods/assets/shell.pack\""
 # The manager also carries its font (resource 2).
 version_res manager "$(version_of manager/platform.hpp)" "CrabMods Manager" CrabModsManager.exe \
     "2 RCDATA \"$ROOT/manager/fonts/Roboto-Medium.ttf\""

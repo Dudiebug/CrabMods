@@ -36,6 +36,8 @@ struct Blob {
 
 class Pack {
 public:
+    // id: the DLL's RCDATA resource (100 the necromancer's, 101 Shellbreaker's).
+    explicit Pack(int id = 100) : id_(id) {}
     bool Load() {
         if (loaded_) return !entries_.empty();
         loaded_ = true;
@@ -43,12 +45,12 @@ public:
         if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                                 reinterpret_cast<LPCWSTR>(&Pack::Anchor), &self))
             return false;
-        HRSRC r = FindResourceW(self, MAKEINTRESOURCEW(100), MAKEINTRESOURCEW(10) /* RT_RCDATA */);
+        HRSRC r = FindResourceW(self, MAKEINTRESOURCEW(id_), MAKEINTRESOURCEW(10) /* RT_RCDATA */);
         HGLOBAL g = r ? LoadResource(self, r) : nullptr;
         const uint8_t* p = g ? static_cast<const uint8_t*>(LockResource(g)) : nullptr;
         uint32_t n = r ? SizeofResource(self, r) : 0;
         if (!p || n < 8 || std::memcmp(p, "CRPK", 4) != 0) {
-            CRAB_LOG("necromancer: the art pack is missing from CrabMods.dll");
+            CRAB_LOG("art pack %d is missing from CrabMods.dll", id_);
             return false;
         }
         uint32_t count;
@@ -64,7 +66,7 @@ public:
                 {p + off, size};
         }
         DecodeSounds();
-        CRAB_LOG("necromancer: art pack loaded, %zu files", entries_.size());
+        CRAB_LOG("art pack %d loaded, %zu files", id_, entries_.size());
         return true;
     }
     Blob Get(const std::string& name) const {
@@ -110,6 +112,7 @@ private:
         if (!oggs.empty()) CRAB_LOG("necromancer: %zu sounds decoded (%zu KB)", oggs.size(), bytes / 1024);
     }
 
+    int id_;
     bool loaded_ = false;
     std::unordered_map<std::string, Blob> entries_;
     std::vector<std::unique_ptr<short, void (*)(void*)>> sounds_;
