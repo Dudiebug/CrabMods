@@ -13,8 +13,8 @@
 | **Arsenal** | weapon mod | Epic | +3% damage for each **level** of your other weapon mods (a x3 stack counts 3). Collector for weapon mods. |
 | **Hoarder** | perk | Legendary | +3% damage for each weapon mod level **and** each perk level you have. Arsenal and Collector in one. |
 | **Minimalist** | perk | Epic | +40% damage, minus 4% for each **different pickup tag** you hold (Jack of All Trades the other way round). |
-| **Underdog** | perk | Epic | +0.5% damage for every 1% of health you are missing (+25% at half health). |
-| **Untouchable** | perk | Epic | +1% damage for each second without taking damage, up to +20%. Getting hit resets it. |
+| **Underdog** | perk | Epic | +1% damage for every 1% of health you are missing (+50% at half health). |
+| **Untouchable** | perk | Epic | +2% damage for each second without taking damage, up to +40%. Getting hit resets it. |
 | **Jack of All Trades** | perk | Epic | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
 | **Greed Is Power** | Greed perk | Greed | +3% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
 | **Combo Catalyst** | perk | Epic | Your hits apply **+1 stack of each element** they already apply for every combo level above 1 (+4 at combo 5). |
@@ -23,7 +23,7 @@
 | **Purist** | relic | Epic | +100% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +3% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives +3% damage until the island ends. It resets each island, like Collateral Damage. |
-| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
+| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. Never drops when you play alone. |
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +35% damage. |
 | **Hellshot** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +35% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
@@ -75,20 +75,20 @@ These only drop for players **holding Shellbreaker**, from chests of their loot 
 | **Long Chain** | weapon mod | Common | **+4 links**: the swings, the circle and the hook reach farther in proportion (up to ×2.5). |
 | **Wide Arc** | weapon mod | Common | Swings hit a **15%** wider area. |
 | **Whirlwind** | weapon mod | Epic | The overhead circle **drags nearby enemies** (not bosses) toward you. |
-| **Executioner** | weapon mod | Epic | The chop and its rebound deal **+75%** damage. |
-| **Searing Edge** | weapon mod | Epic | Every swing hit applies **2 fire** stacks. |
+| **Executioner** | weapon mod | Epic | The chop and its rebound deal **+55%** damage. |
+| **Searing Edge** | weapon mod | Epic | Every swing hit applies **3 fire** stacks. |
 | **Riptide** | perk | Epic | **+35% damage** for 4 s after your hook lands on an enemy or a wall. |
 | **Quick Draw** | perk | Common | The hook recharges about **15%** faster (never below a sixth of its cooldown). |
-| **Undertow** | perk | Common | The hook's own hit deals **+75%**. |
+| **Undertow** | perk | Common | The hook's own hit deals **+300%**. |
 | **Rhythm** | perk | Common | The overhead circle deals **+30%**. |
-| **Grappler** | relic | Legendary | **+1 hook charge**; they recharge one at a time. |
+| **Grappler** | relic | Epic | **+1 hook charge**; they recharge one at a time. |
 | **Kraken's Grasp** | relic | Legendary | The hook yanks **hard and elite** enemies too (never bosses), and drags the **2 nearest** others along. |
 | **Frost Chain** | relic | Epic | The hook's hit applies **10 ice**. |
-| **Serrated Links** | weapon mod | Common | Swings deal **+50%** damage. |
-| **Venom Barbs** | weapon mod | Common | Swings apply **3 poison**. |
-| **Static Chain** | weapon mod | Epic | Swings apply **2 lightning**. |
+| **Serrated Links** | weapon mod | Common | Swings deal **+10%** damage. |
+| **Venom Barbs** | weapon mod | Common | Swings apply **2 poison**. |
+| **Static Chain** | weapon mod | Epic | Swings apply **3 lightning**. |
 | **Rime Edge** | weapon mod | Epic | Swings apply **3 ice**. |
-| **Momentum** | weapon mod | Epic | Each swing deeper into the string deals **+15%** more than the one before (the circle +60%). |
+| **Momentum** | weapon mod | Epic | Each swing deeper into the string deals **+8%** more than the one before (the circle +32%). |
 | **Hex Links** | weapon mod | Legendary | Swings apply **4 arcane**. |
 | **Backlash** | weapon mod | Legendary | The sweeps and the chop also strike as far behind you, for **60%** of their damage. |
 
@@ -99,9 +99,9 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Long Lash** | weapon mod | Common | Soul bolts fly **15%** farther. |
-| **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
+| **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **a quarter of a soul**. |
 | **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **15%** farther. |
-| **Death Mark** | weapon mod | Epic | Tagged enemies take **10%** more damage from you. |
+| **Death Mark** | weapon mod | Epic | Tagged enemies take **15%** more damage from you. |
 | **Soul Brand** | weapon mod | Epic | Killing a tagged enemy tags the **2** enemies nearest it. |
 | **Sturdy Bones** | ability mod | Common | Undead you raise have **15%** more health. |
 | **Soul Discount** | ability mod | Common | Raising costs about **8%** fewer souls (levels add up hyperbolically; never below half). |
@@ -204,9 +204,9 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[hoarder]` | `damagePercent` | `3` | Per weapon mod level and per perk level. |
 | `[heavyShot]` | `enabled` | `true` | Let Heavy Shot drop for every weapon (called `anyWeapon` before 0.9.0, still read). |
 | `[minimalist]` | `maxPercent`, `perTagPercent` | `40`, `4` | Bonus with no tags; taken off per different tag. |
-| `[underdog]` | `damagePercent` | `0.5` | Per 1% of health missing. |
-| `[untouchable]` | `damagePercent` | `1` | Per second without being hit. |
-| | `maxPercent` | `20` | The most it builds up to. |
+| `[underdog]` | `damagePercent` | `1` | Per 1% of health missing. |
+| `[untouchable]` | `damagePercent` | `2` | Per second without being hit. |
+| | `maxPercent` | `40` | The most it builds up to. |
 | `[jackOfAllTrades]` | `damagePercent` | `3` | Per different pickup tag. |
 | `[greedIsPower]` | `damagePercent` | `3` | Per Greed perk level. |
 | `[purist]` | `damagePercent` | `100` | |
@@ -246,7 +246,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
-| `[necromancer]` | `whipDps` | `100` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (80) to every enemy in it, less at its edge. |
+| `[necromancer]` | `whipDps` | `80` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (64) to every enemy in it, less at its edge. |
 | | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
 | | `burstRadiusMeters` | `4` | The bolt's purple burst's reach. |
 | | `procRollMultiplier` | `3` | How much more often chance-based weapon mods (Double Shot, Split Shot, ...) trigger with the whip. The Sniper has 7, the SMG 1. |

@@ -53,7 +53,7 @@ public:
 
     std::string DefaultIni() const override {
         return R"(# Martyr, a relic: while you're down, your revive bubble hurts the enemies in it. Magnify makes the bubble
-# bigger (for reviving you too).
+# bigger (for reviving you too). Never drops when you play alone.
 enabled = true
 
 # Damage a second to each enemy in the bubble, for each Martyr level, as a share of a basic crab's max
@@ -75,6 +75,9 @@ rarity = epic
         else if (k == "damage" || k == "radiusMeters" || k == "knockback") {}  // the explosion's (0.4)
         else AssetItem::Set(k, v);
     }
+    // It only works when someone can revive you: never offered when playing alone.
+    float LootWeight(void* ps, void* da) override { return da_ && da == da_ && PlayerCount(ps) <= 1 ? 0.f : 1.f; }
+
     std::string Describe() const override {
         return Num(share_ * 100.f) + "% of a basic crab's health a second in your revive bubble while down" +
                (magnify_ ? ", bubble grows with Magnify, " : ", ") + RarityName(rarity_);

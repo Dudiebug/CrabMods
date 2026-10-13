@@ -125,9 +125,9 @@ enabled = true
 # --- Soul Whip ---
 # Each crack sends a soul bolt toward your aim. It stops at the first enemy it hits, or the ground, or its
 # reach, and bursts there, hurting every enemy around.
-# Damage a second. The bolt does its damage with its burst (whipDps / whipFireRate each, so 80 at 1.25 cracks a
+# Damage a second. The bolt does its damage with its burst (whipDps / whipFireRate each, so 64 at 1.25 cracks a
 # second), to every enemy in it; those at its edge take less.
-whipDps = 100
+whipDps = 80
 # Cracks a second.
 whipFireRate = 1.25
 # Reach in meters.
@@ -2527,7 +2527,7 @@ private:
 
     // Settings
     bool enabled_ = true;
-    float whipDps_ = 100.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f;
+    float whipDps_ = 80.f, whipFireRate_ = 1.25f, whipRange_ = 4500.f, burstRadius_ = 400.f;
     float procRoll_ = 3.f;  // WeaponModTriggerRollMultiplier (the Sniper's is 7)
     float tagRadius_ = 600.f, tagSeconds_ = 8.f, tagDamage_ = 0.25f, taggedSouls_ = 0.5f;
     float maxSouls_ = 100.f;

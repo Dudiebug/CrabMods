@@ -23,10 +23,10 @@ public:
 enabled = true
 
 # Damage bonus for each second without taking damage, in percent.
-damagePercent = 1
+damagePercent = 2
 
 # The most it builds up to, in percent. Each extra Untouchable stacks both again.
-maxPercent = 20
+maxPercent = 40
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -89,8 +89,8 @@ private:
 
     void Reset(void* ps) { state_[ps].lastHit = Clock::now(); }
 
-    float pct_ = 1.f;
-    float max_ = 20.f;
+    float pct_ = 2.f;
+    float max_ = 40.f;
     std::unordered_map<void*, State> state_;
 };
 

@@ -37,9 +37,9 @@ Tags: **[C]** confirmed from code or assets. **[E]** estimate.
     - Ramping Epic perks use **small** rates: Tasty Orange 1% per kill (island only), Gemstone 4% per island, Collector 3% per perk level, Checklist 1% per 25 kills.
   - **Legendary:** a new damage source, more projectiles or a build-defining effect, worth about ×1.3–2.
   - **Greed:** a true ×1.25–1.75 multiplier that always has a real drawback.
-  - **Relics:** never level. There are only about 3–6 per run, so vanilla relics are large: Epic relics are around 100–400 BaseBuff.
+  - **Relics:** never level, so vanilla relics are large: Epic relics are around 100–400 BaseBuff.
 - **Rarity odds** per offered item: Epic 3.75%, Legendary 0.25% [C]. A Legendary is a rare event, so a dead Legendary hurts.
-- **Slots:** 24 weapon mods, 12 ability mods, 12 melee mods, 24 perks, 10 relics [C, 0x140d29e50]. A normal 28-island run gets about 30–50 distinct items in total [E], so **slots almost never fill**.
+- **Slots:** 24 weapon mods, 12 ability mods, 12 melee mods, 24 perks, 10 relics [C, 0x140d29e50]. ~~A normal 28-island run gets about 30–50 distinct items in total [E], so slots almost never fill.~~ **Wrong** (2026-10-13): players fill the relic, perk and weapon-mod slots by the end of a first run [M, play], then only levels grow. Ability and melee slots are unmeasured.
 - **Shop prices (crystals)** [C, 0x140cf1fc0]:
 
   | Rarity | I1 | I28 |
@@ -190,3 +190,53 @@ Tags: **[C]** confirmed from code or assets. **[E]** estimate.
 - Whether the bolt's explosion damage goes through W (weapon mods) or only through GetDamageBuff.
 - Whether key-totem picks carry into the run.
 - Real fight lengths. Upkeep math assumes about 60 s.
+
+## 6. Balance pass (2026-10-13, CrabMods 0.14.1, `WORKFLOW.md`)
+
+Every CrabMods item (85: 28 perks, 27 relics and charms, 20 weapon mods, 6 ability mods, 2 melee mods, 2 weapons) went through steps 1–6, with a card each. 57 came back in line. The 28 flagged ones were then checked against the code. Many flags came from this audit's 0.10 numbers, which have since changed (see the CHANGELOG for 0.11–0.14).
+
+**Shellbreaker damage math** [C, `shellbreaker.cpp` Strike]:
+- Swing shares: sweeps and chop 18.2% each, rebound 13.6%, circle 31.8%.
+- Serrated Links, Momentum, Executioner and Rhythm multiply the swing's damage **on top of** W, ADD and MUL, so they never dilute. Death Mark does the same for tagged enemies.
+- Targets for an undiluted multiplier: a Common about ×1.10 per level, an Epic about ×1.15–1.2 (between a vanilla Epic's ×1.33 mid-run and ×1.1 late).
+
+### Changed
+
+| Item | Was | Now | Why |
+|---|---|---|---|
+| Serrated Links (C WM) | +50% | +10% | Undiluted ×1.5 from a Common; a vanilla Common is ×1.1–1.2 mid-run and less late. |
+| Momentum (E WM) | +15% a step | +8% | +33% average (circle +60%), undiluted. Now +18%. |
+| Executioner (E WM) | +75% | +55% | Swings 3 and 4 are 31.8% of the damage: ×1.24 → ×1.17, undiluted. |
+| Undertow (C perk) | +75% | +300% | The hook hits for 20 every ~6 s, about 4% of Shellbreaker's damage, so +75% was +3%. Now about +13% [G: hook use]. |
+| Venom Barbs (C) / Searing Edge, Static Chain (E) | 3 / 2, 2 | 2 / 3, 3 | Elements by rarity: Common 2, Epic 3, Legendary 4 (Rime Edge 3, Hex Links 4 unchanged). Per-stack worth by element is [G]. |
+| Grappler (L relic) | Legendary | Epic | +1 hook charge is utility, not a Legendary effect. |
+| Soul Siphon (E WM) | 1 soul per enemy hit | 0.25 | 1.25 cracks/s × ~3 enemies ≈ 225 souls a minute, 3–9× arena kill souls (25–90). Now ≈ 56. |
+| Soul Whip | 100 dps | 80 | 4 m area burst at 45 m with no reload, above the Sniper's ~75 single-target and Shellbreaker's 75. |
+| Death Mark (E WM) | +10% | +15% | Undiluted, tag is near-universal: ×1.10 was under an Epic. |
+| Underdog (E perk) | 0.5 | 1 | ~30% health missing [G] gave +15% ADD, ×1.09 mid-run: Common-sized. |
+| Untouchable (E perk) | 1%/s, max 20 | 2%/s, max 40 | At full uptime +20% ADD is ×1.12, under a Common's Danger Close. |
+| Martyr (E relic) | drops solo | never solo | It needs a reviver. |
+
+### Checked, left as is
+
+| Item | Flag | Verdict |
+|---|---|---|
+| Army of the Dead (L) | too strong | Already Legendary and weighted by rank (0.14). A medium army of 20 is +80% ADD per level ≈ ×1.4 mid-run: Legendary. |
+| Twin Rising (E) | too strong | Already Epic. +15% undead per raise. |
+| Recharge (E) | too strong | 0.1 s per kill: at 2 kills/s the cooldown runs 20% faster per level. Fine. |
+| Overflow (E) | too strong | Already island-only (0.14). Vampire 15 at full health is ~0.43% per kill, under Tasty Orange's 1%. |
+| Hoarder (L) | too strong | 3% per weapon-mod and perk level is two Collectors in one slot. Grows with levels like Collector. Legendary. Measure loops. |
+| Arsenal (E) | too weak | Collector's exact rate (3% per level) for weapon mods. Weak early, strong once slots fill. In line. |
+| Community Support (E) | too strong | Never drops solo since 0.14. Each holder adds one Rapid Fire to everyone in range. |
+| Cursed Lottery (G) | too strong | Already scales by island and turns off Money Is Power (0.14). Needs crystal income [G]. |
+| Purist (E relic) | too weak | Already +100% ADD (0.14) while one element: ×1.5 mid-run, with a real build constraint. |
+| Greed Is Power (G) | too weak | +3% per Greed perk level is small in normal runs; it was lowered from 5% on purpose (Greed Run). Left. |
+| Backlash (L) | too strong | +60% of 54.6% of the damage, only on enemies behind you: ~+16% [G]. A new hit area. Measure. |
+| Hex Links (L) | too strong | 4 arcane fits Legendary in the new element tiers. |
+| Rime Edge (E) | wrong rarity | 3 ice fits Epic in the new element tiers. |
+| Backpack, Bandolier, Reliquary (L charms) | too weak | Charms don't take relic slots, and those slots fill by the end of a run, so +5 slots matters most in loops. Legendary. |
+| Tool Belt, Scabbard (L charms) | too weak | Depends on whether ability and melee slots (12 each) fill. Unmeasured. |
+| Wild Card (G relic) | too strong | Swaps each item for a random one of any rarity at the same level, so it raises rarity on average and breaks synergies. Untested; play it. |
+| Soul Whip (the rest) | rework | Upkeep, refund, kill credit, owner damage and the roll multiplier were fixed in 0.14. `undeadHealth` 2 stays: undead damage grows 8.5× by I28 while HP grows 37×, so they end up walls, not killers. |
+
+**Unverified:** hook use rate, Riptide uptime, Underdog's average missing health, Backlash's enemies behind, element worth per stack, crystal income, ability and melee slot fill. All for `balanceLog`.
