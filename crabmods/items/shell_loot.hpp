@@ -17,6 +17,13 @@ enum Id {
     Grappler,      // relic: extra hook charges
     KrakensGrasp,  // relic: yanks reach hard and elite enemies too, and drag this many more along
     FrostChain,    // relic: ice stacks from the hook's hit
+    SerratedLinks, // weapon mod: swing damage, percent
+    VenomBarbs,    // weapon mod: poison stacks per swing hit
+    StaticChain,   // weapon mod: lightning stacks per swing hit
+    RimeEdge,      // weapon mod: ice stacks per swing hit
+    HexLinks,      // weapon mod: arcane stacks per swing hit
+    Momentum,      // weapon mod: each swing deeper into the string deals more, percent per swing
+    Backlash,      // weapon mod: each swing also strikes behind the crab, percent of its damage
     kCount
 };
 

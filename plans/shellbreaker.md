@@ -37,7 +37,7 @@ Quick, physics-driven swings that flow into each other. The chain stays at its r
 | 5 | **Overhead circle:** one full loop above your head, hitting all around you | 0.35 s | 35 |
 
 - The full string is 1.1 s. Holding left click loops it; stopping for 0.6 s resets it to swing 1.
-- **The rule: base 100 DPS, whatever you're doing.** Every swing deals **100 × its length in seconds** to each enemy it hits, so whether you land the whole string or keep resetting into sweeps, it's 100 per second on a target. That's the same base every weapon is held to.
+- **The rule: base 75 DPS, whatever you're doing** (was 100; lowered because every swing is area damage, like the Rocket Launcher's 68 or the Arcane Wand's 50). Every swing deals **dps × its length in seconds** to each enemy in its area (4.5 m radius, 22 m out; the circle 24 m all around), through the game's radial damage on the host.
 - **Fire rate** speeds the whole string up (more DPS, same per-hit damage), and **damage** items scale each hit, like any gun.
 - The rebound (4) comes from the rope physics, not a canned animation: the chop's momentum swings the blade back up.
 
@@ -107,7 +107,7 @@ installed, packaged, tagged or released.
 **The string (LMB)**
 - Five physics swings, `swingSeconds` each.
 - Damage per swing is dps × swingSeconds × weight. Weights are 0.91 / 0.91 / 0.91 / 0.68 / 1.59 (the plan's
-  20/20/20/15/35), averaging 1, so the string is 100 DPS.
+  20/20/20/15/35), averaging 1, so the string is the dps.
 - Fire-rate bonuses speed the swings up.
 - The string restarts after a pause longer than a swing + 0.6 s.
 

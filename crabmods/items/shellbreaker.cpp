@@ -1,7 +1,7 @@
 // Shellbreaker: a melee weapon picked in the lobby, a barbed blade on a chain swung from a handle. Left click swings
 // a string of five (right to left, left to right, a chop from top right, the rebound back up, a circle over the
-// head); right click aims the hook and left click throws it. While it's held, the crab's own melee does nothing
-// and melee mods don't drop; Shellbreaker's own loot (shell_loot.cpp) drops instead.
+// head); right click aims the hook and left click throws it. While it's held, the crab's own melee does nothing;
+// the melee mods power the swings instead, and Shellbreaker's own loot (shell_loot.cpp) drops too.
 //
 // Every machine: the weapon's data asset (a copy of the Sniper's with an invisible projectile, as the Soul Whip)
 // is made once under the same name. Its handle is the weapon's mesh; the chain's links and the blade are mesh
@@ -49,7 +49,7 @@ constexpr int Weapon_Interval = 0x2C4;  // float: seconds between shots, 1 / min
 constexpr int kMaxLinks = 120;          // link pieces per weapon; a longer chain stretches them
 constexpr float kDeg = 3.14159265f / 180.f;
 constexpr float kRiptideSeconds = 4.f;
-constexpr uint8_t kIce = 1, kFire = 2;  // ECrabDebuffType
+constexpr uint8_t kIce = 1, kFire = 2, kLightning = 3, kPoison = 4, kArcane = 5;  // ECrabDebuffType
 
 double Now() {
     using namespace std::chrono;
@@ -192,21 +192,26 @@ public:
     std::string DefaultIni() const override {
         return R"(# Shellbreaker: a barbed blade on a chain, picked in the lobby (left of the Soul Whip). Left click swings a
 # string of five (right to left, left to right, a chop, the rebound, a circle over the head); right click aims the
-# hook, left click throws it. Replaces your melee while held; its own weapon mods, perks and relics drop instead
-# of melee mods.
+# hook, left click throws it. Replaces your melee while held. Its own weapon mods, perks and relics drop for its
+# holders, and of the game's weapon mods only those that work for a blade (damage and fire rate).
 enabled = true
 
 # Damage per second over the string, and the average time of a swing in seconds (fire rate bonuses make the
 # swings faster). Each swing takes and deals its share: the sweeps and the chop 0.91 of the average, the rebound
 # 0.68, the circle 1.59 (0.32 / 0.24 / 0.56 s at 0.35).
-dps = 100
+dps = 75
 swingSeconds = 0.35
 
 # Where a swing hits: this far in front of the crab, in a burst of this radius (cm). The circle over the head
-# hits all around, in circleRadius. The Katana's melee hits all around in 1850.
-reach = 700
-hitRadius = 1000
-circleRadius = 1850
+# hits all around, in circleRadius.
+reach = 2200
+hitRadius = 450
+circleRadius = 2400
+
+# The melee mods power the swings (damage, Big Claws' range, the Claws' elements, Vampire) at this share of
+# their worth, and drop this many times as often for Shellbreaker holders.
+meleeModShare = 0.25
+meleeModWeight = 3
 
 # Links in the chain at rest (the blade's distance from the hand).
 chainLinks = 40
@@ -239,6 +244,8 @@ spawnKey = none
     void Set(const std::string& k, const std::string& v) override {
         if (k == "enabled") enabled_ = ParseBool(v);
         else if (k == "dps") dps_ = std::max(0.f, ParseFloat(v));
+        else if (k == "meleeModShare") meleeModShare_ = std::max(0.f, ParseFloat(v));
+        else if (k == "meleeModWeight") meleeModWeight_ = std::max(0.f, ParseFloat(v));
         else if (k == "swingSeconds") swingSeconds_ = std::clamp(ParseFloat(v), 0.05f, 2.f);
         else if (k == "reach") reach_ = std::max(0.f, ParseFloat(v));
         else if (k == "hitRadius") hitRadius_ = std::max(10.f, ParseFloat(v));
@@ -343,15 +350,13 @@ spawnKey = none
         const Swing& sw = kSwings[st.swing];
         Vec3 at{};
         LocationOf(c, at);
-        float s = Scale(c), f = ChainFactor(ps);
-        float wide = 1.f + loot::Total(ps, loot::WideArc) / 100.f;
-        float damage = dps_ * swingSeconds_ * sw.weight;
-        if (st.swing == 2 || st.swing == 3) damage *= 1.f + loot::Total(ps, loot::Executioner) / 100.f;
-        if (sw.over) damage *= 1.f + loot::Total(ps, loot::Rhythm) / 100.f;
-        At<float>(projDA_, off::ProjDA_ExplosionDamage) = damage;
+        float f = ChainFactor(ps);
+        // The shot is only the impact's look, small and harmless: the swing's damage is the host's (Strike), over
+        // the whole area the chain sweeps. A burst the swing's size whited out the screen.
+        At<float>(projDA_, off::ProjDA_ExplosionDamage) = 0.f;
+        At<float>(projDA_, off::ProjDA_ExplosionRadius) = kFxRadius;
         float pitch = 0.f, yaw = AimYaw(c, &pitch);
         if (sw.over) {
-            At<float>(projDA_, off::ProjDA_ExplosionRadius) = circleRadius_ * f * wide * s;
             start = at;
             // Whirlwind: the host drags the enemies around in.
             if (fresh && pc && loot::Level(ps, loot::Whirlwind) > 0) {
@@ -360,11 +365,68 @@ spawnKey = none
                 SendToHost(pc, buf);
             }
         } else {
-            At<float>(projDA_, off::ProjDA_ExplosionRadius) = hitRadius_ * wide * s;
             V3 fw = Dir(yaw, std::clamp(pitch, -30.f, 30.f));
-            start = ToVec(Of(at) + fw * (reach_ * f * s));
+            start = ToVec(Of(at) + fw * (reach_ * f));
             dir = ToVec(fw);
         }
+        if (fresh && pc) {
+            wchar_t buf[96];
+            swprintf(buf, std::size(buf), L"%lsswing %d %.0f %.0f %.0f", kMsg, st.swing, start.x, start.y, start.z);
+            SendToHost(pc, buf);
+        }
+    }
+
+    // A swing's hit (host): everything in its area takes its share of the string's damage, as the player, through
+    // the game's radial damage, as a melee hit (what breaks shields and the things a claw breaks; damage perks,
+    // crits and kills apply there). Weapon mods' damage is applied here, as the game does for a projectile, and the
+    // melee mods count at meleeModShare of their worth: their damage and range, and their elements and Vampire's
+    // tag (as the game fills a melee hit). The area's centre is the shooter's word, kept within the swing's reach.
+    void Strike(void* c, void* ps, int swing, V3 center) {
+        if (swing < 0 || swing >= kSwingCount) return;
+        const auto& sw = kSwings[swing];
+        Vec3 at{};
+        if (!LocationOf(c, at)) return;
+        auto share = [&](uintptr_t fn) { return 1.f + (Fn<float (*)(void*)>(fn)(c) - 1.f) * meleeModShare_; };
+        float f = ChainFactor(ps), wide = (1.f + loot::Total(ps, loot::WideArc) / 100.f) *
+                                          share(va::ACrabPlayerC_MeleeRangeMult);
+        V3 from = Of(at), d = center - from;
+        float l = shell::Length(d), most = sw.over ? 0.f : reach_ * f;
+        if (l > most + 1.f) center = most > 0.f && l > 0.f ? from + d * (most / l) : from;
+        float damage = dps_ * swingSeconds_ * sw.weight;
+        damage *= 1.f + loot::Total(ps, loot::SerratedLinks) / 100.f;
+        damage *= 1.f + loot::Total(ps, loot::Momentum) * float(swing) / 100.f;
+        if (swing == 2 || swing == 3) damage *= 1.f + loot::Total(ps, loot::Executioner) / 100.f;
+        if (sw.over) damage *= 1.f + loot::Total(ps, loot::Rhythm) / 100.f;
+        damage *= Fn<float (*)(void*)>(va::ACrabPS_WeaponModDamage)(ps);
+        damage *= share(va::ACrabPlayerC_MeleeDamageMult);
+        float radius = (sw.over ? circleRadius_ * f : hitRadius_) * wide;
+        alignas(8) uint8_t info[off::DamageInfo_Size];
+        std::memset(info, 0, sizeof info);
+        At<uint8_t>(info, off::DamageInfo_Type) = 3;  // Melee
+        At<void*>(info, off::DamageInfo_DamagingC) = c;
+        Fn<void (*)(void*, void*)>(va::ACrabPlayerC_FillMeleeInfo)(c, info);
+        AddDebuff(info, kFire, int(std::lround(loot::Total(ps, loot::SearingEdge))));
+        AddDebuff(info, kPoison, int(std::lround(loot::Total(ps, loot::VenomBarbs))));
+        AddDebuff(info, kLightning, int(std::lround(loot::Total(ps, loot::StaticChain))));
+        AddDebuff(info, kIce, int(std::lround(loot::Total(ps, loot::RimeEdge))));
+        AddDebuff(info, kArcane, int(std::lround(loot::Total(ps, loot::HexLinks))));
+        auto hit = [&](V3 p, float dmg) {
+            Vec3 where = ToVec(p);
+            At<float>(info, off::DamageInfo_Damage) = dmg;
+            At<Vec3>(info, off::DamageInfo_Location) = where;
+            TArray<void*> ignore{};  // passed by value: the game frees it, so it stays empty
+            Fn<void (*)(void*, TArray<void*>*, const Vec3*, float, const void*, bool, void*)>(va::RadialDamage)(
+                c, &ignore, &where, radius, info, false, nullptr);
+        };
+        hit(center, damage);
+        // Backlash: the sweeps and the chop strike as far behind the crab too.
+        if (float back = loot::Total(ps, loot::Backlash) / 100.f; back > 0.f && !sw.over)
+            hit(from - (center - from), damage * back);
+        auto free = [&](int o) {
+            if (void* p = At<TArray<uint8_t>>(info, o).Data) Fn<void (*)(void*)>(va::FMemory_Free)(p);
+        };
+        free(off::DamageInfo_Debuffs);
+        free(off::DamageInfo_Tags);
     }
 
     // --- Host ---------------------------------------------------------------------------------------------------
@@ -373,12 +435,6 @@ spawnKey = none
         auto it = riptide_.find(ps);
         if (it == riptide_.end() || Now() - it->second > kRiptideSeconds) return 0.f;
         return loot::Total(ps, loot::Riptide) / 100.f;
-    }
-
-    // Searing Edge: the swings' bursts (the only hits of type 0/1 a holder's weapon makes) set enemies on fire.
-    void OnOutgoingDamage(void* ps, void* info) override {
-        if (!Holds(ps) || At<uint8_t>(info, off::DamageInfo_Type) > 1) return;
-        AddDebuff(info, kFire, int(std::lround(loot::Total(ps, loot::SearingEdge))));
     }
 
     bool OnHostMessage(void* pc, const std::wstring& text) override {
@@ -394,6 +450,7 @@ spawnKey = none
         else if (std::wcscmp(s, L"back") == 0) Relay(pc, ps, false, {});
         else if (swscanf(s, L"land %d %f %f %f", &k, &a.x, &a.y, &a.z) == 4) Land(c, ps, k, Of(a));
         else if (swscanf(s, L"gather %f %f %f", &a.x, &a.y, &a.z) == 3) Gather(c, ps, Of(a));
+        else if (swscanf(s, L"swing %d %f %f %f", &k, &a.x, &a.y, &a.z) == 4) Strike(c, ps, k, Of(a));
         else if (swscanf(s, L"launch %f %f %f", &a.x, &a.y, &a.z) == 3) {
             V3 v = Of(a);
             float l = shell::Length(v);
@@ -517,8 +574,8 @@ private:
         if (!weapon_ || !projDA_) return;
         At<float>(weapon_, off::WeaponDA_BaseFireRate) = 1.f / swingSeconds_;
         At<float>(weapon_, off::WeaponDA_ModTriggerRollMultiplier) = procRoll_;
-        At<float>(projDA_, off::ProjDA_ExplosionDamage) = dps_ * swingSeconds_;  // the swing's only damage
-        At<float>(projDA_, off::ProjDA_ExplosionRadius) = hitRadius_;
+        At<float>(projDA_, off::ProjDA_ExplosionDamage) = 0.f;  // the look only: Strike deals the damage
+        At<float>(projDA_, off::ProjDA_ExplosionRadius) = kFxRadius;
     }
 
     void EnsureArt() {
@@ -1640,11 +1697,22 @@ private:
         oMeleePressed(c);
     }
 
-    // Melee mods do nothing while it's held: they don't drop for its holders.
+    // For its holders: melee mods (which power the swings) drop meleeModWeight times as often, and of the game's
+    // weapon mods only those that work for a chain blade drop (kBladeMods); the bullets' own (formations, ammo,
+    // shots' paths, on-impact spawns and procs) don't.
     float LootWeight(void* ps, void* da) override {
-        if (!da || !Holds(ps)) return 1.f;
-        return IsA(da, StaticClass(va::UCrabMeleeModDA_StaticClass)) ? 0.f : 1.f;
+        if (!da || !Holds(ps) || loot::IsShellItem(da)) return 1.f;
+        if (IsA(da, StaticClass(va::UCrabMeleeModDA_StaticClass))) return meleeModWeight_;
+        if (!IsA(da, StaticClass(va::UCrabWeaponModDA_StaticClass))) return 1.f;
+        uint8_t type = At<uint8_t>(da, off::DA_ItemType);
+        for (uint8_t t : kBladeMods)
+            if (t == type) return 1.f;
+        return 0.f;
     }
+    // ECrabWeaponModType: plain damage (the weapon-mod damage the swings take), fire rate (the swings' speed).
+    static constexpr uint8_t kBladeMods[] = {15 /*WindUp*/, 18 /*AerialShot*/, 29 /*Uppercut*/, 31 /*HeavyHitter*/,
+                                             32 /*RapidFire*/, 33 /*EscalatingShot*/, 54 /*DamageShot*/,
+                                             55 /*Supercharged*/, 56 /*Juiced*/};
 
     using MeleePressedFn = void (*)(void*);
     static inline MeleePressedFn oMeleePressed;
@@ -1654,7 +1722,9 @@ private:
 
     // Settings
     bool enabled_ = true;
-    float dps_ = 100.f, swingSeconds_ = 0.35f, reach_ = 700.f, hitRadius_ = 1000.f, circleRadius_ = 1850.f;
+    static constexpr float kFxRadius = 150.f;  // the swing shot's burst: the impact's look only
+    float meleeModShare_ = 0.25f, meleeModWeight_ = 3.f;
+    float dps_ = 75.f, swingSeconds_ = 0.35f, reach_ = 2200.f, hitRadius_ = 450.f, circleRadius_ = 2400.f;
     int chainLinks_ = 40;
     float hookRange_ = 6000.f, hookCooldown_ = 6.f, hookSpeed_ = 10000.f, hookDamage_ = 20.f;
     int yankMax_ = 2;

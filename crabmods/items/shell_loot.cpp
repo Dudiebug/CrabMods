@@ -1,7 +1,7 @@
-// Shellbreaker's loot: 12 pickups (weapon mods, perks, relics) that only drop for players holding Shellbreaker,
+// Shellbreaker's loot: 19 pickups (weapon mods, perks, relics) that only drop for players holding Shellbreaker,
 // from chests of their own loot pool (and any-pool chests). Each is an ordinary new pickup with one number per
 // level in CrabMods.ini; what it does is up to shellbreaker.cpp (shell_loot.hpp). The same pattern as the Soul
-// Whip's (necro_loot.cpp). Type bytes 220-229.
+// Whip's (necro_loot.cpp). Type bytes 220-229, 235-236.
 #include "shell_loot.hpp"
 
 #include "../item.hpp"
@@ -83,6 +83,40 @@ const Def kDefs[] = {
       L"Shellbreaker's hook applies PrimaryBuff ice to what it catches", 222, Relic_FireRing, pool::Elemental, tag::Ice,
       1.f},
      rarity::Epic, "iceStacks", 10.f, "the hook's hit applies ice stacks to the enemy it catches."},
+
+    {shell_loot::SerratedLinks, "serratedLinks",
+     {Kind::WeaponMod, L"DA_WeaponMod_SerratedLinks", L"Serrated Links", L"Swings deal more damage",
+      L"Shellbreaker's swings deal PrimaryBuff% more damage", 225, WeaponMod_StreakShot, pool::Damage, tag::None, 1.f},
+     rarity::Common, "damagePercent", 50.f, "Shellbreaker's swings deal more damage."},
+    {shell_loot::VenomBarbs, "venomBarbs",
+     {Kind::WeaponMod, L"DA_WeaponMod_VenomBarbs", L"Venom Barbs", L"Swings poison enemies",
+      L"Shellbreaker's swings apply PrimaryBuff poison", 226, WeaponMod_StreakShot, pool::Elemental, tag::Poison, 1.f},
+     rarity::Common, "poisonStacks", 3.f, "every enemy a Shellbreaker swing hits gets poison stacks."},
+    {shell_loot::StaticChain, "staticChain",
+     {Kind::WeaponMod, L"DA_WeaponMod_StaticChain", L"Static Chain", L"Swings shock enemies",
+      L"Shellbreaker's swings apply PrimaryBuff lightning", 227, WeaponMod_StreakShot, pool::Elemental,
+      tag::Lightning, 1.f},
+     rarity::Epic, "lightningStacks", 2.f, "every enemy a Shellbreaker swing hits gets lightning stacks."},
+    {shell_loot::RimeEdge, "rimeEdge",
+     {Kind::WeaponMod, L"DA_WeaponMod_RimeEdge", L"Rime Edge", L"Swings freeze enemies",
+      L"Shellbreaker's swings apply PrimaryBuff ice", 228, WeaponMod_StreakShot, pool::Elemental, tag::Ice, 1.f},
+     rarity::Epic, "iceStacks", 3.f, "every enemy a Shellbreaker swing hits gets ice stacks."},
+    {shell_loot::HexLinks, "hexLinks",
+     {Kind::WeaponMod, L"DA_WeaponMod_HexLinks", L"Hex Links", L"Swings curse enemies with arcane",
+      L"Shellbreaker's swings apply PrimaryBuff arcane", 229, WeaponMod_StreakShot, pool::Elemental, tag::Arcane, 1.f},
+     rarity::Legendary, "arcaneStacks", 4.f, "every enemy a Shellbreaker swing hits gets arcane stacks."},
+    {shell_loot::Momentum, "momentum",
+     {Kind::WeaponMod, L"DA_WeaponMod_Momentum", L"Momentum", L"Each swing of the string hits harder",
+      L"Each Shellbreaker swing deals PrimaryBuff% more than the one before it in the string", 235,
+      WeaponMod_StreakShot, pool::Damage, tag::Combo, 1.f},
+     rarity::Epic, "damagePercent", 15.f,
+     "each swing deeper into Shellbreaker's string deals more: the second +1x this, the circle +4x."},
+    {shell_loot::Backlash, "backlash",
+     {Kind::WeaponMod, L"DA_WeaponMod_Backlash", L"Backlash", L"Swings also strike behind you",
+      L"Shellbreaker's swings also strike behind you for PrimaryBuff% of their damage", 236, WeaponMod_StreakShot,
+      pool::Damage, tag::None, 1.f},
+     rarity::Legendary, "damagePercent", 60.f,
+     "each Shellbreaker sweep and chop also strikes as far behind you, for this share of its damage."},
 };
 // clang-format on
 

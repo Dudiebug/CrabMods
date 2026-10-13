@@ -266,6 +266,8 @@ constexpr uintptr_t ACrabPortal_UpdateUI = 0x140cb29f0;
 // for PS.WeaponMods (add rcx, 0x3E0; jmp).
 constexpr uintptr_t InvArr_GetBuff = 0x140d2df60;
 constexpr uintptr_t ACrabPS_GetWeaponModBuff = 0x140d25fb0;
+// float(ACrabPS*): the weapon mods' damage multiplier a projectile's damage takes (ProjMult, proj+0x280).
+constexpr uintptr_t ACrabPS_WeaponModDamage = 0x140d25c30;
 // float(ACrabPS*, uint8 Type), the same for PS.MeleeMods (add rcx, 0x410; jmp). Melee damage is
 // meleeDA.Dmg x (1 + Sharp + Iron + Time) x (1 + Brawler); cooldown x (1 - Blender) (0x140d15abc); range x (1 + Big Claws).
 constexpr uintptr_t ACrabPS_GetMeleeModBuff = 0x140d250c0;
@@ -393,6 +395,12 @@ constexpr uintptr_t ACrabPlayerC_AbilityPressed = 0x140d10c00;
 // void(ACrabPlayerC*): the "Melee" input action on the owning machine: checks the melee cooldown (+0xA28), starts
 // it, lunges (LaunchCharacter, vtable +0x7D8, on this machine) and sends ServerMelee (stub 0x140d7e460).
 constexpr uintptr_t ACrabPlayerC_MeleePressed = 0x140d15980;
+// The melee hit's pieces (AnimNotify_Melee 0x140d0f900). void(ACrabPlayerC*, FCrabDamageInfo*): the melee mods' tags
+// (Vampire: 2) and element stacks (the Claws). float(ACrabPlayerC*): damage, (1 + Sharp + Iron + Time) x (1 + Brawler);
+// range, 1 + Big Claws.
+constexpr uintptr_t ACrabPlayerC_FillMeleeInfo = 0x140d11a70;
+constexpr uintptr_t ACrabPlayerC_MeleeDamageMult = 0x140d14f30;
+constexpr uintptr_t ACrabPlayerC_MeleeRangeMult = 0x140d15000;
 // void(UCrabGI*): builds the lobby's weapon, ability and melee lists from SpawnablesDA (once, guarded by GI+0x248).
 constexpr uintptr_t UCrabGI_BuildLoadoutLists = 0x140cda5c0;
 }  // namespace va

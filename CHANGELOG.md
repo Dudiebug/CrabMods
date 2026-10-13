@@ -4,6 +4,15 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.14.1
+
+- **Shellbreaker hits at range, without the white flash.** The swings now deal their damage as a melee strike where the blade lands: a 4.5 m radius, 22 m in front of you (the circle hits everything within 24 m). Before, damage only landed when you stood on top of an enemy, and each swing's burst whited out the screen. The strike breaks shields and everything a claw breaks.
+- **Shellbreaker does 75 damage a second** (was 100), since every swing now hits an area.
+- **Melee mods power Shellbreaker** at a quarter of their worth: damage, Big Claws' range, the Claws' elements and Vampire. They drop 3x as often while you hold it.
+- **No more bullet weapon mods for Shellbreaker.** Holders only get the game's weapon mods that work for a blade: Wind Up, Aerial Shot, Uppercut, Heavy Hitter, Rapid Fire, Escalating Shot, Damage Shot, Supercharged and Juiced.
+- **7 new Shellbreaker weapon mods:** Serrated Links (+50% damage), Venom Barbs (poison), Static Chain (lightning), Rime Edge (ice), Hex Links (arcane), Momentum (each swing in the string hits harder) and Backlash (sweeps also strike behind you).
+- New settings in `[shellbreaker]`: `meleeModShare` (0.25) and `meleeModWeight` (3). An existing `CrabMods.ini` keeps its old `dps`, `reach`, `hitRadius` and `circleRadius` values; set them to 75, 2200, 450 and 2400 for the new tuning.
+
 ### 0.14.0
 
 - **New weapon: Shellbreaker.** A barbed blade on a chain, on its own pedestal in the lobby (left of the Soul Whip) and in the weapon list. Left click swings a string of five (two sweeps, a chop, the rebound, a circle over the head) that hits as far as the Katana's melee; right click aims a hook that reaches 60 m, yanks small enemies to you, pulls you to big ones and lets you swing from walls and floors. It does 100 damage a second to start, and damage perks, weapon mods and fire rate grow it like any gun. It replaces your melee while you hold it. The crab plays the game's Katana, Hammer and grenade-throw animations with it, and the chain swings with real physics. Settings are in `[shellbreaker]`.
