@@ -14,6 +14,6 @@ None of these went through `plans/balance/WORKFLOW.md` (the new-item skill) befo
 
 Built: asks before installing, change review, opt-in updates, checksums, catalogs, rollback, Remove all, sorting, the Linux AppImage (see the CHANGELOG entry).
 
-- [ ] Upload `CrabMods.catalog.json`, `CrabSync.catalog.json` and `SHA256SUMS.txt` to `crabmods-v0.14.1` and `crabsync-v1.0.8`, so 0.4.0 can list the items of the current releases. `--selftest` says "published" for both once done.
-- [ ] Publish `manager-v0.4.0` with `CrabModsManager.exe` and `SHA256SUMS.txt`; the workflow adds the AppImage.
+- [x] Upload `CrabMods.catalog.json`, `CrabSync.catalog.json` and `SHA256SUMS.txt` to `crabmods-v0.14.1` and `crabsync-v1.0.8`, so 0.4.0 can list the items of the current releases. `--selftest` says "published" for both once done.
+- [x] Publish `manager-v0.4.0` with `CrabModsManager.exe` and `SHA256SUMS.txt`; the workflow adds the AppImage.
 - [ ] Try the AppImage on a Steam Deck: install, the launch option hint, an update while the game runs.
