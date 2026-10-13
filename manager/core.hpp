@@ -258,44 +258,110 @@ private:
 // ---------------------------------------------------------------------------------------------------------
 // Releases
 
-struct Release {
-    std::string tag, version;                   // "crabmods-v0.3.0", "0.3.0"
-    std::map<std::string, std::string> assets;  // file name -> download URL
+struct Asset {
+    std::string name, url;
+    std::string sha256;  // from GitHub's "digest" ("sha256:..."), lowercase hex; "" when GitHub has none
+    uint64_t size = 0;
 };
 
-// The newest published release whose tag starts with `prefix` and that has the file `asset` (older releases only
-// had a zip, and can't be installed from). Drafts and pre-releases are skipped.
-inline std::optional<Release> LatestTagged(const Json& root, const std::string& prefix, const std::string& asset) {
-    std::optional<Release> best;
-    if (root.type != Json::Array) return best;
+struct Release {
+    std::string tag, version;  // "crabmods-v0.3.0", "0.3.0"
+    std::string page;          // the release's page on GitHub ("What's new")
+    std::string notes;         // its text (Markdown)
+    std::map<std::string, Asset> assets;  // by file name
+    bool Has(const std::string& file) const { return assets.count(file) > 0; }
+    const Asset* Get(const std::string& file) const {
+        auto it = assets.find(file);
+        return it == assets.end() ? nullptr : &it->second;
+    }
+};
+
+// Every published release whose tag starts with `prefix`, newest version first. Drafts and pre-releases are
+// skipped.
+inline std::vector<Release> ReleasesTagged(const Json& root, const std::string& prefix) {
+    std::vector<Release> out;
+    if (root.type != Json::Array) return out;
     for (const Json& r : root.items) {
         if (r.type != Json::Object || r.Flag("draft") || r.Flag("prerelease")) continue;
         std::string tag = r.Str("tag_name");
         if (tag.rfind(prefix, 0) != 0) continue;
-        Release rel{tag, tag.substr(prefix.size()), {}};
+        Release rel{tag, tag.substr(prefix.size()), r.Str("html_url"), r.Str("body"), {}};
         if (const Json* assets = r.Get("assets"); assets && assets->type == Json::Array)
-            for (const Json& a : assets->items)
-                if (a.type == Json::Object) rel.assets[a.Str("name")] = a.Str("browser_download_url");
-        if (!rel.assets.count(asset)) continue;
-        if (!best || CompareVersions(rel.version, best->version) > 0) best = rel;
+            for (const Json& a : assets->items) {
+                if (a.type != Json::Object) continue;
+                Asset as{a.Str("name"), a.Str("browser_download_url"), "", 0};
+                std::string d = a.Str("digest");
+                if (d.rfind("sha256:", 0) == 0) as.sha256 = d.substr(7);
+                if (const Json* s = a.Get("size"); s && s->type == Json::Number) as.size = uint64_t(s->num);
+                rel.assets[as.name] = as;
+            }
+        out.push_back(std::move(rel));
     }
-    return best;
+    std::stable_sort(out.begin(), out.end(),
+                     [](const Release& a, const Release& b) { return CompareVersions(a.version, b.version) > 0; });
+    return out;
 }
 
 inline constexpr const char kManagerTag[] = "manager-v";
 inline constexpr const char kManagerExe[] = "CrabModsManager.exe";
+inline constexpr const char kManagerAppImage[] = "CrabModsManager-x86_64.AppImage";
 
-// The newest release of each mod in a GitHub /releases response, keyed by mod name, and of the manager itself
-// under "Manager".
-inline std::map<std::string, Release> LatestReleases(const std::string& json) {
-    std::map<std::string, Release> latest;
+// The releases of each mod (keyed by mod name) and of the manager ("Manager"), newest first, from a GitHub
+// /releases response.
+struct ReleaseList {
+    std::map<std::string, std::vector<Release>> all;
+    bool ok = false;  // the response was a release list
+
+    // The newest release of `name` that has the file `asset` (older releases only had a zip, and can't be
+    // installed from).
+    const Release* Latest(const std::string& name, const std::string& asset) const {
+        auto it = all.find(name);
+        if (it != all.end())
+            for (const Release& r : it->second)
+                if (r.Has(asset)) return &r;
+        return nullptr;
+    }
+    const Release* Version(const std::string& name, const std::string& version) const {
+        auto it = all.find(name);
+        if (it != all.end())
+            for (const Release& r : it->second)
+                if (CompareVersions(r.version, version) == 0) return &r;
+        return nullptr;
+    }
+    // The newest release before `version` that has `asset`: what "Roll back" installs.
+    const Release* Before(const std::string& name, const std::string& version, const std::string& asset) const {
+        auto it = all.find(name);
+        if (it != all.end())
+            for (const Release& r : it->second)
+                if (CompareVersions(r.version, version) < 0 && r.Has(asset)) return &r;
+        return nullptr;
+    }
+};
+
+inline ReleaseList ParseReleases(const std::string& json) {
+    ReleaseList list;
     auto root = JsonParser(json).Parse();
-    if (!root) return latest;
+    if (!root || root->type != Json::Array) return list;
+    list.ok = true;
+    for (const ModInfo& m : Mods()) list.all[m.name] = ReleasesTagged(*root, m.tagPrefix);
+    list.all["Manager"] = ReleasesTagged(*root, kManagerTag);
+    return list;
+}
+
+// The newest release of each mod, keyed by mod name, and of the manager itself under "Manager" (the one with
+// `managerAsset`, the exe on Windows and the AppImage on Linux).
+inline std::map<std::string, Release> LatestReleases(const std::string& json, const std::string& managerAsset = kManagerExe) {
+    std::map<std::string, Release> latest;
+    ReleaseList list = ParseReleases(json);
     for (const ModInfo& m : Mods())
-        if (auto r = LatestTagged(*root, m.tagPrefix, m.dll)) latest[m.name] = *r;
-    if (auto r = LatestTagged(*root, kManagerTag, kManagerExe)) latest["Manager"] = *r;
+        if (const Release* r = list.Latest(m.name, m.dll)) latest[m.name] = *r;
+    if (const Release* r = list.Latest("Manager", managerAsset)) latest["Manager"] = *r;
     return latest;
 }
+
+// The catalog file each mod release carries: the mod's items and default settings, as JSON (made from the DLL when
+// it is built, so the manager never has to load a mod to read them).
+inline std::string CatalogAsset(const ModInfo& m) { return std::string(m.name) + ".catalog.json"; }
 
 // ---------------------------------------------------------------------------------------------------------
 // Ini text
@@ -674,6 +740,28 @@ inline std::optional<Catalog> ParseCatalog(const std::string& json) {
         c.items.push_back(std::move(it));
     }
     return c;
+}
+
+// CrabSync's catalog file: {"ini": "<its default CrabSync.ini>"}.
+inline std::optional<std::string> ParseSyncCatalog(const std::string& json) {
+    auto root = JsonParser(json).Parse();
+    if (!root || root->type != Json::Object || !root->Get("ini")) return std::nullopt;
+    return root->Str("ini");
+}
+
+inline std::string JsonString(const std::string& s) {
+    static const char hex[] = "0123456789abcdef";
+    std::string r = "\"";
+    for (unsigned char c : s) {
+        if (c == '"') r += "\\\"";
+        else if (c == '\\') r += "\\\\";
+        else if (c == '\n') r += "\\n";
+        else if (c == '\r') r += "\\r";
+        else if (c == '\t') r += "\\t";
+        else if (c < 0x20) r += std::string("\\u00") + hex[c >> 4] + hex[c & 15];
+        else r += char(c);
+    }
+    return r + "\"";
 }
 
 inline CatalogItem CrabSyncItem(const std::string& defaultIni) {
@@ -1143,6 +1231,317 @@ inline std::string StoreZip(const std::vector<std::pair<std::string, std::string
     u32(out, 0x06054b50), u16(out, 0), u16(out, 0);
     u16(out, uint32_t(files.size())), u16(out, uint32_t(files.size()));
     u32(out, uint32_t(central.size())), u32(out, at), u16(out, 0);
+    return out;
+}
+
+// An RGB .png of RGBA pixels (stored, not compressed), for --screenshot.
+inline std::string Png(int w, int h, const std::vector<uint8_t>& rgba) {
+    auto be32 = [](std::string& o, uint32_t v) {
+        for (int s = 24; s >= 0; s -= 8) o += char((v >> s) & 0xFF);
+    };
+    std::string raw;
+    for (int y = 0; y < h; y++) {
+        raw += '\0';
+        for (int x = 0; x < w; x++) raw.append(reinterpret_cast<const char*>(&rgba[(size_t(y) * w + x) * 4]), 3);
+    }
+    std::string z = "\x78\x01";  // zlib, stored blocks
+    for (size_t i = 0; i < raw.size(); i += 65535) {
+        size_t n = std::min<size_t>(65535, raw.size() - i);
+        z += char(i + n == raw.size());
+        z += char(n & 0xFF), z += char(n >> 8), z += char(~n & 0xFF), z += char((~n >> 8) & 0xFF);
+        z.append(raw, i, n);
+    }
+    uint32_t a = 1, b = 0;
+    for (unsigned char c : raw) a = (a + c) % 65521, b = (b + a) % 65521;
+    be32(z, b << 16 | a);
+    std::string png = "\x89PNG\r\n\x1a\n";
+    auto chunk = [&](const char* type, const std::string& data) {
+        be32(png, uint32_t(data.size()));
+        std::string body = std::string(type, 4) + data;
+        png += body;
+        be32(png, Crc32(body));
+    };
+    std::string ihdr;
+    be32(ihdr, w), be32(ihdr, h);
+    ihdr += std::string("\x08\x02\x00\x00\x00", 5);
+    chunk("IHDR", ihdr);
+    chunk("IDAT", z);
+    chunk("IEND", "");
+    return png;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Steam's launch options. On Linux the game needs WINEDLLOVERRIDES in them to load the mod loader; they are in
+// Steam's userdata/<id>/config/localconfig.vdf, in the game's own "774801" { ... "LaunchOptions" "..." } block.
+
+inline bool LaunchOptionInVdf(const std::string& vdf) {
+    std::string id = std::string("\"") + kAppId + "\"";
+    for (size_t i = vdf.find(id); i != std::string::npos; i = vdf.find(id, i + 1)) {
+        size_t open = vdf.find('{', i), next = vdf.find('"', i + id.size());
+        if (open == std::string::npos || (next != std::string::npos && next < open)) continue;
+        int depth = 0;
+        size_t end = open;
+        for (; end < vdf.size(); end++) {
+            if (vdf[end] == '{') depth++;
+            if (vdf[end] == '}' && --depth == 0) break;
+        }
+        std::string block = vdf.substr(open, end - open);
+        size_t lo = block.find("\"LaunchOptions\"");
+        if (lo != std::string::npos && block.find("xinput1_3", lo) != std::string::npos) return true;
+    }
+    return false;
+}
+
+inline constexpr const char kLaunchOption[] = "WINEDLLOVERRIDES=\"xinput1_3=n,b\" %command%";
+
+// ---------------------------------------------------------------------------------------------------------
+// The manager's own settings, CrabModsManager.ini
+
+struct Config {
+    std::string game;             // the game's Win64 folder (UTF-8)
+    std::string lastCrash;        // the crash folder last reported (or seen), so each crash is offered once
+    bool setupDone = false;       // the first-run screen is done (or a manager before 0.4 was already used)
+    std::optional<bool> autoMods;     // install mod updates without asking; unset until the player answers
+    std::optional<bool> autoManager;  // update the manager itself without asking
+    bool linuxHintDone = false;   // "I've set the launch option"
+    int checkMinutes = 5;         // how often to look for updates; 0: never on its own
+    bool offline = false;         // no network at all, except "Check now"
+    std::map<std::string, std::string> skip;  // "CrabMods" -> a version the player skipped
+    std::string lastRun;          // the manager version that ran last, to say "updated to ..." once
+};
+
+inline std::string ConfigText(const Config& c) {
+    auto b = [](bool v) { return v ? "true" : "false"; };
+    auto ob = [&](const std::optional<bool>& v) { return v ? b(*v) : "ask"; };
+    std::string t = "# CrabMods Manager settings\n";
+    t += "game=" + c.game + "\n";
+    t += "lastCrash=" + c.lastCrash + "\n";
+    t += std::string("setupDone=") + b(c.setupDone) + "\n";
+    t += std::string("autoUpdateMods=") + ob(c.autoMods) + "\n";
+    t += std::string("autoUpdateManager=") + ob(c.autoManager) + "\n";
+    t += std::string("askedUpdates=") + b(c.autoMods.has_value() && c.autoManager.has_value()) + "\n";
+    t += std::string("linuxHintDone=") + b(c.linuxHintDone) + "\n";
+    t += "# minutes between update checks (0: only when you press Check now)\n";
+    t += "checkMinutes=" + std::to_string(c.checkMinutes) + "\n";
+    t += std::string("offline=") + b(c.offline) + "\n";
+    for (auto& [mod, v] : c.skip)
+        if (!v.empty()) t += "skip." + mod + "=" + v + "\n";
+    t += "lastRun=" + c.lastRun + "\n";
+    return t;
+}
+
+// Reads the ini, including one written by manager 0.3 (which always wrote both auto-update keys, so it has no
+// "askedUpdates": its player is asked once).
+inline Config ParseConfig(const std::string& text) {
+    Config c;
+    IniValues all = ReadIni(text);
+    auto& v = all[""];
+    auto flag = [&](const char* k, bool def) { return v.count(k) ? v[k] == "true" : def; };
+    c.game = v["game"];
+    c.lastCrash = v["lastCrash"];
+    c.setupDone = flag("setupDone", !c.game.empty());  // a manager from before 0.3 was already used
+    if (flag("askedUpdates", false)) {
+        for (auto [key, out] : {std::pair{"autoUpdateMods", &c.autoMods}, std::pair{"autoUpdateManager", &c.autoManager}})
+            if (v.count(key) && v[key] != "ask") *out = v[key] == "true";
+    }
+    c.linuxHintDone = flag("linuxHintDone", false);
+    if (v.count("checkMinutes") && IsNumber(v["checkMinutes"])) c.checkMinutes = std::max(0, std::atoi(v["checkMinutes"].c_str()));
+    c.offline = flag("offline", false);
+    for (auto& [k, val] : v)
+        if (k.rfind("skip.", 0) == 0 && !val.empty()) c.skip[k.substr(5)] = val;
+    c.lastRun = v["lastRun"];
+    return c;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Updates: what to do about a newer release
+
+enum class UpdateAction {
+    None,    // up to date, not installed, or this version was skipped
+    Banner,  // tell the player and let them choose
+    Auto,    // the player said to install updates without asking
+};
+
+inline UpdateAction DecideUpdate(const std::string& installed, const std::string& latest, const std::optional<bool>& autoOn,
+                                 const std::string& skipped) {
+    if (installed.empty() || latest.empty()) return UpdateAction::None;
+    if (installed != "?" && CompareVersions(installed, latest) >= 0) return UpdateAction::None;
+    if (!skipped.empty() && CompareVersions(skipped, latest) == 0) return UpdateAction::None;
+    return autoOn.value_or(false) ? UpdateAction::Auto : UpdateAction::Banner;
+}
+
+// An HTTP answer, as the platform layer returns it.
+struct HttpResponse {
+    int status = 0;        // 0: no connection
+    std::string body, etag, error;
+    int64_t rateRemaining = -1;  // X-RateLimit-Remaining, -1 when not sent
+    int64_t rateReset = 0;       // X-RateLimit-Reset, unix seconds
+};
+
+// When to ask GitHub for the release list again. Unchanged lists come back as 304 (they don't count against
+// GitHub's 60 requests an hour); a used-up limit waits for its reset, failures back off up to an hour.
+struct Poller {
+    int64_t next = 0;  // unix seconds
+    int failures = 0;
+
+    bool Due(int64_t now, int minutes) const { return minutes > 0 && now >= next; }
+
+    void Done(int64_t now, int minutes, const HttpResponse& r) {
+        int64_t every = int64_t(std::max(1, minutes)) * 60;
+        if (r.status == 200 || r.status == 304) {
+            failures = 0;
+            next = now + every;
+        } else if ((r.status == 403 || r.status == 429) && r.rateRemaining == 0 && r.rateReset > now) {
+            failures = 0;
+            next = std::max(now + every, r.rateReset + 5);
+        } else {
+            failures = std::min(failures + 1, 8);
+            next = now + std::min<int64_t>(3600, every << (failures - 1));
+        }
+    }
+};
+
+// What a check found, from a response and the cached list.
+struct CheckResult {
+    bool changed = false;   // a new list to act on
+    bool failed = false;
+    std::string body, etag;  // the list to keep (the cached one on 304)
+    std::string error;
+};
+
+inline CheckResult ReadCheck(const HttpResponse& r, const std::string& cachedBody, const std::string& cachedEtag) {
+    CheckResult c;
+    if (r.status == 304 && !cachedBody.empty()) {
+        c.body = cachedBody;
+        c.etag = cachedEtag;
+        return c;
+    }
+    if (r.status == 200 && ParseReleases(r.body).ok) {
+        c.changed = r.body != cachedBody;
+        c.body = r.body;
+        c.etag = r.etag;
+        return c;
+    }
+    c.failed = true;
+    c.body = cachedBody;
+    c.etag = cachedEtag;
+    if (r.status == 0) c.error = r.error.empty() ? "no connection" : r.error;
+    else if ((r.status == 403 || r.status == 429) && r.rateRemaining == 0) c.error = "GitHub's hourly limit is used up; trying again later";
+    else if (r.status == 200) c.error = "GitHub sent something that isn't a release list";
+    else c.error = "GitHub answered " + std::to_string(r.status);
+    return c;
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The mods list: "New" items, and sorting
+
+// state/seen.json: item section -> the CrabMods version it first appeared in ("" for items there when the
+// manager first ran, which are not new).
+using Seen = std::map<std::string, std::string>;
+
+inline Seen ParseSeen(const std::string& json) {
+    Seen s;
+    auto root = JsonParser(json).Parse();
+    if (root && root->type == Json::Object)
+        for (auto& [k, v] : root->fields)
+            if (v.type == Json::String) s[k] = v.str;
+    return s;
+}
+
+inline std::string SeenJson(const Seen& s) {
+    std::string r = "{";
+    for (auto& [k, v] : s) r += (r.size() > 1 ? ",\n " : "\n ") + JsonString(k) + ": " + JsonString(v);
+    return r + "\n}\n";
+}
+
+// Notes the items of a catalog of `version`. True when something was added.
+inline bool NoteSeen(Seen& s, const Catalog& cat, const std::string& version, bool firstRun) {
+    bool added = false;
+    for (const CatalogItem& it : cat.items)
+        if (!s.count(it.section)) {
+            s[it.section] = firstRun ? "" : version;
+            added = true;
+        }
+    return added;
+}
+
+inline bool IsNew(const Seen& s, const std::string& section, const std::string& version) {
+    auto it = s.find(section);
+    return it != s.end() && !it->second.empty() && !version.empty() && CompareVersions(it->second, version) == 0;
+}
+
+struct Entry {
+    std::string id, name, kind, rarity, about;
+    bool installed = false;
+    const CatalogItem* item = nullptr;  // nullptr for CrabMods and CrabSync themselves
+    std::string since;                  // the version it first appeared in ("" if always there)
+    bool isNew = false;
+};
+
+enum class SortBy { Type, Name, Rarity, Installed, Newest };
+inline const char* const kSortNames[] = {"Type", "Name", "Rarity", "Installed first", "Newest"};
+inline const char* const kKinds[] = {"Perk",      "Relic",  "Weapon", "Weapon mod", "Ability mod", "Melee mod",
+                                     "Game mode", "Island", "Tweak"};
+
+inline int KindRank(const std::string& k) {
+    return int(std::find(std::begin(kKinds), std::end(kKinds), k) - std::begin(kKinds));
+}
+inline int RarityRank(const std::string& r) {
+    static const char* const order[] = {"common", "epic", "legendary", "greed"};
+    return int(std::find(std::begin(order), std::end(order), r) - std::begin(order));
+}
+
+// Sorts everything after the first `pinned` entries (CrabMods and CrabSync stay on top). Ties fall back to type,
+// then name.
+inline void SortEntries(std::vector<Entry>& e, SortBy by, bool descending, size_t pinned = 2) {
+    if (e.size() <= pinned) return;
+    auto key = [&](const Entry& a, const Entry& b) -> int {  // <0: a first
+        auto cmp = [](auto x, auto y) { return x < y ? -1 : x > y ? 1 : 0; };
+        switch (by) {
+        case SortBy::Type: return cmp(KindRank(a.kind), KindRank(b.kind));
+        case SortBy::Name: return cmp(a.name, b.name);
+        case SortBy::Rarity: return cmp(RarityRank(a.rarity), RarityRank(b.rarity));
+        case SortBy::Installed: return cmp(!a.installed, !b.installed);
+        case SortBy::Newest: {
+            int c = CompareVersions(a.since, b.since);
+            return c ? -c : 0;  // newest first
+        }
+        }
+        return 0;
+    };
+    std::stable_sort(e.begin() + pinned, e.end(), [&](const Entry& a, const Entry& b) {
+        int k = key(a, b);
+        if (k) return descending ? k > 0 : k < 0;
+        if (KindRank(a.kind) != KindRank(b.kind)) return KindRank(a.kind) < KindRank(b.kind);
+        return a.name < b.name;
+    });
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// What a settings change does, in words: "Hoarder: damage percent 5 → 7", "Martyr: off". `compact` is merged into
+// the file whose values are `now`; `names` turns a section into an item name.
+inline std::vector<std::string> DescribeSettings(const IniValues& now, const std::string& compact,
+                                                 const std::map<std::string, std::string>& names,
+                                                 const std::map<std::string, std::map<std::string, std::string>>& defaults = {}) {
+    std::vector<std::string> out;
+    for (auto& [section, keys] : ReadIni(compact)) {
+        auto n = names.find(section);
+        std::string who = n != names.end() ? n->second : section.empty() ? "" : section;
+        for (auto& [k, v] : keys) {
+            std::string old;
+            auto s = now.find(section);
+            if (s != now.end())
+                if (auto kv = s->second.find(k); kv != s->second.end()) old = kv->second;
+            if (old.empty())
+                if (auto d = defaults.find(section); d != defaults.end())
+                    if (auto kv = d->second.find(k); kv != d->second.end()) old = kv->second;
+            if (k == "enabled" && old.empty()) old = "true";
+            if (old == v) continue;
+            std::string prefix = who.empty() ? "" : who + ": ";
+            if (k == "enabled") out.push_back(prefix + (v == "true" ? "turned on" : "turned off"));
+            else out.push_back(prefix + k + " " + (old.empty() ? "(default)" : old) + " \xE2\x86\x92 " + v);
+        }
+    }
     return out;
 }
 
