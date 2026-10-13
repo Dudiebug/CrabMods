@@ -323,7 +323,7 @@ struct WantFile {
 // Puts `w` into the plan: nothing when the same file is there already (recorded as the manager's), a replacement
 // (backing up a file that isn't the manager's), or an addition.
 inline void PlanAdd(ChangePlan& plan, const fs::path& game, const InstallRecord& rec, const WantFile& w) {
-    FileChange c{FileChange::Add, w.name, w.mod, w.version, w.sha256, w.source, w.url, w.size};
+    FileChange c{FileChange::Add, w.name, w.mod, w.version, w.sha256, w.source, w.url, w.size, false, ""};
     fs::path at = game / w.name;
     if (Exists(at)) {
         std::string cur = FileSha(at);
@@ -338,7 +338,9 @@ inline void PlanRemove(ChangePlan& plan, const fs::path& game, const InstallReco
     const RecordEntry* e = rec.Find(name);
     fs::path at = game / name;
     if (!Exists(at) && !e) return;
-    FileChange c{FileChange::Remove, name};
+    FileChange c;
+    c.op = FileChange::Remove;
+    c.name = name;
     if (e) c.mod = e->mod, c.version = e->version, c.restore = e->backup;
     if (Exists(at)) c.backup = !rec.Owns(name, FileSha(at));
     plan.files.push_back(c);
