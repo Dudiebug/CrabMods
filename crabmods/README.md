@@ -173,9 +173,9 @@ By hand:
    WINEDLLOVERRIDES="xinput1_3=n,b" %command%
    ```
 
-`CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch. When an update adds items, their sections are added to the end of your `CrabMods.ini`; your own values are kept.
+`CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch. When an update adds items, their sections are added to the end of your `CrabMods.ini`. When an update changes a default, every setting you left at the old default moves to the new one. Settings you changed are kept. The file as it was before is saved as `CrabMods.old.ini`, and `CrabMods.log` lists what moved. `CrabMods.defaults.ini` is how CrabMods remembers which defaults your file has; leave it alone.
 
-To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xinput1_3.dll` if no other mod uses it).
+To uninstall, delete `CrabMods.dll` and the `CrabMods.*` files beside it (`.ini`, `.log`, `.defaults.ini`, `.old.ini`) (and `xinput1_3.dll` if no other mod uses it).
 
 ### Parkour maps
 
@@ -356,7 +356,7 @@ The effects:
 See [Building](../README.md#building) in the main README. The code is in `crabmods/`:
 - `main.cpp`: the hooks, which pass each game event to every item.
 - `item.hpp`: the item base classes; `items/*.cpp`: one file per item.
-- `world.hpp`: reading players, inventories and health; `config.hpp`: `CrabMods.ini`.
+- `world.hpp`: reading players, inventories and health; `config.hpp`: `CrabMods.ini`; `ini_defaults.hpp`: moving it to new defaults.
 
 ## License
 

@@ -535,7 +535,7 @@ void RemoveAll() {
     for (const ModInfo& m : Mods()) {
         std::string dll = m.dll, base = dll.substr(0, dll.size() - 4);
         std::vector<std::string> extra = {dll + ".disabled"};
-        if (g_removeSettingsToo) extra.insert(extra.end(), {m.ini, base + ".log"});
+        if (g_removeSettingsToo) extra.insert(extra.end(), {m.ini, base + ".log", base + ".defaults.ini", base + ".old.ini"});
         for (const std::string& f : extra)
             if (Exists(g_game / f)) a.plan.deletes.push_back(f);
     }

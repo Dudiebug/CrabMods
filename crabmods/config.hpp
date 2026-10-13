@@ -1,5 +1,6 @@
 // CrabMods.ini: [section] headers, key=value lines, '#' or ';' comments. Each item reads its own [section];
-// missing keys keep their defaults. Sections for items added in an update are appended to an existing file.
+// missing keys keep their defaults. Sections for items added in an update are appended to an existing file, and
+// settings still at a default that an update changed take the new default (ini_defaults.hpp).
 #pragma once
 #include <algorithm>
 #include <fstream>
@@ -7,6 +8,8 @@
 #include <sstream>
 #include <string>
 
+#include "defaults_0_14_1.hpp"
+#include "ini_defaults.hpp"
 #include "item.hpp"
 
 namespace crabmods {
@@ -14,11 +17,6 @@ namespace crabmods {
 inline constexpr const char kIniHeader[] = R"(# CrabMods: new items for Crab Champions.
 # Every player needs CrabMods installed. In multiplayer the host's settings are used by everyone.
 )";
-
-inline std::string Trim(const std::string& s) {
-    size_t a = s.find_first_not_of(" \t\r\n"), b = s.find_last_not_of(" \t\r\n");
-    return a == std::string::npos ? std::string() : s.substr(a, b - a + 1);
-}
 
 // Items in ini order.
 inline std::vector<Item*> SortedItems() {
@@ -85,17 +83,58 @@ struct LoadResult {
     bool created = false;       // there was no CrabMods.ini
     bool migrated = false;      // Arsenal settings were taken from an old Arsenal.ini
     std::string added;          // sections appended to an existing file, "minimalist, underdog"
+    std::string updated;        // settings moved to a new default, "underdog.damagePercent 0.5 -> 1, ..."
 };
 
+inline std::string ReadText(const std::wstring& path) {
+    std::ifstream f(path.c_str(), std::ios::binary);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+// Every item's default settings ("[section]" and "key = value" lines).
+inline std::string AllDefaults() {
+    std::string all;
+    for (Item* item : SortedItems()) all += SectionText(item);
+    return CompactIni(all);
+}
+
+inline constexpr const char kDefaultsHeader[] =
+    "# Written by CrabMods: the defaults CrabMods.ini was last brought up to date with, so an update can tell\n"
+    "# which settings you changed. Don't edit it.\n";
+
+// CrabMods.defaults.ini: today's defaults, unless it has them already.
+inline void WriteDefaults(const std::wstring& path) {
+    std::string text = kDefaultsHeader + AllDefaults();
+    if (ReadText(path) != text) std::ofstream(path.c_str(), std::ios::binary) << text;
+}
+
 // Reads the ini into the items, creating it with the defaults if it does not exist yet. A first launch next
-// to an old Arsenal.ini carries its settings over into [arsenal].
+// to an old Arsenal.ini carries its settings over into [arsenal]. Settings an update gave a new default are
+// moved to it, unless the player changed them; the ini as it was is kept as CrabMods.old.ini.
 inline LoadResult LoadConfig(const std::wstring& path, const std::wstring& oldArsenalIni) {
     LoadResult r;
+    std::wstring base = path.substr(0, path.size() - 4);  // without ".ini"
+    std::wstring defaultsPath = base + L".defaults.ini", oldPath = base + L".old.ini";
     std::ifstream f(path.c_str(), std::ios::binary);
     if (f) {
         std::stringstream ss;
         ss << f.rdbuf();
         r.text = ss.str();
+        // An ini from 0.14.1 or before has no CrabMods.defaults.ini: it was written with 0.14.1's defaults.
+        std::string was = ReadText(defaultsPath);
+        DefaultsUpdate u = UpdateDefaults(r.text, ParseValues(was.empty() ? kDefaults_0_14_1 : was), ParseValues(AllDefaults()),
+                                          [](const std::string& s) {
+                                              Item* item = FindItem(s);
+                                              return item ? item->DefaultIni() : std::string();
+                                          });
+        if (!u.changed.empty()) {
+            std::ofstream(oldPath.c_str(), std::ios::binary) << r.text;
+            r.text = u.text;
+            std::ofstream(path.c_str(), std::ios::binary) << r.text;
+            for (const std::string& c : u.changed) r.updated += (r.updated.empty() ? "" : ", ") + c;
+        }
         std::set<std::string> have = ApplyIni(r.text);
         std::string append;
         for (Item* item : SortedItems()) {
@@ -109,6 +148,7 @@ inline LoadResult LoadConfig(const std::wstring& path, const std::wstring& oldAr
             ApplyIni(append);
             std::ofstream(path.c_str(), std::ios::binary) << r.text;
         }
+        WriteDefaults(defaultsPath);
         return r;
     }
     r.text = kIniHeader;
@@ -132,6 +172,7 @@ inline LoadResult LoadConfig(const std::wstring& path, const std::wstring& oldAr
     }
     ApplyIni(r.text);
     std::ofstream(path.c_str(), std::ios::binary) << r.text;
+    WriteDefaults(defaultsPath);
     r.created = true;
     return r;
 }

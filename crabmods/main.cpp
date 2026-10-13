@@ -789,6 +789,8 @@ DWORD WINAPI Init(LPVOID) {
     if (cfg.created)
         CRAB_LOG("wrote default CrabMods.ini%s", cfg.migrated ? " (Arsenal settings taken from Arsenal.ini)" : "");
     if (!cfg.added.empty()) CRAB_LOG("added new items to CrabMods.ini: %s", cfg.added.c_str());
+    if (!cfg.updated.empty())
+        CRAB_LOG("new defaults for settings you hadn't changed (the old file is CrabMods.old.ini): %s", cfg.updated.c_str());
     if (!InitImage()) {
         CRAB_LOG("unsupported game build (PE timestamp mismatch); CrabMods is disabled");
         return 0;

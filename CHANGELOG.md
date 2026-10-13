@@ -6,6 +6,7 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ### Unreleased
 
+- **New defaults now reach your `CrabMods.ini`.** Settings you never changed take the new default when an update changes it, including every change below. Settings you changed stay as you set them. The file as it was is saved as `CrabMods.old.ini`, and `CrabMods.log` lists what moved.
 - **Balance pass** over every CrabMods item, against the game's own items.
   - **Shellbreaker's own damage mods multiply on top of everything else**, so they never got weaker as a build grew. They're smaller now: Serrated Links +10% (was +50%), Executioner +55% (was +75%), Momentum +8% a swing (was +15%).
   - **Undertow +300%** (was +75%). The hook's hit was too small for +75% to matter.
