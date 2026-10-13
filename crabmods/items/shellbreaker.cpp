@@ -216,18 +216,32 @@ meleeModWeight = 3
 # Links in the chain at rest (the blade's distance from the hand).
 chainLinks = 40
 
-# The hook: how far it reaches (cm), its cooldown (s; a miss gives half back), how fast the blade flies out and
-# the damage of its hit on an enemy.
+# The hook: how far it reaches (cm), its cooldown (s; only hooking an enemy uses a charge), how fast the blade
+# flies out and the damage of its hit on an enemy.
 hookRange = 6000
 hookCooldown = 6
 hookSpeed = 10000
-hookDamage = 20
+hookDamage = 60
 # Enemies up to this category are yanked to you (1 fodder, 2 medium, 3 hard, 4 elite); heavier ones pull you to
 # them. Speeds in cm/s; reelSpeed: holding left click while swinging on the hook shortens the chain.
 yankMaxCategory = 2
 yankSpeed = 1600
 pullSpeed = 2200
 reelSpeed = 600
+# Swinging: press the hook key to fire at the hook point (the diamond on screen), hold it to swing, let go to fly
+# off. An enemy under the crosshair is hooked instead. With autoAnchor the hook point is found for you: the best
+# spot above and ahead of you within anchorRange (cm), anchorIdeal away at best; skyAnchor uses a point in the air
+# when there's nothing to catch. Without autoAnchor the hook goes where you aim. swingPump: how hard your movement
+# keys speed the swing up (cm/s per second); letting go multiplies your speed by releaseBoost and adds releaseLift
+# upward; catchLift: the chain shortens to this share when it catches, lifting you off the ground.
+autoAnchor = true
+skyAnchor = true
+anchorRange = 3500
+anchorIdeal = 2200
+swingPump = 1200
+releaseBoost = 1.2
+releaseLift = 450
+catchLift = 0.85
 
 # Chance-based weapon mods roll x this.
 procRoll = 1
@@ -259,6 +273,14 @@ spawnKey = none
         else if (k == "yankSpeed") yankSpeed_ = std::max(0.f, ParseFloat(v));
         else if (k == "pullSpeed") pullSpeed_ = std::max(0.f, ParseFloat(v));
         else if (k == "reelSpeed") reelSpeed_ = std::max(0.f, ParseFloat(v));
+        else if (k == "autoAnchor") autoAnchor_ = ParseBool(v);
+        else if (k == "skyAnchor") skyAnchor_ = ParseBool(v);
+        else if (k == "anchorRange") anchorRange_ = std::max(300.f, ParseFloat(v));
+        else if (k == "anchorIdeal") anchorIdeal_ = std::max(200.f, ParseFloat(v));
+        else if (k == "swingPump") swingPump_ = std::max(0.f, ParseFloat(v));
+        else if (k == "releaseBoost") releaseBoost_ = std::clamp(ParseFloat(v), 0.f, 3.f);
+        else if (k == "releaseLift") releaseLift_ = std::max(0.f, ParseFloat(v));
+        else if (k == "catchLift") catchLift_ = std::clamp(ParseFloat(v), 0.3f, 1.f);
         else if (k == "procRoll") procRoll_ = std::max(0.f, ParseFloat(v));
         else if (k == "soundVolume") mixer_.SetVolume(std::clamp(ParseFloat(v), 0.f, 2.f));
         else if (k == "hookKey") hookKeyName_ = v, hookKey_ = VirtualKey(v);
@@ -326,8 +348,8 @@ spawnKey = none
         void* c = At<void*>(weapon, off::Weapon_OwningC);
         void* pc = At<void*>(weapon, off::Weapon_OwningPC);
         if (!c) return;
-        // Left click with the hook out throws it: the swing's shot does nothing.
-        if (hook_.phase != Phase::None || hook_.aiming) {
+        // Left click while the hook is out reels it in: the swing's shot does nothing.
+        if (hook_.phase != Phase::None) {
             start.z -= 1e6f;
             return;
         }
@@ -713,7 +735,7 @@ private:
             r.length = SwingTime(weapon) * kSwings[r.swing].weight;
             r.start = Now();
             r.yaw = AimYaw(c);
-            if (!(local && (hook_.phase != Phase::None || hook_.aiming))) {
+            if (!(local && hook_.phase != Phase::None)) {
                 PlayAt(kSwings[r.swing].over ? "A_Shell_Circle_" : "A_Shell_Swing_", ToVec(hand), 0.8f);
                 PlayBody(c, ps, r.swing, r.length);
             }
@@ -1227,7 +1249,6 @@ private:
     struct Hook_ {
         Phase phase = Phase::None;
         Catch what = Catch::Miss;
-        bool aiming = false;
         V3 pin{}, target{};
         void* enemy = nullptr;
         float length = 0.f;  // the chain's, while it swings the crab or comes back
@@ -1255,27 +1276,30 @@ private:
     }
 
     void UpdateHook(void* world, void* c, void* ps, void* pc, bool ready, float dt) {
-        bool rmb = ready && KeyDown(hookKey_), lmb = ready && KeyDown(VK_LBUTTON), space = ready && KeyDown(VK_SPACE);
-        bool rmbPress = rmb && !rmbDown_, lmbPress = lmb && !lmbDown_, spacePress = space && !spaceDown_;
-        rmbDown_ = rmb, lmbDown_ = lmb, spaceDown_ = space;
+        bool rmb = ready && KeyDown(hookKey_), lmb = ready && KeyDown(VK_LBUTTON);
+        bool rmbPress = rmb && !rmbDown_;
+        rmbDown_ = rmb;
         Recharge(ps);
         Hook_& h = hook_;
-        if (!ready && h.phase == Phase::None) {
-            h.aiming = false;
-            return;
-        }
         Vec3 me{};
         LocationOf(c, me);
+        if (ready && h.phase == Phase::None && autoAnchor_) SeekAnchor(c, ps, Of(me));
+        else point_.found = false;
+        if (!ready && h.phase == Phase::None) return;
         V3 hand = Of(me);
         for (auto& [w, r] : rigs_)
             if (At<void*>(w, off::Weapon_OwningC) == c && r.chain.Live()) hand = r.chain.Point(0);
 
         switch (h.phase) {
         case Phase::None:
-            h.aiming = rmb && charges_ > 0;
-            if (h.aiming && lmbPress) Throw(world, c, ps, pc, hand);
+            if (rmbPress) Throw(world, c, ps, pc, hand);
             break;
         case Phase::Flying: {
+            // Let go before it catches: no swing.
+            if (h.what == Catch::Terrain && !rmb) {
+                Return(pc, h);
+                break;
+            }
             V3 to = h.what == Catch::Yank || h.what == Catch::Pull ? EnemyAt(h) : h.target;
             V3 d = to - h.pin;
             float step = hookSpeed_ * dt, l = shell::Length(d);
@@ -1288,28 +1312,116 @@ private:
             break;
         }
         case Phase::Swinging: {
-            if (rmbPress || spacePress || Now() - h.since > 8.0 || !ready) {
-                if (spacePress) LaunchSelf(c, pc, Velocity(c) + V3{0, 0, 600.f});
+            if (!rmb || !ready) {
+                // Letting go flings you on: faster, and a little up.
+                if (ready) LaunchSelf(c, pc, Velocity(c) * releaseBoost_ + V3{0, 0, releaseLift_});
                 Return(pc, h);
                 break;
             }
             if (lmb) h.length = std::max(150.f, h.length - reelSpeed_ * dt);
-            // The chain holds the crab: no moving away from the anchor past its length.
-            V3 p = Of(me), r = p - h.pin;
+            V3 p = Of(me), r = p - h.pin, v = Velocity(c);
             float dist = shell::Length(r);
-            if (dist > h.length && dist > 1.f) {
-                V3 n = r * (1.f / dist), v = Velocity(c);
+            if (dist < 1.f) break;
+            V3 n = r * (1.f / dist);
+            bool push = false;
+            // The movement keys pump the swing: their direction across the chain speeds it up.
+            V3 in = MoveInput(c);
+            if (dist > h.length * 0.97f && shell::Length(in) > 0.1f) {
+                v = v + (in - n * shell::Dot(in, n)) * (swingPump_ * dt);
+                push = true;
+            }
+            // The chain holds the crab: no moving away from the anchor past its length.
+            if (dist > h.length) {
                 float out = shell::Dot(v, n);
                 if (out > 0.f) v = v - n * out;
                 v = v - n * ((dist - h.length) * 8.f);
-                Launch(c, v);
+                push = true;
             }
+            if (push) Launch(c, v);
             break;
         }
         case Phase::Returning:
             h.length -= 4000.f * dt;
             if (h.length <= chainLinks_ * ChainFactor(ps) * pitch_ * Scale(c)) h = Hook_{};
             break;
+        }
+    }
+
+    // The way the player is steering (the movement keys or stick), flat, length 0..1.
+    static V3 MoveInput(void* c) {
+        static necro::Method input(L"GetLastMovementInputVector");
+        Vec3 v{};
+        input(c, &v);
+        V3 f{v.x, v.y, 0.f};
+        float l = shell::Length(f);
+        return l > 1.f ? f * (1.f / l) : f;
+    }
+
+    // --- The hook point (the player's machine) ---------------------------------------------------------------
+    //
+    // As in Insomniac's Spider-Man, the swing needs no aiming: a fan of traces up and ahead (the way you're
+    // moving, or looking when standing still) finds the best thing to catch, scored by how near it is to
+    // anchorIdeal, how far ahead and how high. Every 0.1 s; a diamond on screen shows it.
+
+    struct Anchor {
+        bool found = false, sky = false;
+        V3 at{};
+        double next = 0.0;
+    };
+
+    // A line trace on the Camera channel (terrain and objects, not pawns), ignoring the crab.
+    static bool Trace(void* c, V3 from, V3 to, V3& hit) {
+        static void* lib = ui::FindObject(L"/Script/Engine.Default__KismetSystemLibrary");
+        static necro::Method trace(L"LineTraceSingle");
+        struct TraceParams {
+            void* context;
+            Vec3 start, end;
+            uint8_t channel, complex, pad0[6];
+            TArray<void*> ignore;
+            uint8_t debug, pad1[3];
+            uint8_t hit[off::Hit_Size];
+            bool ignoreSelf;
+            uint8_t pad2[3];
+            float color[4], hitColor[4], drawTime;
+            bool ret;
+            uint8_t pad3[3];
+        };
+        static_assert(offsetof(TraceParams, hit) == 0x3C && offsetof(TraceParams, ret) == 0xEC);
+        TraceParams p{};
+        p.context = c;
+        p.start = ToVec(from), p.end = ToVec(to);
+        p.channel = 1;  // TraceTypeQuery2: Camera
+        p.ignoreSelf = true;
+        if (!lib || !trace(lib, &p) || !p.ret || !(p.hit[off::Hit_bBlockingHit] & 1)) return false;
+        Vec3 at;
+        std::memcpy(&at, p.hit + off::Hit_ImpactPoint, sizeof at);
+        hit = Of(at);
+        return true;
+    }
+
+    void SeekAnchor(void* c, void* ps, V3 me) {
+        if (Now() < point_.next) return;
+        point_.next = Now() + 0.1;
+        V3 v = Velocity(c);
+        float speed = shell::Length(V3{v.x, v.y, 0.f});
+        float yaw = speed > 300.f ? std::atan2(v.y, v.x) / kDeg : AimYaw(c);
+        V3 fwd = Dir(yaw, 0.f), eye = me + V3{0, 0, 60.f};
+        float range = anchorRange_ * ChainFactor(ps), ideal = std::min(anchorIdeal_ * ChainFactor(ps), range);
+        float best = -1e30f;
+        point_.found = false;
+        for (float elev : {35.f, 50.f, 65.f, 80.f})
+            for (float side : {0.f, -18.f, 18.f, -36.f, 36.f}) {
+                V3 hit;
+                if (!Trace(c, eye, eye + Dir(yaw + side, elev) * range, hit)) continue;
+                V3 d = hit - me;
+                float dist = shell::Length(d), up = d.z, ahead = shell::Dot(d, fwd);
+                if (up < 250.f || dist < 300.f) continue;  // the ground, or right on top of you
+                float score = -std::fabs(dist - ideal) / ideal + 0.6f * ahead / range + 0.3f * up / range;
+                if (score > best) best = score, point_.at = hit, point_.found = true, point_.sky = false;
+            }
+        if (!point_.found && skyAnchor_) {
+            point_.at = me + Dir(yaw, 60.f) * ideal;
+            point_.found = point_.sky = true;
         }
     }
 
@@ -1329,17 +1441,16 @@ private:
         V3 from = Of(At<Vec3>(hit, off::Hit_TraceStart));
         bool blocked = hit[off::Hit_bBlockingHit] & 1;
         V3 to = Of(At<Vec3>(hit, blocked ? off::Hit_ImpactPoint : off::Hit_TraceEnd));
-        Hook_& h = hook_;
-        h = Hook_{};
+        Hook_ h{};
         h.phase = Phase::Flying;
         h.pin = hand;
         h.target = to;
         h.what = blocked ? Catch::Terrain : Catch::Miss;
         h.since = Now();
-        // An enemy near the line, the nearest along it.
+        // An enemy near the crosshair's line, the nearest along it: only with a charge.
         V3 line = to - from;
         float len = shell::Length(line), best = 1e30f;
-        if (enemyClass_ && len > 1.f)
+        if (enemyClass_ && len > 1.f && charges_ > 0)
             for (void* e : AllActorsOf(world, enemyClass_)) {
                 Vec3 p;
                 if (!Alive(e) || !LocationOf(e, p)) continue;
@@ -1352,8 +1463,15 @@ private:
                 h.target = Of(p);
                 h.what = At<uint8_t>(e, off::Enemy_Category) <= YankMax(ps) ? Catch::Yank : Catch::Pull;
             }
-        charges_--;
-        Recharge(ps);
+        if (h.enemy) {
+            charges_--;
+            Recharge(ps);
+        } else if (autoAnchor_) {
+            if (!point_.found) return;  // nothing to catch
+            h.target = point_.at;
+            h.what = Catch::Terrain;
+        }
+        hook_ = h;
         Play("A_Shell_Throw_");
         PlayMontage(c, ps, Toss, 0.35);
         wchar_t buf[96];
@@ -1381,12 +1499,12 @@ private:
             break;
         }
         case Catch::Terrain:
+            // The chain takes up some slack as it bites, so the swing lifts you.
             h.phase = Phase::Swinging;
-            h.length = std::max(150.f, shell::Length(me - h.pin));
+            h.length = std::max(150.f, shell::Length(me - h.pin) * catchLift_);
             h.since = Now();
             break;
         case Catch::Miss:
-            if (rechargeAt_ > 0.0) rechargeAt_ -= Cooldown(ps) * 0.5;
             Return(pc, h);
             break;
         }
@@ -1450,10 +1568,10 @@ private:
         });
     }
 
-    // The hook landed: Riptide starts; on an enemy, its hit (and a yank, for light ones).
+    // The hook landed: on an enemy, Riptide starts, and its hit (and a yank, for light ones).
     void Land(void* c, void* ps, int kind, V3 at) {
-        riptide_[ps] = Now();
         if (kind == 0 || !enemyClass_) return;
+        riptide_[ps] = Now();
         void* e = NearestEnemy(c, at, 400.f, 5);
         if (!e) return;
         Hurt(e, c, ps, hookDamage_ * (1.f + loot::Total(ps, loot::Undertow) / 100.f),
@@ -1543,6 +1661,7 @@ private:
             hud_ = hud;
             hudWidgets_.clear();
             pips_.clear();
+            marker_ = nullptr;
             hudFailed_ = meleeHidden_ = false;
         }
         if (!hud) return;
@@ -1578,6 +1697,25 @@ private:
         if (have >= max) swprintf(buf, std::size(buf), L"HOOK  %ls", Widen(hookKeyName_).c_str());
         else swprintf(buf, std::size(buf), L"HOOK  %.1f", std::max(0.0, rechargeAt_ - Now()));
         ui::SetText(hudText_, buf);
+        UpdateMarker(pc);
+    }
+
+    void UpdateMarker(void* pc) {
+        if (!marker_) return;
+        static void* layout = ui::FindObject(L"/Script/UMG.Default__WidgetLayoutLibrary");
+        struct {
+            void* pc;
+            Vec3 at;
+            float x, y;
+            bool viewportRelative, ret;
+            uint8_t pad[2];
+        } p{pc, ToVec(point_.at), 0.f, 0.f, false, false, {}};
+        bool show = point_.found && hook_.phase == Phase::None && layout && ui::Call(layout, L"ProjectWorldLocationToWidgetPosition", &p) && p.ret;
+        ui::SetVisibility(marker_, show ? ui::HitTestInvisible : ui::Hidden);
+        if (!show) return;
+        float pos[2] = {p.x, p.y};
+        ui::Call(ui::SlotOf(marker_), L"SetPosition", pos);
+        Tint(marker_, point_.sky ? ui::LinearColor{1.f, 0.85f, 0.6f, 0.45f} : ui::LinearColor{1.f, 0.65f, 0.25f, 0.95f});
     }
 
     bool BuildHud(void* hud) {
@@ -1598,6 +1736,13 @@ private:
         hudText_ = Place(hud, root, va::UTextBlock_StaticClass, kHudX, kHudY - 40.f, 0.f, 0.f, 0.f);
         ui::Font font{};
         if (hudText_ && ui::FontOf(At<void*>(hud, 0x340 /* CrystalsText */), 18, font)) ui::SetFont(hudText_, font);
+        // The hook point: a diamond, placed over it every frame (anchored to the top left, centred on the spot).
+        if ((marker_ = Place(hud, root, va::UImage_StaticClass, 0.f, 0.f, 0.5f, 16.f, 16.f))) {
+            float anchors[4] = {0.f, 0.f, 0.f, 0.f};
+            ui::Call(ui::SlotOf(marker_), L"SetAnchors", anchors);
+            float angle = 45.f;
+            ui::Call(marker_, L"SetRenderTransformAngle", &angle);
+        }
         CRAB_LOG("shellbreaker: hook display added to the HUD");
         return true;
     }
@@ -1726,9 +1871,12 @@ private:
     float meleeModShare_ = 0.25f, meleeModWeight_ = 3.f;
     float dps_ = 75.f, swingSeconds_ = 0.35f, reach_ = 2200.f, hitRadius_ = 450.f, circleRadius_ = 2400.f;
     int chainLinks_ = 40;
-    float hookRange_ = 6000.f, hookCooldown_ = 6.f, hookSpeed_ = 10000.f, hookDamage_ = 20.f;
+    float hookRange_ = 6000.f, hookCooldown_ = 6.f, hookSpeed_ = 10000.f, hookDamage_ = 60.f;
     int yankMax_ = 2;
     float yankSpeed_ = 1600.f, pullSpeed_ = 2200.f, reelSpeed_ = 600.f, procRoll_ = 1.f;
+    bool autoAnchor_ = true, skyAnchor_ = true;
+    float anchorRange_ = 3500.f, anchorIdeal_ = 2200.f, swingPump_ = 1200.f, releaseBoost_ = 1.2f, releaseLift_ = 450.f,
+          catchLift_ = 0.85f;
     std::string hookKeyName_ = "Mouse2", spawnKeyName_ = "none";
     int hookKey_ = 0, spawnKey_ = 0;
 
@@ -1756,11 +1904,12 @@ private:
     };
     std::unordered_map<void*, ShotState> shots_;  // this machine's weapons -> their place in the string
     Hook_ hook_;
+    Anchor point_;  // the hook point
     int charges_ = -1;
     double rechargeAt_ = 0.0;
     std::unordered_map<void*, double> riptide_;  // host: player -> when their hook last landed
     // HUD
-    void *hud_ = nullptr, *hudFill_ = nullptr, *hudText_ = nullptr;
+    void *hud_ = nullptr, *hudFill_ = nullptr, *hudText_ = nullptr, *marker_ = nullptr;
     std::vector<void*> hudWidgets_, pips_;
     uint8_t meleeVis_[4] = {};
     bool hudFailed_ = false, meleeHidden_ = false;
@@ -1768,7 +1917,7 @@ private:
     double nextPedestalCheck_ = 0.0;
     void* stone_ = nullptr;
     std::vector<void*> pedestal_;
-    bool spawnDown_ = false, rmbDown_ = false, lmbDown_ = false, spaceDown_ = false;
+    bool spawnDown_ = false, rmbDown_ = false;
 };
 
 Shellbreaker g_item;

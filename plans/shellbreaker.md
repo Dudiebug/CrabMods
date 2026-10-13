@@ -111,14 +111,20 @@ installed, packaged, tagged or released.
 - Fire-rate bonuses speed the swings up.
 - The string restarts after a pause longer than a swing + 0.6 s.
 
-**The hook (RMB + LMB)**
-- Charges: 1 + Grappler. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth. A miss gives half of
-  it back.
+**The hook (RMB: press to fire, hold to swing, let go to fly off)**
+- The hook point (`autoAnchor`), every 0.1 s: 20 Camera-channel traces from the crab, 35–80° up and ±36° around the
+  way it moves (or looks, when standing). Hits less than 2.5 m above or 3 m away are skipped. The rest are scored
+  −|d − anchorIdeal|/anchorIdeal + 0.6·ahead/range + 0.3·up/range. If none is found, a sky point 60° up at
+  anchorIdeal (`skyAnchor`). A diamond on the HUD shows it.
+- Charges: 1 + Grappler, spent only on enemies. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth.
 - What it does depends on what it hits:
-  - A light enemy (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp) is yanked to you.
+  - An enemy near the crosshair (with a charge), light (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp):
+    yanked to you.
   - A heavy enemy pulls you to it.
-  - Terrain swings you on the chain: hold LMB to reel in, Space to hop off, RMB to drop.
-- On any enemy, the host deals `hookDamage` 20 (+ Undertow) as a Lesser burst, plus Frost Chain's ice.
+  - Otherwise the hook point, a swing: the chain catches at `catchLift` of the distance; movement input across the
+    chain adds `swingPump` cm/s²; LMB reels in; letting go of RMB launches at velocity × `releaseBoost` +
+    `releaseLift` up. Letting go before it catches cancels the swing.
+- On any enemy, the host deals `hookDamage` 60 (+ Undertow) as a Lesser burst, plus Frost Chain's ice.
 - Every machine draws everyone's hook rope. The host relays `shell rope ...` messages to the other players.
 
 **Sounds**
@@ -138,9 +144,9 @@ installed, packaged, tagged or released.
 | Whirlwind | weapon mod, Epic | pullSpeed = 500 | the circle drags enemies (not bosses) within 2.5 × circle radius toward you |
 | Executioner | weapon mod, Epic | damagePercent = 55 | chop and rebound +55% |
 | Searing Edge | weapon mod, Epic | fireStacks = 3 | every swing hit applies fire stacks |
-| Riptide | perk, Epic | damagePercent = 35 | +35% damage for 4 s after the hook lands (an enemy or a wall) |
+| Riptide | perk, Epic | damagePercent = 35 | +35% damage for 4 s after the hook catches an enemy |
 | Quick Draw | perk, Common | cooldownPercent = 15 | hook cooldown ÷ (1 + 15%·L), floor ⅙ |
-| Undertow | perk, Common | damagePercent = 300 | the hook's own hit +300% |
+| Undertow | perk, Common | damagePercent = 75 | the hook's own hit +75% |
 | Rhythm | perk, Common | damagePercent = 30 | overhead circle +30% |
 | Grappler | relic, Epic | charges = 1 | +1 hook charge |
 | Kraken's Grasp | relic, Legendary | extraEnemies = 2 | yanks hard and elite enemies too; the 2 nearest come along |

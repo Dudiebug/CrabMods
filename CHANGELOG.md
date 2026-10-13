@@ -4,12 +4,20 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
-### Unreleased
+### 0.15.0
 
+- **Swing on Shellbreaker's hook like Spider-Man.**
+  - **Press right click** to fire the hook at the hook point, a diamond on screen. It picks the best spot above and ahead of you, so there's nothing to aim.
+  - **Hold right click** to swing, and steer with your movement keys to swing faster.
+  - **Let go** to fly off with a boost.
+  - **Chain swings:** swinging uses no charge, so you can fire again straight away. Over open ground the hook catches the air.
+  - **Enemies:** an enemy under your crosshair is hooked instead, using a charge as before.
+  - **Riptide** now only starts when the hook catches an enemy.
+  - **Settings:** everything is in `[shellbreaker]` (`autoAnchor`, `skyAnchor`, `swingPump`, `releaseBoost`, ...).
 - **New defaults now reach your `CrabMods.ini`.** Settings you never changed take the new default when an update changes it, including every change below. Settings you changed stay as you set them. The file as it was is saved as `CrabMods.old.ini`, and `CrabMods.log` lists what moved.
 - **Balance pass** over every CrabMods item, against the game's own items.
   - **Shellbreaker's own damage mods multiply on top of everything else**, so they never got weaker as a build grew. They're smaller now: Serrated Links +10% (was +50%), Executioner +55% (was +75%), Momentum +8% a swing (was +15%).
-  - **Undertow +300%** (was +75%). The hook's hit was too small for +75% to matter.
+  - **The hook hits for 60** (was 20). Undertow stays +75% a level, now of a hit worth having.
   - **Swing elements by rarity:** Venom Barbs (Common) 2 poison (was 3), Searing Edge and Static Chain (Epic) 3 fire / 3 lightning (were 2). Rime Edge stays at 3 ice, and Hex Links at 4 arcane.
   - **Grappler is Epic** (was Legendary): one more hook charge isn't a Legendary.
   - **Soul Siphon gives a quarter of a soul** per enemy hit (was 1). It still out-earned kills several times over.

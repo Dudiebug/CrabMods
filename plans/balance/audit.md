@@ -207,7 +207,7 @@ Every CrabMods item (85: 28 perks, 27 relics and charms, 20 weapon mods, 6 abili
 | Serrated Links (C WM) | +50% | +10% | Undiluted ×1.5 from a Common; a vanilla Common is ×1.1–1.2 mid-run and less late. |
 | Momentum (E WM) | +15% a step | +8% | +33% average (circle +60%), undiluted. Now +18%. |
 | Executioner (E WM) | +75% | +55% | Swings 3 and 4 are 31.8% of the damage: ×1.24 → ×1.17, undiluted. |
-| Undertow (C perk) | +75% | +300% | The hook hits for 20 every ~6 s, about 4% of Shellbreaker's damage, so +75% was +3%. Now about +13% [G: hook use]. |
+| Shellbreaker hook / Undertow (C perk) | hit 20, +75% | hit 60, +75% | The hook hit for 20 every ~6 s, about 4% of Shellbreaker's damage, so Undertow's +75% was +3%. A 60 hit is ~11% of it; Undertow then adds ~8% [G: hook use]. Raising the hit, not the perk, keeps Undertow's number Common-sized. |
 | Venom Barbs (C) / Searing Edge, Static Chain (E) | 3 / 2, 2 | 2 / 3, 3 | Elements by rarity: Common 2, Epic 3, Legendary 4 (Rime Edge 3, Hex Links 4 unchanged). Per-stack worth by element is [G]. |
 | Grappler (L relic) | Legendary | Epic | +1 hook charge is utility, not a Legendary effect. |
 | Soul Siphon (E WM) | 1 soul per enemy hit | 0.25 | 1.25 cracks/s × ~3 enemies ≈ 225 souls a minute, 3–9× arena kill souls (25–90). Now ≈ 56. |
