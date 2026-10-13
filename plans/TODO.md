@@ -10,10 +10,10 @@ None of these went through `plans/balance/WORKFLOW.md` (the new-item skill) befo
 - [ ] Snap Decision and Wild Card (both "BUILT (beta, untested)" in `ideas.md`).
 - [ ] Name clash: the new Momentum weapon mod has the same name as the Momentum perk idea in `ideas.md`. Rename one.
 
-## A new, less invasive mod manager
+## CrabMods Manager 0.4.0 release
 
-CrabModsManager (0.3.0) does too much to the player's setup. Build a new one that is less invasive. To decide before starting:
+Built: asks before installing, change review, opt-in updates, checksums, catalogs, rollback, Remove all, sorting, the Linux AppImage (see the CHANGELOG entry).
 
-- What "invasive" means today: list what the current manager touches (the game folder, the loader `xinput1_3.dll`, `CrabMods.ini`, auto/self-updates, crash reports, CRAB2 setup codes) and what it changes without asking.
-- What the new one does by default: as few files as possible, nothing changed without the player's say, easy to undo (an uninstall that puts back exactly what was there).
-- Whether it replaces CrabModsManager or ships next to it, and how existing installs move over.
+- [ ] Upload `CrabMods.catalog.json`, `CrabSync.catalog.json` and `SHA256SUMS.txt` to `crabmods-v0.14.1` and `crabsync-v1.0.8`, so 0.4.0 can list the items of the current releases. `--selftest` says "published" for both once done.
+- [ ] Publish `manager-v0.4.0` with `CrabModsManager.exe` and `SHA256SUMS.txt`; the workflow adds the AppImage.
+- [ ] Try the AppImage on a Steam Deck: install, the launch option hint, an update while the game runs.
