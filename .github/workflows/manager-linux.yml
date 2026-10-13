@@ -1,0 +1,49 @@
+# CrabMods Manager for Linux: builds it on Ubuntu 22.04 (so the AppImage runs on older systems too), runs its tests
+# and its self-test against GitHub, and adds CrabModsManager-x86_64.AppImage to a published manager-v* release.
+name: Manager for Linux
+
+on:
+  push:
+    paths: [manager/**, tests/manager_*, tests/platform_linux_test.cpp, tests/test_util.hpp, third_party/imgui/**, .github/workflows/manager-linux.yml]
+  pull_request:
+    paths: [manager/**, tests/manager_*, tests/platform_linux_test.cpp, tests/test_util.hpp, third_party/imgui/**, .github/workflows/manager-linux.yml]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+      - name: Install what it builds with
+        run: sudo apt-get update -q && sudo apt-get install -y -q libsdl2-dev libcurl4-openssl-dev
+      - name: Build and test
+        run: bash manager/linux/build.sh test appimage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrabModsManager-x86_64.AppImage
+          path: |
+            build/linux/CrabModsManager-x86_64.AppImage
+            build/linux/CrabModsManager-x86_64.AppImage.sha256
+
+  release:
+    needs: build
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'manager-v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CrabModsManager-x86_64.AppImage
+      - name: Add the AppImage to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" CrabModsManager-x86_64.AppImage CrabModsManager-x86_64.AppImage.sha256 --clobber --repo "$GITHUB_REPOSITORY"

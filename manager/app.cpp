@@ -17,7 +17,6 @@
 #include "imgui.h"
 #include "platform.hpp"
 
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
 using namespace mgr;
@@ -86,13 +85,16 @@ std::deque<std::pair<std::string, std::function<JobResult()>>> g_jobs;
 std::deque<JobResult> g_results;
 std::atomic<int> g_pending{0};  // queued or running
 std::string g_jobLabel;         // what runs now (under g_jobMutex)
+bool g_jobsQuit = false;        // the manager is closing (under g_jobMutex)
+std::thread g_worker;
 
 void Worker() {
     for (;;) {
         std::pair<std::string, std::function<JobResult()>> job;
         {
             std::unique_lock lock(g_jobMutex);
-            g_jobCv.wait(lock, [] { return !g_jobs.empty(); });
+            g_jobCv.wait(lock, [] { return g_jobsQuit || !g_jobs.empty(); });
+            if (g_jobsQuit) return;
             job = std::move(g_jobs.front());
             g_jobs.pop_front();
             g_jobLabel = job.first;
@@ -2233,7 +2235,7 @@ void Init(const Options& o, float scale) {
     if (!o.select.empty()) g_select = o.select;
     if (!o.demo.empty()) Demo(o.demo);
 
-    std::thread(Worker).detach();
+    g_worker = std::thread(Worker);
     if (!g_readOnly) {
         if (g_releasesLoaded) AfterReleases();
         if (!g_cfg.offline || !g_cfg.setupDone) CheckForUpdates();
@@ -2326,6 +2328,14 @@ bool Animating() { return g_pending > 0 || ImGui::GetTime() - g_statusTime < 13;
 bool WantsQuit() { return g_quit; }
 
 void Shutdown() {
+    // What is queued is dropped; what runs now finishes, so no file is left half-changed.
+    {
+        std::lock_guard lock(g_jobMutex);
+        g_jobsQuit = true;
+        g_jobs.clear();
+    }
+    g_jobCv.notify_all();
+    if (g_worker.joinable()) g_worker.join();
     if (g_readOnly || g_staged.empty() || g_cfg.autoManager != true) return;
     std::string error;
     if (plat::SwapInUpdate(error)) Log("manager " + g_staged + " goes in now that the manager closes");

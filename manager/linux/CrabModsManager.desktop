@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=CrabMods Manager
+Comment=Install, update and set up CrabMods and CrabSync for Crab Champions
+Exec=CrabModsManager
+Icon=CrabModsManager
+Categories=Game;Utility;
+Terminal=false

@@ -365,15 +365,15 @@ int main(int argc, char** argv) {
     bool migrate = argc > 1 && std::string(argv[1]) == "migrate";
     if (migrate) Migrate();
     else NewPlayer();
-    std::fflush(stdout);
+    // Closing stops the worker thread (on Linux, exiting with it still waiting used to hang).
+    app::Shutdown();
+    ImGui::DestroyContext();
     if (g_failures) {
         std::printf("manager app tests: %d failed\n", g_failures);
-        std::fflush(stdout);
-        std::_Exit(1);
+        return 1;
     }
     std::printf("manager app tests: all passed\n");
-    std::fflush(stdout);
     std::error_code ec;
     fs::remove_all(fake::root, ec);
-    std::_Exit(0);  // the app's worker thread waits for jobs forever
+    return 0;
 }
