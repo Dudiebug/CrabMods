@@ -1031,9 +1031,15 @@ private:
         float half = 0.f;
         if (void* capsule = At<void*>(c, off::Character_Capsule)) halfHeight(capsule, &half);
         l.sim.Step(anchor, dir, s, feet.z - half, dt);
-        // The crack sounds where and when the tip actually breaks the sound barrier.
+        // The crack sounds where and when the tip actually breaks the sound barrier (or, if it never quite does,
+        // at the stroke's fastest point).
         necro::V3 crackAt;
-        if (l.sim.TakeCrack(crackAt)) PlayAt("A_SoulWhip_Crack_", {crackAt.x, crackAt.y, crackAt.z});
+        if (l.sim.TakeCrack(crackAt)) {
+            PlayAt("A_SoulWhip_Crack_", {crackAt.x, crackAt.y, crackAt.z});
+            if (strokesLogged_ < 20)
+                CRAB_LOG("necromancer: lash stroke %d: tip %.0f m/s (%s), frame %.1f ms, scale %.2f", ++strokesLogged_,
+                         l.sim.CrackSpeed() / 100.f, l.sim.CrackForced() ? "forced" : "cracked", dt * 1000.f, s);
+        }
 
         // The soul glow: breathing, as a wave running down the cord from the handle; a crack flares it.
         for (size_t i = 0; i <= l.pieces.size(); i++)  // the handle (last) leads
@@ -2133,11 +2139,13 @@ private:
     // The raise panel ends left of the melee slot (which starts about 335 from the right edge).
     static constexpr float kTierRight = -392.f, kTierStep = 58.f, kTierY = -80.f, kIcon = 46.f;
     static constexpr float kMarkY = -33.f, kKeyY = 34.f;  // the rank marks above an icon, the key and cost below
+    static constexpr float kNameY = 53.f;                 // the tier's name under those, small
 
     struct TierWidgets {
         void* icon = nullptr;
         void* key = nullptr;
         void* cost = nullptr;
+        void* name = nullptr;
         std::vector<void*> marks;  // the rank marks above
     };
 
@@ -2205,6 +2213,7 @@ private:
             float opacity = ready ? 1.f : known ? 0.6f : 0.35f;
             ui::Call(w.key, L"SetOpacity", &opacity);
             ui::Call(w.cost, L"SetOpacity", &opacity);
+            ui::Call(w.name, L"SetOpacity", &opacity);
         }
     }
 
@@ -2213,10 +2222,10 @@ private:
         void* root = tree ? At<void*>(tree, off::WidgetTree_RootWidget) : nullptr;
         if (!root) return false;
         for (TierWidgets& t : tiers_) t = {};
-        ui::Font font{}, medium{}, small{};
+        ui::Font font{}, medium{}, small{}, tiny{};
         void* crystals = At<void*>(hud, 0x340 /* CrystalsText */);
         bool haveFont = ui::FontOf(crystals, 24, font) && ui::FontOf(crystals, 19, medium) &&
-                        ui::FontOf(crystals, 12, small);
+                        ui::FontOf(crystals, 12, small) && ui::FontOf(crystals, 10, tiny);
         auto text = [&](float ax, float x, float y, float alignX, const ui::Font& f) {
             void* t = Place(hud, root, va::UTextBlock_StaticClass, ax, x, y, alignX, 0.5f, 0.f, 0.f);
             if (t && haveFont) ui::SetFont(t, f);
@@ -2261,11 +2270,11 @@ private:
             } else {
                 w.marks.push_back(image(1.f, x, kTierY + kMarkY, 0.5f, 0.5f, 18.f, 18.f, texCrown_));
             }
-            std::wstring key = Widen(keyNames_[t]);
-            if (!texTier_[t]) key += L" " + std::wstring(kTierNames[t]);  // no picture: say which
             w.key = text(1.f, x - 1.f, kTierY + kKeyY, 1.f, medium);
-            ui::SetText(w.key, key.c_str());
+            ui::SetText(w.key, Widen(keyNames_[t]).c_str());
             w.cost = text(1.f, x + 2.f, kTierY + kKeyY + 3.f, 0.f, small);
+            w.name = text(1.f, x, kTierY + kNameY, 0.5f, tiny);
+            ui::SetText(w.name, kTierNames[t]);
         }
         CRAB_LOG("necromancer: soul bar and raise panel added to the HUD");
         return true;
@@ -2554,6 +2563,7 @@ private:
     std::vector<float> segLength_;
     std::vector<void*> segMesh_;
     std::unordered_map<void*, LashState> lashes_;  // whip weapon -> its lash
+    int strokesLogged_ = 0;  // the first strokes go to the log (tip speed, natural or forced crack)
     std::unordered_map<void*, ShowState> shows_;   // whip pickup -> the whip shown on it
     void *texSoul_ = nullptr, *texPip_ = nullptr, *texCrown_ = nullptr, *texTier_[kTiers] = {};
     std::unordered_set<void*> crumbled_;  // players' machines: undead already heard falling

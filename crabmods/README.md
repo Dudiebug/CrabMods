@@ -108,7 +108,7 @@ Charms are a kind of item of their own, and they're what give you more inventory
 
 | Change | Effect |
 |---|---|
-| **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +40% range [20], Blender −30% cooldown [20], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
+| **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +3% range a level up to +35% [20 a level, no cap], Blender −15% cooldown a level up to −75% [20 a level, no cap], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
 | **Key totem** | While you still have **locked items**, the lobby's key totem works like the game's own but lets you **choose one of 3** random locked items from a menu (`choices`); closing the menu and reopening it shows the same three. Once everything is unlocked it opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 | **No Anvil Portals** | The portals after an island never lead to an **Anvil** island. A portal the game would make an Anvil gets another reward instead, picked by the game's own weights. Host only: the host spawns the portals. |
@@ -209,8 +209,10 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `timeClawsPercent` | `300` | Game: 150. |
 | | `ironClawsPercent` | `500` | Game: 300. |
 | | `ironClawsCooldownPercent` | `20` | Game: 40. |
-| | `bigClawsPercent` | `40` | Game: 20. |
-| | `blenderPercent` | `30` | Game: 20. |
+| | `bigClawsPerLevel` | `3` | Game: 20. |
+| | `bigClawsMax` | `35` | The most Big Claws gives, in percent. Game: no cap. |
+| | `blenderPerLevel` | `15` | Game: 20. |
+| | `blenderMax` | `75` | The most Blender gives, in percent. Game: no cap (100% at level 5). |
 | | `vampireHealth` | `15` | Game: 5. |
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |

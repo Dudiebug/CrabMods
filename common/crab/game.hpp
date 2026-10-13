@@ -266,6 +266,9 @@ constexpr uintptr_t ACrabPortal_UpdateUI = 0x140cb29f0;
 // for PS.WeaponMods (add rcx, 0x3E0; jmp).
 constexpr uintptr_t InvArr_GetBuff = 0x140d2df60;
 constexpr uintptr_t ACrabPS_GetWeaponModBuff = 0x140d25fb0;
+// float(ACrabPS*, uint8 Type), the same for PS.MeleeMods (add rcx, 0x410; jmp). Melee damage is
+// meleeDA.Dmg x (1 + Sharp + Iron + Time) x (1 + Brawler); cooldown x (1 - Blender) (0x140d15abc); range x (1 + Big Claws).
+constexpr uintptr_t ACrabPS_GetMeleeModBuff = 0x140d250c0;
 // ACrabPS::UpdateMaxHealth adds GetBuff(Perks, Banana) to the max health multiplier; return address of that call.
 constexpr uintptr_t Ret_MaxHealthMultiplierBanana = 0x140d28ad3;
 // void(ACrabWeapon*): FireRate (+0x2C0) = 1 - (debuffs) + GetWeaponModBuff(RapidFire) + ..., then the shot interval.

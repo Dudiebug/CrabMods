@@ -132,12 +132,39 @@ static void Rotations() {
     CHECK(Length(Rotate(q2, {0, 1, 0}) - y2) < 1e-4f);
 }
 
+// Every shot is heard: fired every 0.2 s (each stroke cut off by the next) or every 0.8 s, still or running, at
+// 30 and 144 fps, each one cracks exactly once.
+static void EveryShotCracks() {
+    const V3 dir = Normal({0.287f, 0.2f, 0.937f});
+    for (float fps : {30.f, 144.f})
+        for (float interval : {0.2f, 0.8f})
+            for (float speed : {0.f, 1200.f}) {
+                Lash l;
+                l.Init(kLengths, 13);
+                float dt = 1.f / fps, t = 0, next = 1.f;
+                int shots = 0, cracks = 0;
+                for (int f = 0; f < int(8 * fps); f++) {
+                    t += dt;
+                    V3 anchor{speed * t, 0, 100};
+                    if (t >= next && t < 6.f) next += interval, shots++, l.Crack(anchor + V3{4500, 0, -200});
+                    l.Step(anchor, dir, 1.f, 0.f, dt);
+                    V3 at;
+                    if (l.TakeCrack(at)) cracks++;
+                }
+                if (cracks != shots)
+                    std::printf("  %g fps, every %g s, %g cm/s: %d cracks for %d shots\n", fps, interval, speed, cracks,
+                                shots);
+                CHECK(cracks == shots);
+            }
+}
+
 int main() {
     Hangs();
     Cracks();
     Calm();
     FollowsAndTeleports();
     Rotations();
+    EveryShotCracks();
     std::printf(g_failures ? "necro lash tests: %d failed\n" : "necro lash tests: all passed\n", g_failures);
     return g_failures ? 1 : 0;
 }

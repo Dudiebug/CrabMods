@@ -3,7 +3,9 @@
 // lying on the floor rather than through it. The crab's wrist moves the handle: at rest it just follows the hand;
 // a shot is a real whip stroke (the wrist draws back and up over the shell, snaps forward at the target and stops
 // dead), and the stop sends a loop rolling down the cord. The crack is when that loop turns over at the tip: the
-// tip's speed peaks, and TakeCrack reports it (that is when the crack sound plays). Pure math (no game objects),
+// tip's speed peaks, and TakeCrack reports it (that is when the crack sound plays). A stroke whose tip never gets
+// fast enough (a short frame budget, an odd aim, the next shot cutting it off) still cracks once, at its fastest
+// point, so every shot is heard. Pure math (no game objects),
 // so the tests can run it too. Units are the game's: cm, seconds, UE axes (Z up).
 #pragma once
 #include <algorithm>
@@ -92,19 +94,19 @@ public:
             p_[i + 1] = o_[i + 1] = p_[i] + d * (len_[i] * scale);
         }
         hand_ = anchor;
+        if (armed_) Force();  // a stroke cut off by a teleport still cracks
         stroke_ = -1.f;
-        armed_ = cracked_ = false;
         acc_ = 0.f;
         live_ = true;
     }
 
     // target: where the shot lands.
     void Crack(V3 target) {
+        if (armed_) Force();  // the last stroke, cut off before it cracked
         stroke_ = 0.f;
         target_ = target;
         peak_ = 0.f;
         armed_ = true;
-        cracked_ = false;
     }
     // True once per stroke, when the tip cracks; at: where.
     bool TakeCrack(V3& at) {
@@ -113,6 +115,9 @@ public:
         at = crackAt_;
         return true;
     }
+    // The last crack: the tip's top speed in its stroke, and whether it was forced (never reached kCrackSpeed).
+    float CrackSpeed() const { return crackSpeed_; }
+    bool CrackForced() const { return forced_; }
 
     // anchor/dir: where the lash leaves the handle, and the handle's direction there. floorZ: the ground.
     void Step(V3 anchor, V3 dir, float scale, float floorZ, float dt) {
@@ -222,22 +227,34 @@ private:
                 armed_ = false;
                 cracked_ = true;
                 crackAt_ = peakAt_;
+                crackSpeed_ = peak_;
+                forced_ = false;
             }
         }
-        if (stroke_ < 0.f) armed_ = false;
+        if (armed_ && (stroke_ < 0.f || stroke_ > kDrawBack + kSnap + kCrackGrace)) Force();
+    }
+
+    // The crack, now, at the stroke's fastest point so far (the tip, if the snap hasn't started).
+    void Force() {
+        armed_ = false;
+        cracked_ = true;
+        crackAt_ = peak_ > 0.f ? peakAt_ : p_[n_];
+        crackSpeed_ = peak_;
+        forced_ = true;
     }
 
 public:
     static constexpr int kStock = 3;              // segments held rigid by the handle
     static constexpr float kBend = 0.02f;         // stiffness at the handle, falling off to none at the tip
     static constexpr float kCrackSpeed = 2000.f;  // cm/s: a tip faster than this cracks
+    static constexpr float kCrackGrace = 0.2f;    // s after the snap: a stroke that hasn't cracked by then is forced
 
 private:
     int n_ = 0;
     float len_[kMaxSegments] = {};
     V3 p_[kMaxSegments + 1], o_[kMaxSegments + 1], hand_{}, dir_{0, 0, 1}, target_{}, crackAt_{}, peakAt_{};
-    float stroke_ = -1.f, acc_ = 0.f, scale_ = 1.f, tipSpeed_ = 0.f, peak_ = 0.f;
-    bool live_ = false, armed_ = false, cracked_ = false;
+    float stroke_ = -1.f, acc_ = 0.f, scale_ = 1.f, tipSpeed_ = 0.f, peak_ = 0.f, crackSpeed_ = 0.f;
+    bool live_ = false, armed_ = false, cracked_ = false, forced_ = false;
 };
 
 }  // namespace crabmods::necro

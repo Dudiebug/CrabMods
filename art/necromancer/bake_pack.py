@@ -237,6 +237,11 @@ def main():
 
     for f in sorted(glob.glob(os.path.join(HERE, "ui", "*.png"))):
         entries[os.path.basename(f)] = open(f, "rb").read()
+    # The raise icons are renders kept out of git (.gitignore); a checkout without them would bake a pack whose
+    # raise panel shows blank squares.
+    missing = [f"icon_tier{k}.png" for k in range(1, 5) if f"icon_tier{k}.png" not in entries]
+    if missing:
+        raise SystemExit(f"ui/ is missing {', '.join(missing)} (renders not in git); copy them in before baking")
 
     for f in sorted(glob.glob(os.path.join(HERE, "sfx", "*.wav"))):
         w = wave.open(f)

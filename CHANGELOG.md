@@ -4,6 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.13.4
+
+- **Big Claws and Blender have caps.** Big Claws gives +3% melee range a level, up to +35% (it was +40% a level with no cap). Blender takes 15% off the melee cooldown a level, up to 75% (it was 30% a level, so level 4 had no cooldown at all). The inventory shows what each one gives you now. The new settings are `bigClawsPerLevel`, `bigClawsMax`, `blenderPerLevel` and `blenderMax`. An existing `CrabMods.ini` keeps its old `bigClawsPercent` and `blenderPercent` lines, which now do nothing.
+- **Fixed the raise panel's blank white squares.** 0.13.2 and 0.13.3 shipped without the four enemy pictures, so the panel showed white squares with the tier names jammed into the key labels. The pictures are back, and each tier's name now sits in small letters under its key and cost.
+- **Every whip shot cracks.** The crack plays when the simulated tip breaks the sound barrier. A stroke whose tip never got quite fast enough, or that the next shot cut off, used to stay silent. Now it cracks at its fastest point. The first 20 strokes of each session go to `CrabMods.log` with the tip's speed, to track down the rest.
+
 ### 0.13.3
 
 - **Souls fly to you.** When you or your undead kill an enemy, its soul streaks from the body to you as a glowing violet wisp with a tail, and the pickup chime plays as it lands. Before, the soul bar just went up. The soul that fills your bar plays the full chime when it arrives.
