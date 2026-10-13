@@ -1,7 +1,8 @@
 // Shellbreaker: a melee weapon picked in the lobby, a barbed blade on a chain swung from a handle. Left click swings
 // a string of five (right to left, left to right, a chop from top right, the rebound back up, a circle over the
-// head); right click aims the hook and left click throws it. While it's held, the crab's own melee does nothing;
-// the melee mods power the swings instead, and Shellbreaker's own loot (shell_loot.cpp) drops too.
+// head); right click fires the hook to swing on (hold to swing, let go to fly off). While it's held, the crab's
+// own melee does nothing; the melee mods power the swings instead, and Shellbreaker's own loot (shell_loot.cpp)
+// drops too.
 //
 // Every machine: the weapon's data asset (a copy of the Sniper's with an invisible projectile, as the Soul Whip)
 // is made once under the same name. Its handle is the weapon's mesh; the chain's links and the blade are mesh
@@ -191,8 +192,8 @@ public:
 
     std::string DefaultIni() const override {
         return R"(# Shellbreaker: a barbed blade on a chain, picked in the lobby (left of the Soul Whip). Left click swings a
-# string of five (right to left, left to right, a chop, the rebound, a circle over the head); right click aims the
-# hook, left click throws it. Replaces your melee while held. Its own weapon mods, perks and relics drop for its
+# string of five (right to left, left to right, a chop, the rebound, a circle over the head); right click fires the
+# hook: hold it to swing, let go to fly off. Replaces your melee while held. Its own weapon mods, perks and relics drop for its
 # holders, and of the game's weapon mods only those that work for a blade (damage and fire rate).
 enabled = true
 
@@ -556,7 +557,7 @@ private:
         At<bool>(projDA_, off::ProjDA_bExplodeAfterLifetime) = true;
         SetFString(weapon_, off::DA_Name, L"Shellbreaker");
         SetFString(weapon_, off::DA_Description,
-                   L"A barbed blade on a chain. Right click aims the hook. Replaces your melee");
+                   L"A barbed blade on a chain. Hold right click to swing on the hook. Replaces your melee");
         At<bool>(weapon_, off::DA_bRequiresUnlock) = false;
         At<bool>(weapon_, off::WeaponDA_bInfiniteClipSize) = true;
         At<uint8_t>(weapon_, off::WeaponDA_FireMode) = 0;  // automatic: hold to keep swinging
