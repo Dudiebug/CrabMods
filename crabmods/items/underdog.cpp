@@ -19,9 +19,9 @@ public:
         return R"(# Underdog, a perk: more damage the more health you are missing.
 enabled = true
 
-# Damage bonus for every 1% of health you are missing, in percent: 0.5 gives +25% at half health. Each
+# Damage bonus for every 1% of health you are missing, in percent: 1 gives +50% at half health. Each
 # extra Underdog stacks it again.
-damagePercent = 0.5
+damagePercent = 1
 
 # Which chests it drops from: common, epic, legendary or greed.
 rarity = epic
@@ -50,7 +50,7 @@ protected:
     float PrimaryBuff() const override { return pct_; }
 
 private:
-    float pct_ = 0.5f;
+    float pct_ = 1.f;
 };
 
 Underdog g_item;

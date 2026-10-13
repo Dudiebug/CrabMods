@@ -13,8 +13,8 @@
 | **Arsenal** | weapon mod | Epic | +3% damage for each **level** of your other weapon mods (a x3 stack counts 3). Collector for weapon mods. |
 | **Hoarder** | perk | Legendary | +3% damage for each weapon mod level **and** each perk level you have. Arsenal and Collector in one. |
 | **Minimalist** | perk | Epic | +40% damage, minus 4% for each **different pickup tag** you hold (Jack of All Trades the other way round). |
-| **Underdog** | perk | Epic | +0.5% damage for every 1% of health you are missing (+25% at half health). |
-| **Untouchable** | perk | Epic | +1% damage for each second without taking damage, up to +20%. Getting hit resets it. |
+| **Underdog** | perk | Epic | +1% damage for every 1% of health you are missing (+50% at half health). |
+| **Untouchable** | perk | Epic | +2% damage for each second without taking damage, up to +40%. Getting hit resets it. |
 | **Jack of All Trades** | perk | Epic | +3% damage for each **different** pickup tag you have (Fire, Ice, Critical, Bounce, Speed, Healing, ...). |
 | **Greed Is Power** | Greed perk | Greed | +3% damage for each Greed perk level you have, this one included. Collector for Greed perks. |
 | **Combo Catalyst** | perk | Epic | Your hits apply **+1 stack of each element** they already apply for every combo level above 1 (+4 at combo 5). |
@@ -23,7 +23,7 @@
 | **Purist** | relic | Epic | +100% damage while every elemental pickup you hold is the same element. |
 | **Collateral Damage** | perk | Epic | +3% damage for every destructible you break (pots, barrels, rocks, crystals, nests, ...) during an island's fight. It resets each island, like Tasty Orange. |
 | **Overflow** | perk | Epic | Every 100 health healed while you are already at full health gives +3% damage until the island ends. It resets each island, like Collateral Damage. |
-| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. |
+| **Martyr** | relic | Epic | While you're down, your **revive bubble hurts the enemies in it**: a third of a basic crab's max health a second (it grows every island, like the enemies). **Magnify** makes the bubble bigger, for the damage and for reviving you. Never drops when you play alone. |
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +35% damage. |
 | **Hellshot** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +35% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
@@ -64,7 +64,7 @@
 | Item | Type | Effect |
 |---|---|---|
 | **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 75). You can have up to 20 undead at once. Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. They get half your damage bonus. Their kills give you half the souls, and their crystals drop, but your on-kill perks and relics don't go off. Each costs 1% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give half their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
-| **Shellbreaker** | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Soul Whip. A barbed blade on a 40-link chain, held by a handle in the claw, with no ammo. **Left click** swings a string of five: right to left, left to right, a chop, the rebound and a circle over the head. Each swing hits as a melee strike (it breaks shields and everything a claw breaks) in a 4.5 m radius, 22 m in front of you, and the circle hits everything within 24 m. Over the string it does **75 damage a second**, each swing its share by its length (0.32 / 0.32 / 0.32 / 0.24 / 0.56 s). Fire rate makes the string faster, damage perks and damage weapon mods scale its hits like a gun's, and **melee mods power it** at a quarter of their worth (damage, Big Claws' range, the Claws' elements, Vampire). **Right click** aims the **hook** and left click throws it, up to 60 m (one charge, 6 s cooldown; a miss gives half back). It yanks fodder and medium enemies to you, pulls you to heavier ones, and on a wall or the floor you swing from it on the chain (hold left click to reel in). It **replaces your melee** while you hold it, its own items drop for you, melee mods drop 3x as often, and of the game's weapon mods only the ones that work for a blade drop (Wind Up, Aerial Shot, Uppercut, Heavy Hitter, Rapid Fire, Escalating Shot, Damage Shot, Supercharged, Juiced). The crab's body plays the game's own Katana, Hammer and Grenade-throw animations with it. It has its own model (the chain swings with real physics), sounds and a hook display where the melee slot was. |
+| **Shellbreaker** | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Soul Whip. A barbed blade on a 40-link chain, held by a handle in the claw, with no ammo. **Left click** swings a string of five: right to left, left to right, a chop, the rebound and a circle over the head. Each swing hits as a melee strike (it breaks shields and everything a claw breaks) in a 4.5 m radius, 22 m in front of you, and the circle hits everything within 24 m. Over the string it does **75 damage a second**, each swing its share by its length (0.32 / 0.32 / 0.32 / 0.24 / 0.56 s). Fire rate makes the string faster, damage perks and damage weapon mods scale its hits like a gun's, and **melee mods power it** at a quarter of their worth (damage, Big Claws' range, the Claws' elements, Vampire). **Right click** fires the **hook**. You swing on it like Spider-Man: it catches the best spot above and ahead of you (a diamond on screen shows it, or a point in the air over open ground), you hold right click to swing, steer with your movement keys to swing faster, and let go to fly off with a boost (hold left click to reel in). Swinging uses no charge, so swings chain. An enemy under the crosshair is hooked instead, up to 60 m (one charge, 6 s cooldown): it yanks fodder and medium enemies to you and pulls you to heavier ones. It **replaces your melee** while you hold it, its own items drop for you, melee mods drop 3x as often, and of the game's weapon mods only the ones that work for a blade drop (Wind Up, Aerial Shot, Uppercut, Heavy Hitter, Rapid Fire, Escalating Shot, Damage Shot, Supercharged, Juiced). The crab's body plays the game's own Katana, Hammer and Grenade-throw animations with it. It has its own model (the chain swings with real physics), sounds and a hook display where the melee slot was. |
 
 ### Shellbreaker loot
 
@@ -75,20 +75,20 @@ These only drop for players **holding Shellbreaker**, from chests of their loot 
 | **Long Chain** | weapon mod | Common | **+4 links**: the swings, the circle and the hook reach farther in proportion (up to ×2.5). |
 | **Wide Arc** | weapon mod | Common | Swings hit a **15%** wider area. |
 | **Whirlwind** | weapon mod | Epic | The overhead circle **drags nearby enemies** (not bosses) toward you. |
-| **Executioner** | weapon mod | Epic | The chop and its rebound deal **+75%** damage. |
-| **Searing Edge** | weapon mod | Epic | Every swing hit applies **2 fire** stacks. |
-| **Riptide** | perk | Epic | **+35% damage** for 4 s after your hook lands on an enemy or a wall. |
+| **Executioner** | weapon mod | Epic | The chop and its rebound deal **+55%** damage. |
+| **Searing Edge** | weapon mod | Epic | Every swing hit applies **3 fire** stacks. |
+| **Riptide** | perk | Epic | **+35% damage** for 4 s after your hook catches an enemy. |
 | **Quick Draw** | perk | Common | The hook recharges about **15%** faster (never below a sixth of its cooldown). |
 | **Undertow** | perk | Common | The hook's own hit deals **+75%**. |
 | **Rhythm** | perk | Common | The overhead circle deals **+30%**. |
-| **Grappler** | relic | Legendary | **+1 hook charge**; they recharge one at a time. |
+| **Grappler** | relic | Epic | **+1 hook charge**; they recharge one at a time. |
 | **Kraken's Grasp** | relic | Legendary | The hook yanks **hard and elite** enemies too (never bosses), and drags the **2 nearest** others along. |
 | **Frost Chain** | relic | Epic | The hook's hit applies **10 ice**. |
-| **Serrated Links** | weapon mod | Common | Swings deal **+50%** damage. |
-| **Venom Barbs** | weapon mod | Common | Swings apply **3 poison**. |
-| **Static Chain** | weapon mod | Epic | Swings apply **2 lightning**. |
+| **Serrated Links** | weapon mod | Common | Swings deal **+10%** damage. |
+| **Venom Barbs** | weapon mod | Common | Swings apply **2 poison**. |
+| **Static Chain** | weapon mod | Epic | Swings apply **3 lightning**. |
 | **Rime Edge** | weapon mod | Epic | Swings apply **3 ice**. |
-| **Momentum** | weapon mod | Epic | Each swing deeper into the string deals **+15%** more than the one before (the circle +60%). |
+| **Momentum** | weapon mod | Epic | Each swing deeper into the string deals **+8%** more than the one before (the circle +32%). |
 | **Hex Links** | weapon mod | Legendary | Swings apply **4 arcane**. |
 | **Backlash** | weapon mod | Legendary | The sweeps and the chop also strike as far behind you, for **60%** of their damage. |
 
@@ -99,9 +99,9 @@ These only drop for players **holding the Soul Whip**, from chests of their loot
 | Item | Type | Rarity | Effect |
 |---|---|---|---|
 | **Long Lash** | weapon mod | Common | Soul bolts fly **15%** farther. |
-| **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **1 soul**. |
+| **Soul Siphon** | weapon mod | Epic | Each enemy your soul bolt (or its burst) hits gives **a quarter of a soul**. |
 | **Branding Iron** | weapon mod | Common | The bolt's burst and its tags reach **15%** farther. |
-| **Death Mark** | weapon mod | Epic | Tagged enemies take **10%** more damage from you. |
+| **Death Mark** | weapon mod | Epic | Tagged enemies take **15%** more damage from you. |
 | **Soul Brand** | weapon mod | Epic | Killing a tagged enemy tags the **2** enemies nearest it. |
 | **Sturdy Bones** | ability mod | Common | Undead you raise have **15%** more health. |
 | **Soul Discount** | ability mod | Common | Raising costs about **8%** fewer souls (levels add up hyperbolically; never below half). |
@@ -173,9 +173,9 @@ By hand:
    WINEDLLOVERRIDES="xinput1_3=n,b" %command%
    ```
 
-`CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch. When an update adds items, their sections are added to the end of your `CrabMods.ini`; your own values are kept.
+`CrabMods.ini` (settings) and `CrabMods.log` appear in the same folder on first launch. When an update adds items, their sections are added to the end of your `CrabMods.ini`. When an update changes a default, every setting you left at the old default moves to the new one. Settings you changed are kept. The file as it was before is saved as `CrabMods.old.ini`, and `CrabMods.log` lists what moved. `CrabMods.defaults.ini` is how CrabMods remembers which defaults your file has; leave it alone.
 
-To uninstall, delete `CrabMods.dll`, `CrabMods.ini` and `CrabMods.log` (and `xinput1_3.dll` if no other mod uses it).
+To uninstall, delete `CrabMods.dll` and the `CrabMods.*` files beside it (`.ini`, `.log`, `.defaults.ini`, `.old.ini`) (and `xinput1_3.dll` if no other mod uses it).
 
 ### Parkour maps
 
@@ -204,9 +204,9 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[hoarder]` | `damagePercent` | `3` | Per weapon mod level and per perk level. |
 | `[heavyShot]` | `enabled` | `true` | Let Heavy Shot drop for every weapon (called `anyWeapon` before 0.9.0, still read). |
 | `[minimalist]` | `maxPercent`, `perTagPercent` | `40`, `4` | Bonus with no tags; taken off per different tag. |
-| `[underdog]` | `damagePercent` | `0.5` | Per 1% of health missing. |
-| `[untouchable]` | `damagePercent` | `1` | Per second without being hit. |
-| | `maxPercent` | `20` | The most it builds up to. |
+| `[underdog]` | `damagePercent` | `1` | Per 1% of health missing. |
+| `[untouchable]` | `damagePercent` | `2` | Per second without being hit. |
+| | `maxPercent` | `40` | The most it builds up to. |
 | `[jackOfAllTrades]` | `damagePercent` | `3` | Per different pickup tag. |
 | `[greedIsPower]` | `damagePercent` | `3` | Per Greed perk level. |
 | `[purist]` | `damagePercent` | `100` | |
@@ -246,7 +246,7 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
-| `[necromancer]` | `whipDps` | `100` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (80) to every enemy in it, less at its edge. |
+| `[necromancer]` | `whipDps` | `80` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (64) to every enemy in it, less at its edge. |
 | | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
 | | `burstRadiusMeters` | `4` | The bolt's purple burst's reach. |
 | | `procRollMultiplier` | `3` | How much more often chance-based weapon mods (Double Shot, Split Shot, ...) trigger with the whip. The Sniper has 7, the SMG 1. |
@@ -273,7 +273,9 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | `[shellbreaker]` | `dps`, `swingSeconds` | `75`, `0.35` | Damage a second over the swing string, and a swing's average length. |
 | | `reach`, `hitRadius`, `circleRadius` | `2200`, `450`, `2400` | Where a swing hits (cm in front), its radius, and the circle's radius. |
 | | `meleeModShare`, `meleeModWeight` | `0.25`, `3` | The share of the melee mods' worth the swings get, and how much more often they drop for holders. |
-| | `chainLinks`, `hookRange`, `hookCooldown`, `hookSpeed`, `hookDamage` | `40`, `6000`, `6`, `10000`, `20` | The chain, and the hook's reach (cm), cooldown (s), flight speed and hit damage. |
+| | `chainLinks`, `hookRange`, `hookCooldown`, `hookSpeed`, `hookDamage` | `40`, `6000`, `6`, `10000`, `60` | The chain, and the hook's reach on enemies (cm), cooldown (s), flight speed and hit damage. |
+| | `autoAnchor`, `skyAnchor`, `anchorRange`, `anchorIdeal` | `true`, `true`, `3500`, `2200` | Swinging: find the hook point for you (`false`: the hook goes where you aim), use a point in the air when nothing is in reach, how far it looks (cm) and the distance it likes best. |
+| | `swingPump`, `releaseBoost`, `releaseLift`, `catchLift` | `1200`, `1.2`, `450`, `0.85` | How hard steering speeds the swing up, your speed × this and this much upward when you let go, and the share of the chain left when it catches (it lifts you). |
 | | `hookKey`, `soundVolume` | `Mouse2`, `0.8` | **Your own**: the hook key and the weapon's sound volume. |
 | `[snapDecision]` | `doubleChance`, `sharePercent` | `50`, `50` | The chance of heads, and the share of your mods and perks a flip touches. |
 | `[wildCard]` | `chancePercent` | `20` | The chance per island cleared. |
@@ -356,7 +358,7 @@ The effects:
 See [Building](../README.md#building) in the main README. The code is in `crabmods/`:
 - `main.cpp`: the hooks, which pass each game event to every item.
 - `item.hpp`: the item base classes; `items/*.cpp`: one file per item.
-- `world.hpp`: reading players, inventories and health; `config.hpp`: `CrabMods.ini`.
+- `world.hpp`: reading players, inventories and health; `config.hpp`: `CrabMods.ini`; `ini_defaults.hpp`: moving it to new defaults.
 
 ## License
 
