@@ -204,11 +204,11 @@ std::vector<fake::Rel> Releases(bool newer) {
         {"crabmods-v0.14.1", {{"CrabMods.dll", kMods0141}, {"xinput1_3.dll", kLoader}, {"CrabMods.catalog.json", kCatalog}}},
         {"crabmods-v0.14.0", {{"CrabMods.dll", kMods0140}, {"xinput1_3.dll", kLoader}, {"CrabMods.catalog.json", kCatalog}}},
         {"crabsync-v1.0.8", {{"CrabSync.dll", kSync108}, {"xinput1_3.dll", kLoader}, {"CrabSync.catalog.json", kSyncCatalog}}},
-        {"manager-v0.4.0", {{"CrabModsManager.exe", "manager 0.4.0"}}},
+        {"manager-v0.5.0", {{"CrabModsManager.exe", "manager 0.5.0"}}},
     };
     if (newer) {
         r.push_back({"crabsync-v1.0.9", {{"CrabSync.dll", kSync109}, {"xinput1_3.dll", kLoader}, {"CrabSync.catalog.json", kSyncCatalog}}});
-        r.push_back({"manager-v0.5.0", {{"CrabModsManager.exe", "manager 0.5.0"}}});
+        r.push_back({"manager-v0.6.0", {{"CrabModsManager.exe", "manager 0.6.0"}}});
     }
     return r;
 }
@@ -300,7 +300,7 @@ static void NewPlayer() {
     CHECK(Read(fake::game / "CrabSync.dll") == kSync109);
     Press("Mods");
     CHECK(Notice("CrabSync updated 1.0.8"));
-    CHECK(Notice("CrabMods Manager 0.5.0 is available"));
+    CHECK(Notice("CrabMods Manager 0.6.0 is available"));
 
     // An unchanged list comes back as 304 (it doesn't count against GitHub's limit).
     Press("Settings");
@@ -318,7 +318,7 @@ static void NewPlayer() {
     // The manager's own update: downloaded, checked, then swapped in and restarted when asked.
     Press("Mods");
     Press("Update");
-    CHECK(Read(fake::data / "update" / kManagerExe) == "manager 0.5.0");
+    CHECK(Read(fake::data / "update" / kManagerExe) == "manager 0.6.0");
     CHECK(fake::swapped && fake::relaunched == std::vector<std::string>{"--updated"});
     CHECK(app::WantsQuit());
 }
@@ -341,7 +341,7 @@ static void Migrate() {
 
     CHECK(!app::Shown("Just browse"));  // no first-run screen
     CHECK(Notice("How should updates work"));
-    CHECK(Notice("CrabMods Manager updated to 0.4.0"));
+    CHECK(Notice("CrabMods Manager updated to 0.5.0"));
     CHECK(Notice("CrabMods 0.14.2 is available (you have 0.14.1)"));  // offered, not installed: not asked yet
     CHECK(Tree(fake::root / "steamapps") == before);
     InstallRecord rec = LoadRecord(fake::data / "state");

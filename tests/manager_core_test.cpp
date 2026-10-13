@@ -366,6 +366,18 @@ static void ReleaseDetails() {
     auto latest = LatestReleases(json, kManagerAppImage);
     CHECK(latest.count("Manager") && latest["Manager"].Has(kManagerAppImage));
     CHECK(!ParseReleases("{\"message\":\"Not Found\"}").ok);
+    // Pre-releases are only on the beta channel; drafts never.
+    const char* beta = R"([
+      {"tag_name":"crabmods-v0.15.0","prerelease":true,"assets":[{"name":"CrabMods.dll","browser_download_url":"https://x/15.dll"}]},
+      {"tag_name":"crabmods-v0.16.0","draft":true,"assets":[{"name":"CrabMods.dll","browser_download_url":"https://x/16.dll"}]},
+      {"tag_name":"crabmods-v0.14.1","assets":[{"name":"CrabMods.dll","browser_download_url":"https://x/141.dll"}]}
+    ])";
+    const Release* stable = ParseReleases(beta).Latest("CrabMods", "CrabMods.dll");
+    CHECK(stable && stable->version == "0.14.1" && !stable->prerelease);
+    ReleaseList betaList = ParseReleases(beta, true);
+    const Release* pre = betaList.Latest("CrabMods", "CrabMods.dll");
+    CHECK(pre && pre->version == "0.15.0" && pre->prerelease && betaList.all["CrabMods"].size() == 2);
+    CHECK(LatestReleases(beta, kManagerExe, true)["CrabMods"].version == "0.15.0");
     CHECK(CatalogAsset(Mods()[0]) == "CrabMods.catalog.json" && CatalogAsset(Mods()[1]) == "CrabSync.catalog.json");
     auto ini = ParseSyncCatalog(std::string("{\"ini\":") + JsonString(kSyncIni) + "}");
     CHECK(ini && *ini == kSyncIni);
@@ -398,6 +410,12 @@ static void Configs() {
     c.autoManager.reset();
     back = ParseConfig(ConfigText(c));
     CHECK(!back.autoMods && !back.autoManager);
+    CHECK(!ParseConfig("").beta && ParseConfig("channel=beta\n").beta && !ParseConfig("channel=stable\n").beta);
+    {
+        Config c;
+        c.beta = true;
+        CHECK(ParseConfig(ConfigText(c)).beta && ConfigText(c).find("channel=beta") != std::string::npos);
+    }
     CHECK(ParseConfig("checkMinutes=0\n").checkMinutes == 0 && ParseConfig("checkMinutes=-3\n").checkMinutes == 0);
     CHECK(ParseConfig("checkMinutes=soon\n").checkMinutes == 5);
 }

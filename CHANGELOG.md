@@ -304,6 +304,11 @@ First release, as Arsenal.
 
 ## CrabMods Manager
 
+### 0.5.0
+
+- **A beta channel.** Turn on **Settings → Beta channel** to get pre-releases too: new mod versions that are still being tried out. With it off (the default), the manager only offers normal releases. To go back to the stable version, turn it off and use **Roll back** on the mod's page.
+- **Remove all mods** also deletes `CrabMods.defaults.ini` and `CrabMods.old.ini` when you tick the box for the mods' settings.
+
 ### 0.4.0
 
 The manager asks first, and runs on Linux.

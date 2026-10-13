@@ -635,7 +635,7 @@ void CheckForUpdates() {
             if (c.body.empty()) return;
             g_releasesBody = c.body;
             g_releasesEtag = c.etag;
-            g_releases = ParseReleases(c.body);
+            g_releases = ParseReleases(c.body, g_cfg.beta);
             g_releasesLoaded = g_releases.ok;
             AfterReleases();
         }};
@@ -646,7 +646,7 @@ void CheckForUpdates() {
 void LoadCachedReleases() {
     auto body = ReadFile(CacheRoot() / "releases.json");
     if (!body) return;
-    ReleaseList list = ParseReleases(*body);
+    ReleaseList list = ParseReleases(*body, g_cfg.beta);
     if (!list.ok) return;
     g_releases = std::move(list);
     g_releasesBody = *body;
@@ -1744,6 +1744,15 @@ void SettingsPage() {
     }
     if (ImGui::Checkbox("Offline: never go online on my own", &g_cfg.offline)) SaveConfig();
     Small(col::Faint, "No update checks and no downloads unless you press Check now or install something.");
+    if (ImGui::Checkbox("Beta channel: get pre-releases too", &g_cfg.beta)) {
+        SaveConfig();
+        if (!g_releasesBody.empty()) {
+            g_releases = ParseReleases(g_releasesBody, g_cfg.beta);
+            AfterReleases();
+        }
+    }
+    Small(col::Faint, "Pre-releases are new versions still being tried out. They can have bugs; turn this off and roll "
+                      "back from a mod's page to go back to the stable one.");
     ImGui::Dummy(ImVec2(0, S(2)));
     if (ImGui::BeginTable("versions", 4, ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("", 0, S(140));
@@ -2352,6 +2361,7 @@ int SelfTest(bool report) {
     if (dir.empty()) dir = plat::FindGame();
     g_game = dir;
     g_rec = LoadRecord(StateDir());
+    r += std::string("channel: ") + (g_cfg.beta ? "beta" : "stable") + "\n";
     r += "game: " + (g_game.empty() ? std::string("not found") : U8(g_game)) + "\n";
     HttpResponse resp = plat::Http(kReleasesUrl);
     bool ok = resp.status == 200;
@@ -2360,7 +2370,7 @@ int SelfTest(bool report) {
     if (ok) {
         WriteFile(CacheRoot() / "releases.json", resp.body);
         WriteFile(CacheRoot() / "releases.etag", resp.etag);
-        g_releases = ParseReleases(resp.body);
+        g_releases = ParseReleases(resp.body, g_cfg.beta);
         g_releasesLoaded = g_releases.ok;
         // An unchanged list answers 304.
         if (!resp.etag.empty()) r += "etag check: " + std::to_string(plat::Http(kReleasesUrl, resp.etag).status) + "\n";

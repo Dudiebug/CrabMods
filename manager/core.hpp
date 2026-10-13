@@ -268,6 +268,7 @@ struct Release {
     std::string tag, version;  // "crabmods-v0.3.0", "0.3.0"
     std::string page;          // the release's page on GitHub ("What's new")
     std::string notes;         // its text (Markdown)
+    bool prerelease = false;   // a beta: only on the beta channel
     std::map<std::string, Asset> assets;  // by file name
     bool Has(const std::string& file) const { return assets.count(file) > 0; }
     const Asset* Get(const std::string& file) const {
@@ -276,16 +277,16 @@ struct Release {
     }
 };
 
-// Every published release whose tag starts with `prefix`, newest version first. Drafts and pre-releases are
-// skipped.
-inline std::vector<Release> ReleasesTagged(const Json& root, const std::string& prefix) {
+// Every published release whose tag starts with `prefix`, newest version first. Drafts are skipped, and so are
+// pre-releases unless `beta` is set (the beta channel).
+inline std::vector<Release> ReleasesTagged(const Json& root, const std::string& prefix, bool beta = false) {
     std::vector<Release> out;
     if (root.type != Json::Array) return out;
     for (const Json& r : root.items) {
-        if (r.type != Json::Object || r.Flag("draft") || r.Flag("prerelease")) continue;
+        if (r.type != Json::Object || r.Flag("draft") || (!beta && r.Flag("prerelease"))) continue;
         std::string tag = r.Str("tag_name");
         if (tag.rfind(prefix, 0) != 0) continue;
-        Release rel{tag, tag.substr(prefix.size()), r.Str("html_url"), r.Str("body"), {}};
+        Release rel{tag, tag.substr(prefix.size()), r.Str("html_url"), r.Str("body"), r.Flag("prerelease"), {}};
         if (const Json* assets = r.Get("assets"); assets && assets->type == Json::Array)
             for (const Json& a : assets->items) {
                 if (a.type != Json::Object) continue;
@@ -338,21 +339,22 @@ struct ReleaseList {
     }
 };
 
-inline ReleaseList ParseReleases(const std::string& json) {
+inline ReleaseList ParseReleases(const std::string& json, bool beta = false) {
     ReleaseList list;
     auto root = JsonParser(json).Parse();
     if (!root || root->type != Json::Array) return list;
     list.ok = true;
-    for (const ModInfo& m : Mods()) list.all[m.name] = ReleasesTagged(*root, m.tagPrefix);
-    list.all["Manager"] = ReleasesTagged(*root, kManagerTag);
+    for (const ModInfo& m : Mods()) list.all[m.name] = ReleasesTagged(*root, m.tagPrefix, beta);
+    list.all["Manager"] = ReleasesTagged(*root, kManagerTag, beta);
     return list;
 }
 
 // The newest release of each mod, keyed by mod name, and of the manager itself under "Manager" (the one with
 // `managerAsset`, the exe on Windows and the AppImage on Linux).
-inline std::map<std::string, Release> LatestReleases(const std::string& json, const std::string& managerAsset = kManagerExe) {
+inline std::map<std::string, Release> LatestReleases(const std::string& json, const std::string& managerAsset = kManagerExe,
+                                                     bool beta = false) {
     std::map<std::string, Release> latest;
-    ReleaseList list = ParseReleases(json);
+    ReleaseList list = ParseReleases(json, beta);
     for (const ModInfo& m : Mods())
         if (const Release* r = list.Latest(m.name, m.dll)) latest[m.name] = *r;
     if (const Release* r = list.Latest("Manager", managerAsset)) latest["Manager"] = *r;
@@ -1306,6 +1308,7 @@ struct Config {
     bool linuxHintDone = false;   // "I've set the launch option"
     int checkMinutes = 5;         // how often to look for updates; 0: never on its own
     bool offline = false;         // no network at all, except "Check now"
+    bool beta = false;            // the beta channel: pre-releases count as updates too
     std::map<std::string, std::string> skip;  // "CrabMods" -> a version the player skipped
     std::string lastRun;          // the manager version that ran last, to say "updated to ..." once
 };
@@ -1324,6 +1327,8 @@ inline std::string ConfigText(const Config& c) {
     t += "# minutes between update checks (0: only when you press Check now)\n";
     t += "checkMinutes=" + std::to_string(c.checkMinutes) + "\n";
     t += std::string("offline=") + b(c.offline) + "\n";
+    t += "# stable, or beta for pre-releases too\n";
+    t += std::string("channel=") + (c.beta ? "beta" : "stable") + "\n";
     for (auto& [mod, v] : c.skip)
         if (!v.empty()) t += "skip." + mod + "=" + v + "\n";
     t += "lastRun=" + c.lastRun + "\n";
@@ -1347,6 +1352,7 @@ inline Config ParseConfig(const std::string& text) {
     c.linuxHintDone = flag("linuxHintDone", false);
     if (v.count("checkMinutes") && IsNumber(v["checkMinutes"])) c.checkMinutes = std::max(0, std::atoi(v["checkMinutes"].c_str()));
     c.offline = flag("offline", false);
+    c.beta = v["channel"] == "beta";
     for (auto& [k, val] : v)
         if (k.rfind("skip.", 0) == 0 && !val.empty()) c.skip[k.substr(5)] = val;
     c.lastRun = v["lastRun"];

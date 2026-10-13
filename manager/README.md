@@ -60,6 +60,7 @@ The taskbar entry flashes when it installed an update, or has a new manager read
 
 - **Roll back to 0.14.0** on a mod's page puts the previous version back. The version you left is then skipped, so an automatic update doesn't bring it straight back. **Settings → Versions** lists the installed and latest versions, and undoes a skip.
 - **Offline** (Settings): no update checks and no downloads at all, unless you press **Check now** or install something.
+- **Beta channel** (Settings): pre-releases count as updates too. These are new versions still being tried out, and can have bugs. Off by default; to go back, turn it off and **Roll back** on the mod's page. In `CrabModsManager.ini` it's `channel=beta` or `channel=stable`.
 - **Play** waits for running changes to finish, then starts the game through Steam.
 
 ### Coming from manager 0.3
@@ -80,7 +81,7 @@ The **Share** tab has your setup code: which mods are installed and every settin
 
 ## Removing everything
 
-**Settings → Remove all mods...** removes exactly the files the manager put into the game folder, and puts back any file it had replaced. A checkbox also deletes the mods' own settings and logs (`CrabMods.ini`, `CrabMods.log`, ...). Like every change, it is shown to you first.
+**Settings → Remove all mods...** removes exactly the files the manager put into the game folder, and puts back any file it had replaced. A checkbox also deletes the mods' own settings and logs (`CrabMods.ini`, `CrabMods.log`, `CrabMods.defaults.ini`, `CrabMods.old.ini`, ...). Like every change, it is shown to you first.
 
 ## Why does my antivirus flag this?
 

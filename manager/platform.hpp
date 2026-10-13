@@ -5,7 +5,7 @@
 
 namespace mgr {
 
-constexpr const char kVersion[] = "0.4.0";
+constexpr const char kVersion[] = "0.5.0";
 
 namespace plat {
 
