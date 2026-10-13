@@ -9,3 +9,5 @@
 /art/necromancer/_preview/
 /art/necromancer/ui/icon_tier*.png
 __pycache__/
+# Shellbreaker previews: renders with the game's crab in them
+/art/shellbreaker/preview/
