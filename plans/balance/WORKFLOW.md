@@ -1,6 +1,6 @@
 # Designing a new item
 
-Six steps from idea to shipped item. The numbers come from `vanilla-power.md`, `vanilla-difficulty.md` and `audit.md` in this folder, and the vanilla items are in `re/pickup_catalog.json`.
+Seven steps from idea to shipped item. The numbers come from `vanilla-power.md`, `vanilla-difficulty.md` and `audit.md` in this folder, and the vanilla items are in `re/pickup_catalog.json`.
 
 ## 1. Is it different?
 
@@ -46,7 +46,26 @@ Example: for a new Common perk, line it up against Danger Close (+30% close up),
 - **Check the rarities next to it.** It should beat a typical item one rarity down and lose to a typical item one rarity up.
 - **The side-by-side test.** Imagine it in a chest next to those vanilla items. If you would always take it, it's too strong. If you would never take it, it's too weak. "It depends on my build" is the goal.
 
-## 4. Try to break it
+## 4. Does it scale with the run?
+
+Step 3 compares it mid-run. Now check that it stays worth picking from the first biome to the loops, as the game gets harder. Enemy health is a step function: flat within a biome, then ×1.5–2.2 at each biome boundary, compounding in loops. The run needs ~3.5× your starting damage by island 7, ~11× by 14, ~34× by the island 28 boss and ~87× by island 35 (`vanilla-difficulty.md` §2 and §5). Enemy damage grows much more slowly (0.9 → 7.7 by island 28), and shop prices rise about 3.7% per island (a Common is 482 crystals on island 1, 774 on island 14).
+
+Work out the item's value at **island 3, 14, 28 and 35** (picked up then, and picked up early and still held), next to the typical vanilla item of its rarity at the same point:
+
+- **Flat additive bonuses fade.** The damage pools are additive, so each new +X% is worth less as the build fills. A Common +75% weapon mod is ×1.75 on an empty build and ×1.19 next to four other Commons. A late run sits at weapon-mod damage ≈ 10–20, where one more Common adds under 10% (`vanilla-power.md` §0 and §3). That's normal for a Common, and a problem for an Epic or Legendary.
+- **Levels are where late power comes from.** After about island 20 most chests offer a level on an item you hold, so an item that levels well (linear, or HalfScaling for procs) keeps up. One that doesn't level, or caps early, is a relic-like pick and needs to be worth it without levels.
+- **Multipliers and procs keep up.** A true ×, or something that scales with your other items (crit, elemental, proc chance), holds its value. That is what the loops require, so check it doesn't make them trivial.
+- **What it counts changes with the run.** Kills, enemies and crystals per island go up; your inventory fills up. An item that counts these grows on its own. An item that counts empty slots shrinks.
+- **Fixed amounts go stale.** A flat heal, a flat shield or a fixed crystal amount is big on island 2 and nothing on island 28. Make it a percentage of max health, or of the current price, or let it grow per biome.
+- **Survival items** are judged against enemy damage at that island, not against your damage.
+
+Two failure modes, both a "no" here:
+- **It falls off**: strong in biome 1, dead weight by biome 3. Fix it with a multiplier, per-biome growth, or by scaling with something the player has more of later.
+- **It runs away**: it grows faster than the ×1.6–3.3 per biome the game asks for (needed damage: 3.5× → 11.4× → 20.8× → 33.8× at islands 7, 14, 21, 28), so loops stop being hard. Fix it with a cap, island-only scope, or diminishing returns.
+
+The goal is the same rank against its rarity's vanilla items at every point. "Great early, weak late" is OK for a Common, if that's the design and the card says so.
+
+## 5. Try to break it
 
 Each question is a real past mistake. Any "yes" needs a fix: a cap, island-only, a lower rate, or a different rarity.
 
@@ -58,7 +77,7 @@ Each question is a real past mistake. Any "yes" needs a fix: a cap, island-only,
 - Does it combo badly with Encore, Vampire, Overflow, Proc Generator, Money Is Power or the necro kit?
 - Does it work the same **solo and with 4 players**, and with CrabSync on? *Last Crab Standing*
 
-## 5. Is it fun?
+## 6. Is it fun?
 
 At least two of these:
 
@@ -67,11 +86,11 @@ At least two of these:
 - It changes **what you pick next**.
 - Its drawback changes **how you play**, not just a smaller number.
 
-## 6. Card, build, review
+## 7. Card, build, review
 
 - Write the card into `plans/ideas.md` (template below).
 - Build it with every number as a `CrabMods.ini` key, so tuning needs no rebuild.
-- After people have played it, add a line to `audit.md`: in line, too strong, or too weak. If it was a new kind of mistake, add it to step 4.
+- After people have played it, add a line to `audit.md`: in line, too strong, or too weak. If it was a new kind of mistake, add it to step 5.
 
 ---
 
@@ -89,8 +108,9 @@ At least two of these:
 **Different from:** <vanilla A>, <vanilla B>, because <...>
 **Number:** based on <vanilla item and its number>; mid-run ×<..>; level 5 / Proc Generator / island 28: <...>
 **Vs vanilla:** <the 4–5 items, weakest to strongest, with the new item placed in the list; one rarity up and down>
-**Break it:** <any "yes" from step 4 and its fix, or "none">
-**Fun:** <which of step 5>
+**Progression:** <its value at islands 3 / 14 / 28 / 35 next to its rarity's typical item; falls off, keeps up or runs away, and the fix>
+**Break it:** <any "yes" from step 5 and its fix, or "none">
+**Fun:** <which of step 6>
 **How:** <hooks, addresses, what's still to find>
 **Unverified:** <anything guessed, to check in game or in the exe before building>
 ~~~

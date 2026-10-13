@@ -2,7 +2,7 @@
 
 ## Run the new items through the balance workflow
 
-None of these went through `plans/balance/WORKFLOW.md` (the new-item skill) before release. Run each one through steps 1–5, put its card in `plans/ideas.md`, and fix the numbers in code and the ini defaults where a step fails.
+None of these went through `plans/balance/WORKFLOW.md` (the new-item skill) before release. Run each one through steps 1–6, put its card in `plans/ideas.md`, and fix the numbers in code and the ini defaults where a step fails.
 
 - [ ] Shellbreaker itself: 75 DPS, area swings (4.5 m radius, 22 m out; circle 24 m), melee mods at `meleeModShare` 0.25 and dropping ×3 (`meleeModWeight`), and the blade-only vanilla weapon-mod whitelist (`kBladeMods` in `crabmods/items/shellbreaker.cpp`).
 - [ ] The 7 weapon mods new in 0.14.1: Serrated Links, Venom Barbs, Static Chain, Rime Edge, Hex Links, Momentum, Backlash (`crabmods/items/shell_loot.cpp`).
