@@ -236,8 +236,9 @@ reelSpeed = 600
 # within anchorRange (cm), anchorIdeal away at best; skyAnchor also catches a point in the air ahead when there's
 # nothing else. Without autoAnchor the hook goes where you aim. swingPump: how hard your movement keys speed the
 # swing up (cm/s per second), and swingMaxSpeed the fastest a swing goes; letting go multiplies your speed by
-# releaseBoost and adds releaseLift upward; catchLift: the chain shortens to this share after it catches, lifting
-# you off the ground.
+# releaseBoost and adds releaseLift upward. swingKeepHeight: the swing holds you at the height you started at (at
+# least a little off the ground) as you pass under the hook point, and swings you up at the end of the chain;
+# false: a plain pendulum, where catchLift is the share the chain shortens to after it catches.
 autoAnchor = true
 skyAnchor = false
 anchorRange = 5000
@@ -245,6 +246,7 @@ anchorIdeal = 2200
 enemyAssist = 7
 swingPump = 1200
 swingMaxSpeed = 4000
+swingKeepHeight = true
 releaseBoost = 1.2
 releaseLift = 450
 catchLift = 0.85
@@ -284,6 +286,7 @@ spawnKey = none
         else if (k == "anchorRange") anchorRange_ = std::max(300.f, ParseFloat(v));
         else if (k == "anchorIdeal") anchorIdeal_ = std::max(200.f, ParseFloat(v));
         else if (k == "swingMaxSpeed") swingMaxSpeed_ = std::max(500.f, ParseFloat(v));
+        else if (k == "swingKeepHeight") swingKeepHeight_ = ParseBool(v);
         else if (k == "enemyAssist") enemyAssist_ = std::clamp(ParseFloat(v), 0.f, 30.f);
         else if (k == "swingPump") swingPump_ = std::max(0.f, ParseFloat(v));
         else if (k == "releaseBoost") releaseBoost_ = std::clamp(ParseFloat(v), 0.f, 3.f);
@@ -1467,6 +1470,7 @@ private:
         t.pump = swingPump_;
         t.maxSpeed = swingMaxSpeed_;
         t.catchLift = catchLift_;
+        t.keepHeight = swingKeepHeight_;
         return t;
     }
 
@@ -1956,7 +1960,7 @@ private:
     float hookRange_ = 6000.f, hookCooldown_ = 6.f, hookSpeed_ = 10000.f, hookDamage_ = 60.f;
     int yankMax_ = 2;
     float yankSpeed_ = 1600.f, pullSpeed_ = 2200.f, reelSpeed_ = 600.f, procRoll_ = 1.f;
-    bool autoAnchor_ = true, skyAnchor_ = false;
+    bool autoAnchor_ = true, skyAnchor_ = false, swingKeepHeight_ = true;
     float swingMaxSpeed_ = 4000.f, enemyAssist_ = 7.f;
     float anchorRange_ = 5000.f, anchorIdeal_ = 2200.f, swingPump_ = 1200.f, releaseBoost_ = 1.2f, releaseLift_ = 450.f,
           catchLift_ = 0.85f;

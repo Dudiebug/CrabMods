@@ -124,6 +124,10 @@ installed, packaged, tagged or released.
   a trace down, + the capsule's half height); the crab gets at least 1300 cm/s toward the hook point. Each frame,
   past the length, the velocity across the chain is kept (plus steering × swingPump), the speed along it is
   replaced by a pull of min(8·overshoot, 1500), and the total is capped at swingMaxSpeed.
+- `swingKeepHeight` (default): holdZ = max(start z, floor + 150), at most 150 below the pin. While the crab's flat
+  distance from the pin is within the chain's catch length at holdZ, its vertical speed is set to
+  clamp(8·(holdZ − z), ±1500), its flat speed kept (plus steering × swingPump); beyond it, a pendulum at the catch
+  length, which swings it up. Reeling raises holdZ.
 - Charges: 1 + Grappler, spent only on enemies. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth.
 - What it does depends on what it hits:
   - An enemy near the crosshair (with a charge), light (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp):

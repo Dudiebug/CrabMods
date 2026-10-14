@@ -4,6 +4,10 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.15.3
+
+- **Swings keep you level.** Shellbreaker's swing holds you at the height you started it at (from the ground, a little above it) as you pass under the hook point, keeping your speed. At the end of the chain it swings you up, ready to let go. `swingKeepHeight = false` gives the plain pendulum back.
+
 ### 0.15.2
 
 - **Shellbreaker's swing, fixed properly.** The chain's pull built up every frame, so a swing reached 5,000–13,000 cm/s and flung you. Now it holds you at its length and swings you in an arc, never faster than 40 m/s (`swingMaxSpeed`).
