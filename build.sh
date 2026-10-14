@@ -115,6 +115,7 @@ done
     "${IMGUI_OBJS[@]:0:4}" -static -o "$OUT/manager_app_test.exe"
 "$CXX" "${CXXFLAGS[@]}" tests/necro_lash_test.cpp -static -o "$OUT/necro_lash_test.exe"
 "$CXX" "${CXXFLAGS[@]}" tests/ini_defaults_test.cpp -static -o "$OUT/ini_defaults_test.exe"
+"$CXX" "${CXXFLAGS[@]}" tests/shell_swing_test.cpp -static -o "$OUT/shell_swing_test.exe"
 echo "built: $OUT/xinput1_3.dll $OUT/CrabSync.dll $OUT/CrabMods.dll $OUT/CrabModsManager.exe (+ tests)"
 
 # Windows programs run as they are on Windows (Git Bash), with Proton's wine in a throwaway prefix on Linux.
@@ -164,6 +165,7 @@ for arg in "$@"; do
         run_win "$OUT/ledger_test.exe"
         run_win "$OUT/necro_lash_test.exe"
         run_win "$OUT/ini_defaults_test.exe"
+        run_win "$OUT/shell_swing_test.exe"
         # With the build folder it also checks the catalogs of the DLLs just built.
         run_win "$OUT/dump_catalog.exe" "$OUT"
         run_win "$OUT/manager_core_test.exe" "$OUT"

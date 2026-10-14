@@ -112,12 +112,18 @@ installed, packaged, tagged or released.
 - The string restarts after a pause longer than a swing + 0.6 s.
 
 **The hook (RMB: press to fire, hold to swing, let go to fly off)**
-- The hook point (`autoAnchor`), every 0.1 s: 25 Camera-channel traces from the crab around the crosshair, ±22°
-  sideways and 0–45° above its pitch (never below 10° up). Hits less than 2 m above or 3 m away are skipped. The rest
-  are scored −(degrees off the crosshair)/20 − 0.5·|d − anchorIdeal|/anchorIdeal + 0.2·up/range. If none is found, a
-  sky point ahead at anchorIdeal, 40–60° up (`skyAnchor`). A 24 px diamond with a dark outline shows it.
-- On catch the chain is the crab's distance and eases to `catchLift` of it at max(reelSpeed, 600) cm/s. Past its
-  length the outward speed is removed and a pull of min(3·over, 250) cm/s added.
+- The hook point (`autoAnchor`), every 0.1 s, from the crab's eye along the aim (GetBaseAimRotation):
+  - With a charge: the enemy closest to the crosshair within `enemyAssist`° and hookRange, not behind a wall (a
+    trace to it stops short by more than 2.5 m). Red diamond; Throw hooks it.
+  - Else the crosshair's own trace, then 25 traces ±22° sideways and 0–45° above its pitch (never below 10° up),
+    out to anchorRange. Hits less than 2 m above or 3 m away are skipped. Scored −(degrees off the
+    crosshair)/20 − 0.5·|d − anchorIdeal|/anchorIdeal + 0.2·up/range. Orange diamond.
+  - Else, with `skyAnchor` (off by default), a point in the air ahead at anchorIdeal, 40–60° up.
+- The swing (shell_swing.hpp, simulated in tests/shell_swing_test.cpp): on catch the chain is the crab's distance,
+  and shortens at 1500 cm/s to min(catchLift·length, pin height − floor − 150) so the arc clears the floor (floor:
+  a trace down, + the capsule's half height); the crab gets at least 1300 cm/s toward the hook point. Each frame,
+  past the length, the velocity across the chain is kept (plus steering × swingPump), the speed along it is
+  replaced by a pull of min(8·overshoot, 1500), and the total is capped at swingMaxSpeed.
 - Charges: 1 + Grappler, spent only on enemies. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth.
 - What it does depends on what it hits:
   - An enemy near the crosshair (with a charge), light (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp):

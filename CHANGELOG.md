@@ -4,6 +4,13 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.15.2
+
+- **Shellbreaker's swing, fixed properly.** The chain's pull built up every frame, so a swing reached 5,000–13,000 cm/s and flung you. Now it holds you at its length and swings you in an arc, never faster than 40 m/s (`swingMaxSpeed`).
+- **From the ground**, the chain shortens after it catches until the swing clears the floor, so it lifts you instead of dragging you, and every swing starts moving forward.
+- **No more catching thin air.** The hook only catches something real; the point in the air is off (`skyAnchor = true` brings it back). It looks further (50 m), starting right where your crosshair points.
+- **Hook enemies by aiming at them.** An enemy close to your crosshair and in sight gets a red diamond, and right click hooks it (with a charge). The hook display says *HOOK ENEMY*.
+
 ### 0.15.1
 
 - **Shellbreaker's swing swings.** The chain no longer snaps short when it catches, which threw you at the hook point and past it so the chain went slack. Now it catches at your distance and lifts you gently, and falling turns into a swing.
