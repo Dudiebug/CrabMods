@@ -231,8 +231,8 @@ pullSpeed = 2200
 reelSpeed = 600
 # Swinging: press the hook key to fire at the hook point (the diamond on screen), hold it to swing, let go to fly
 # off. An enemy under the crosshair is hooked instead. With autoAnchor the hook point is found for you: the best
-# spot above and ahead of you within anchorRange (cm), anchorIdeal away at best; skyAnchor uses a point in the air
-# when there's nothing to catch. Without autoAnchor the hook goes where you aim. swingPump: how hard your movement
+# spot near your crosshair (or above it) within anchorRange (cm), anchorIdeal away at best; skyAnchor uses a point
+# in the air ahead when there's nothing to catch. Without autoAnchor the hook goes where you aim. swingPump: how hard your movement
 # keys speed the swing up (cm/s per second); letting go multiplies your speed by releaseBoost and adds releaseLift
 # upward; catchLift: the chain shortens to this share when it catches, lifting you off the ground.
 autoAnchor = true
@@ -1253,6 +1253,7 @@ private:
         V3 pin{}, target{};
         void* enemy = nullptr;
         float length = 0.f;  // the chain's, while it swings the crab or comes back
+        float goal = 0.f;    // while swinging: the length the chain eases to after it catches
         double since = 0.0;
     };
 
@@ -1315,11 +1316,16 @@ private:
         case Phase::Swinging: {
             if (!rmb || !ready) {
                 // Letting go flings you on: faster, and a little up.
-                if (ready) LaunchSelf(c, pc, Velocity(c) * releaseBoost_ + V3{0, 0, releaseLift_});
+                V3 v = Velocity(c);
+                CRAB_LOG("shellbreaker: swing ended after %.1f s (%s), speed %.0f", Now() - h.since,
+                         !ready ? "not ready" : "key up", shell::Length(v));
+                if (ready) LaunchSelf(c, pc, v * releaseBoost_ + V3{0, 0, releaseLift_});
                 Return(pc, h);
                 break;
             }
-            if (lmb) h.length = std::max(150.f, h.length - reelSpeed_ * dt);
+            // The chain takes up slack after it catches (catchLift), gently, so it lifts rather than yanks.
+            if (lmb) h.goal = std::max(150.f, h.goal - reelSpeed_ * dt);
+            if (h.length > h.goal) h.length = std::max(h.goal, h.length - std::max(reelSpeed_, 600.f) * dt);
             V3 p = Of(me), r = p - h.pin, v = Velocity(c);
             float dist = shell::Length(r);
             if (dist < 1.f) break;
@@ -1331,11 +1337,12 @@ private:
                 v = v + (in - n * shell::Dot(in, n)) * (swingPump_ * dt);
                 push = true;
             }
-            // The chain holds the crab: no moving away from the anchor past its length.
+            // The chain holds the crab: no moving away from the anchor past its length (that turns the fall into
+            // the swing), and a soft, capped pull back when it is past it.
             if (dist > h.length) {
                 float out = shell::Dot(v, n);
                 if (out > 0.f) v = v - n * out;
-                v = v - n * ((dist - h.length) * 8.f);
+                v = v - n * std::min((dist - h.length) * 3.f, 250.f);
                 push = true;
             }
             if (push) Launch(c, v);
@@ -1360,12 +1367,13 @@ private:
 
     // --- The hook point (the player's machine) ---------------------------------------------------------------
     //
-    // As in Insomniac's Spider-Man, the swing needs no aiming: a fan of traces up and ahead (the way you're
-    // moving, or looking when standing still) finds the best thing to catch, scored by how near it is to
-    // anchorIdeal, how far ahead and how high. Every 0.1 s; a diamond on screen shows it.
+    // As in Insomniac's Spider-Man, the swing needs no exact aiming: a fan of traces around the crosshair (and
+    // above it) finds the best thing to catch, scored mostly by how close it is to the crosshair, then by how near
+    // it is to anchorIdeal and how high. Every 0.1 s; a diamond on screen shows it.
 
     struct Anchor {
         bool found = false, sky = false;
+        int hits = 0;  // traces that hit anything, the last time it looked
         V3 at{};
         double next = 0.0;
     };
@@ -1403,25 +1411,30 @@ private:
     void SeekAnchor(void* c, void* ps, V3 me) {
         if (Now() < point_.next) return;
         point_.next = Now() + 0.1;
-        V3 v = Velocity(c);
-        float speed = shell::Length(V3{v.x, v.y, 0.f});
-        float yaw = speed > 300.f ? std::atan2(v.y, v.x) / kDeg : AimYaw(c);
-        V3 fwd = Dir(yaw, 0.f), eye = me + V3{0, 0, 60.f};
+        float pitch = 0.f, yaw = AimYaw(c, &pitch);
+        V3 aim = Dir(yaw, pitch), eye = me + V3{0, 0, 60.f};
         float range = anchorRange_ * ChainFactor(ps), ideal = std::min(anchorIdeal_ * ChainFactor(ps), range);
         float best = -1e30f;
+        int hits = 0;
         point_.found = false;
-        for (float elev : {35.f, 50.f, 65.f, 80.f})
-            for (float side : {0.f, -18.f, 18.f, -36.f, 36.f}) {
-                V3 hit;
-                if (!Trace(c, eye, eye + Dir(yaw + side, elev) * range, hit)) continue;
+        // Around the crosshair, and up from it: never below 10 degrees up, since the hook needs something above.
+        for (float up : {0.f, 10.f, 20.f, 32.f, 45.f})
+            for (float side : {0.f, -10.f, 10.f, -22.f, 22.f}) {
+                float elev = std::clamp(pitch + up, 10.f, 80.f);
+                V3 ray = Dir(yaw + side, elev), hit;
+                if (!Trace(c, eye, eye + ray * range, hit)) continue;
+                hits++;
                 V3 d = hit - me;
-                float dist = shell::Length(d), up = d.z, ahead = shell::Dot(d, fwd);
-                if (up < 250.f || dist < 300.f) continue;  // the ground, or right on top of you
-                float score = -std::fabs(dist - ideal) / ideal + 0.6f * ahead / range + 0.3f * up / range;
+                float dist = shell::Length(d);
+                if (d.z < 200.f || dist < 300.f) continue;  // the ground, or right on top of you
+                float off = std::acos(std::clamp(shell::Dot(ray, aim), -1.f, 1.f)) / kDeg;  // degrees off the crosshair
+                float score = -off / 20.f - 0.5f * std::fabs(dist - ideal) / ideal + 0.2f * d.z / range;
                 if (score > best) best = score, point_.at = hit, point_.found = true, point_.sky = false;
             }
+        point_.hits = hits;
         if (!point_.found && skyAnchor_) {
-            point_.at = me + Dir(yaw, 60.f) * ideal;
+            // Nothing to catch: a point in the air ahead, the way the crosshair looks, high enough to swing forward.
+            point_.at = me + Dir(yaw, std::clamp(pitch + 35.f, 40.f, 60.f)) * ideal;
             point_.found = point_.sky = true;
         }
     }
@@ -1502,8 +1515,11 @@ private:
         case Catch::Terrain:
             // The chain takes up some slack as it bites, so the swing lifts you.
             h.phase = Phase::Swinging;
-            h.length = std::max(150.f, shell::Length(me - h.pin) * catchLift_);
+            h.length = std::max(150.f, shell::Length(me - h.pin));
+            h.goal = std::max(150.f, h.length * catchLift_);
             h.since = Now();
+            CRAB_LOG("shellbreaker: swing caught %.0f cm away (%s; %d of 25 traces hit), chain to %.0f", h.length,
+                     point_.sky ? "sky" : "terrain", point_.hits, h.goal);
             break;
         case Catch::Miss:
             Return(pc, h);
@@ -1662,7 +1678,7 @@ private:
             hud_ = hud;
             hudWidgets_.clear();
             pips_.clear();
-            marker_ = nullptr;
+            marker_ = markerBack_ = nullptr;
             hudFailed_ = meleeHidden_ = false;
         }
         if (!hud) return;
@@ -1694,9 +1710,18 @@ private:
                                                      : 0.f;
         SetSize(hudFill_, kHudW * frac, kHudH);
         Tint(hudFill_, have > 0 ? ui::LinearColor{1.f, 0.65f, 0.25f, 1.f} : ui::LinearColor{0.75f, 0.5f, 0.3f, 1.f});
-        wchar_t buf[48];
-        if (have >= max) swprintf(buf, std::size(buf), L"HOOK  %ls", Widen(hookKeyName_).c_str());
-        else swprintf(buf, std::size(buf), L"HOOK  %.1f", std::max(0.0, rechargeAt_ - Now()));
+        // What the hook key does right now (swinging needs no charge; the bar and pips are for hooking enemies).
+        wchar_t buf[64];
+        std::wstring key = Widen(hookKeyName_);
+        if (hook_.phase == Phase::Swinging) swprintf(buf, std::size(buf), L"SWINGING  let go of %ls", key.c_str());
+        else if (hook_.phase != Phase::None) swprintf(buf, std::size(buf), L"HOOK");
+        else if (point_.found && !point_.sky) swprintf(buf, std::size(buf), L"SWING  %ls", key.c_str());
+        else if (point_.found) swprintf(buf, std::size(buf), L"SWING  %ls  (air)", key.c_str());
+        else swprintf(buf, std::size(buf), L"NOTHING TO SWING ON");
+        if (have < max) {
+            size_t n = wcslen(buf);
+            swprintf(buf + n, std::size(buf) - n, L"   enemy %.1f", std::max(0.0, rechargeAt_ - Now()));
+        }
         ui::SetText(hudText_, buf);
         UpdateMarker(pc);
     }
@@ -1712,11 +1737,15 @@ private:
             uint8_t pad[2];
         } p{pc, ToVec(point_.at), 0.f, 0.f, false, false, {}};
         bool show = point_.found && hook_.phase == Phase::None && layout && ui::Call(layout, L"ProjectWorldLocationToWidgetPosition", &p) && p.ret;
-        ui::SetVisibility(marker_, show ? ui::HitTestInvisible : ui::Hidden);
+        for (void* w : {markerBack_, marker_})
+            if (w) ui::SetVisibility(w, show ? ui::HitTestInvisible : ui::Hidden);
         if (!show) return;
         float pos[2] = {p.x, p.y};
-        ui::Call(ui::SlotOf(marker_), L"SetPosition", pos);
-        Tint(marker_, point_.sky ? ui::LinearColor{1.f, 0.85f, 0.6f, 0.45f} : ui::LinearColor{1.f, 0.65f, 0.25f, 0.95f});
+        for (void* w : {markerBack_, marker_})
+            if (w) ui::Call(ui::SlotOf(w), L"SetPosition", pos);
+        // Something to catch: bright orange; only the air: a paler, see-through one.
+        Tint(marker_, point_.sky ? ui::LinearColor{0.85f, 0.95f, 1.f, 0.7f} : ui::LinearColor{1.f, 0.6f, 0.1f, 1.f});
+        if (markerBack_) Tint(markerBack_, ui::LinearColor{0.05f, 0.03f, 0.02f, point_.sky ? 0.5f : 0.9f});
     }
 
     bool BuildHud(void* hud) {
@@ -1738,11 +1767,15 @@ private:
         ui::Font font{};
         if (hudText_ && ui::FontOf(At<void*>(hud, 0x340 /* CrystalsText */), 18, font)) ui::SetFont(hudText_, font);
         // The hook point: a diamond, placed over it every frame (anchored to the top left, centred on the spot).
-        if ((marker_ = Place(hud, root, va::UImage_StaticClass, 0.f, 0.f, 0.5f, 16.f, 16.f))) {
-            float anchors[4] = {0.f, 0.f, 0.f, 0.f};
-            ui::Call(ui::SlotOf(marker_), L"SetAnchors", anchors);
-            float angle = 45.f;
-            ui::Call(marker_, L"SetRenderTransformAngle", &angle);
+        // A dark one behind it outlines it on bright skies and sand.
+        markerBack_ = Place(hud, root, va::UImage_StaticClass, 0.f, 0.f, 0.5f, 34.f, 34.f);
+        marker_ = Place(hud, root, va::UImage_StaticClass, 0.f, 0.f, 0.5f, 24.f, 24.f);
+        for (void* w : {markerBack_, marker_}) {
+            if (!w) continue;
+            float anchors[4] = {0.f, 0.f, 0.f, 0.f}, alignment[2] = {0.5f, 0.5f}, angle = 45.f;
+            ui::Call(ui::SlotOf(w), L"SetAnchors", anchors);
+            ui::Call(ui::SlotOf(w), L"SetAlignment", alignment);
+            ui::Call(w, L"SetRenderTransformAngle", &angle);
         }
         CRAB_LOG("shellbreaker: hook display added to the HUD");
         return true;
@@ -1910,7 +1943,7 @@ private:
     double rechargeAt_ = 0.0;
     std::unordered_map<void*, double> riptide_;  // host: player -> when their hook last landed
     // HUD
-    void *hud_ = nullptr, *hudFill_ = nullptr, *hudText_ = nullptr, *marker_ = nullptr;
+    void *hud_ = nullptr, *hudFill_ = nullptr, *hudText_ = nullptr, *marker_ = nullptr, *markerBack_ = nullptr;
     std::vector<void*> hudWidgets_, pips_;
     uint8_t meleeVis_[4] = {};
     bool hudFailed_ = false, meleeHidden_ = false;

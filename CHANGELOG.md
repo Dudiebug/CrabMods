@@ -4,6 +4,12 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.15.1
+
+- **Shellbreaker's swing swings.** The chain no longer snaps short when it catches, which threw you at the hook point and past it so the chain went slack. Now it catches at your distance and lifts you gently, and falling turns into a swing.
+- **The hook point follows your crosshair.** It's the best spot to catch near where you're looking (or above it), not above your head. Over open ground the point in the air is ahead of you, so you swing forward.
+- **Easier to see:** the diamond is bigger, with a dark outline. It's orange on something to catch, and pale for a point in the air. The hook display says what right click does now: *SWING*, *SWING (air)*, *SWINGING* or *NOTHING TO SWING ON*. Its bar and pips are for hooking enemies.
+
 ### 0.15.0
 
 - **Swing on Shellbreaker's hook like Spider-Man.**

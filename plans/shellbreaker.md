@@ -112,10 +112,12 @@ installed, packaged, tagged or released.
 - The string restarts after a pause longer than a swing + 0.6 s.
 
 **The hook (RMB: press to fire, hold to swing, let go to fly off)**
-- The hook point (`autoAnchor`), every 0.1 s: 20 Camera-channel traces from the crab, 35–80° up and ±36° around the
-  way it moves (or looks, when standing). Hits less than 2.5 m above or 3 m away are skipped. The rest are scored
-  −|d − anchorIdeal|/anchorIdeal + 0.6·ahead/range + 0.3·up/range. If none is found, a sky point 60° up at
-  anchorIdeal (`skyAnchor`). A diamond on the HUD shows it.
+- The hook point (`autoAnchor`), every 0.1 s: 25 Camera-channel traces from the crab around the crosshair, ±22°
+  sideways and 0–45° above its pitch (never below 10° up). Hits less than 2 m above or 3 m away are skipped. The rest
+  are scored −(degrees off the crosshair)/20 − 0.5·|d − anchorIdeal|/anchorIdeal + 0.2·up/range. If none is found, a
+  sky point ahead at anchorIdeal, 40–60° up (`skyAnchor`). A 24 px diamond with a dark outline shows it.
+- On catch the chain is the crab's distance and eases to `catchLift` of it at max(reelSpeed, 600) cm/s. Past its
+  length the outward speed is removed and a pull of min(3·over, 250) cm/s added.
 - Charges: 1 + Grappler, spent only on enemies. Cooldown is `hookCooldown` ÷ (1 + Quick Draw), never below a sixth.
 - What it does depends on what it hits:
   - An enemy near the crosshair (with a charge), light (category ≤ `yankMaxCategory`, or ≤ 4 with Kraken's Grasp):
