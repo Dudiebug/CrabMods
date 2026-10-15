@@ -18,6 +18,17 @@ constexpr uintptr_t FMulticastDelegate_Broadcast0 = 0x14078da30;  // void(FMulti
 // Calling a UFunction: ProcessEvent is UObject vtable slot 0x220, void(UObject*, UFunction*, void* Params). A Net
 // function called on the server goes over the network to the object's owner.
 constexpr int UObject_ProcessEvent_Slot = 0x220;
+// What the profiler (crabmods/items/profiler.cpp) times. Tick functions: void(FTickFunction*, float DeltaTime,
+// ELevelTick, ENamedThreads::Type, const FGraphEventRef&), their object at TickFunction_Target (vtables 0x143722950
+// and 0x143745ee0, found from DiagnosticMessage's "[TickActor]" and "[TickComponent]").
+constexpr uintptr_t UObject_ProcessEvent = 0x1410d10f0;  // the base class's, slot 0x220 of most vtables
+constexpr uintptr_t FActorTickFunction_ExecuteTick = 0x14207b810;
+constexpr uintptr_t FActorComponentTickFunction_ExecuteTick = 0x1421b2d20;
+// Garbage collection: CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge), behind both
+// CollectGarbage and TryCollectGarbage; IncrementalPurgeGarbage(bool bUseTimeLimit, float TimeLimit), the
+// clean-up spread over the frames after it.
+constexpr uintptr_t CollectGarbageInternal = 0x140f80a60;
+constexpr uintptr_t IncrementalPurgeGarbage = 0x140f8f170;
 constexpr uintptr_t UObject_FindFunctionChecked = 0x1410c96b0;  // UFunction*(UObject*, FName)
 constexpr uintptr_t FName_ClientMessage = 0x14440f450;  // FName L"ClientMessage", set during startup
 // void(APlayerController*, const FString& S, FName Type, float MsgLifeTime): a ClientMessage RPC arriving
@@ -74,6 +85,8 @@ constexpr uintptr_t TArray28_ResizeGrow = 0x140840fd0;        // void(TArray<0x2
 constexpr uintptr_t UCrabHC_TakeDamage = 0x140c9afe0;        // void(UCrabHC*, FCrabDamageInfo*): armor, protections, elimination
 constexpr uintptr_t UCrabHC_OnRep_HealthInfo = 0x140c9b4a0;  // void(UCrabHC*): broadcasts health changed, Previous = Current
 constexpr uintptr_t ACrabEnemyC_OnRep_EnemyBuff = 0x140ca7b50;  // void(ACrabEnemyC*): the buff's health-bar text and shield look
+// void(ACrabC*, const FCrabDebuffState* Previous): the element effects follow C_DebuffState (impl of the OnRep).
+constexpr uintptr_t ACrabC_OnRep_DebuffState = 0x140cbbae0;
 // void(UCrabHC*, float Amount): Current = min(Current + Amount, Max), then OnRep_HealthInfo. Every heal ends here
 // (host only); perk, relic and Vampire heals are cut to the missing health first, by ClampHealToMissing.
 constexpr uintptr_t UCrabHC_Heal = 0x140c9acc0;
@@ -142,6 +155,11 @@ constexpr uintptr_t ACrabLM_SpawnPortalsSoon = 0x140cf9280;  // void(ACrabLM*): 
 // totem chests, then asks whether the player has High Roller (0x3F) before rolling that relic's +2 / nothing /
 // none. Return address of that call:
 constexpr uintptr_t Ret_RewardChestsHighRoller = 0x140d029b0;
+// float(uint8 Rarity): LootRoll's base chance (percent) to upgrade a choice to that rarity: 3.75 Epic, 0.25 Legendary.
+// LootRoll multiplies it by its luck m, kept in xmm7 (1, or the shop's or the difficulty's), first for Legendary
+// (returning to Ret_UpgradeChanceLegendary), then for Epic, once per choice; m is set anew for each choice.
+constexpr uintptr_t LootRoll_UpgradeChance = 0x140d31c00;
+constexpr uintptr_t Ret_UpgradeChanceLegendary = 0x140d33f7a;
 constexpr uintptr_t ACrabPS_HasRelic = 0x140d23bb0;     // bool(ACrabPS*, uint8 RelicType)
 constexpr uintptr_t ACrabPS_ShowMessage = 0x140d26f40;  // void(ACrabPS*, const FString*): on that player's screen
 
@@ -253,6 +271,13 @@ constexpr uintptr_t RarityColor = 0x140d31c20;
 // constructor, void(FActorSpawnParameters*).
 constexpr uintptr_t UWorld_SpawnActor = 0x1423d8590;
 constexpr uintptr_t FActorSpawnParameters_Ctor = 0x142750810;
+// UObject*(UClass*, UObject* Outer, const wchar_t* Name, const wchar_t* Filename, uint32 LoadFlags, UPackageMap*,
+// bool bAllowObjectReconciliation, FUObjectSerializeContext*): finds or loads an asset by path.
+constexpr uintptr_t StaticLoadObject = 0x1410da020;
+constexpr uintptr_t UClass_StaticClass = 0x140f69070;
+// The island and shop totems: void(ACrabLM*) picks how many and of which classes (SpawnablesDA IslandTotems /
+// ShopTotems, by their SpawnWeight) and spawns each with UWorld::SpawnActor, returning here.
+constexpr uintptr_t Ret_SpawnTotem = 0x140d06464;
 // void(ACrabGM*): the portal vote passed and its timer ran; GM_ChosenPortal is the portal the party takes. It applies
 // the portal's modifiers and reward, then starts a new run (NewRun, Loop) or travels to the island.
 constexpr uintptr_t ACrabGM_EnterChosenPortal = 0x140ce8690;
@@ -392,9 +417,21 @@ constexpr uintptr_t ACrabPlayerC_ServerAbility_Impl = 0x140d1a430;  // only call
 // void(ACrabPlayerC*): the "Ability" input action on the owning machine (any key): spends a charge, starts the
 // cooldown, plays the telegraph, sends ServerAbility and sets the timer that spawns the ability (0x140d1bd10).
 constexpr uintptr_t ACrabPlayerC_AbilityPressed = 0x140d10c00;
+// void(ACrabPlayerC*): the ability actually fires (owning machine, after AbilitySpawnDelay): one SpawnProjectile per
+// shot (Triple Ability), owned by the ACrabPlayerC, which makes its damage type 2 (Ability).
+constexpr uintptr_t ACrabPlayerC_SpawnAbility = 0x140d1bd10;
+// void(ACrabProjectile*, const FVector* Origin, float Radius, FCrabDamageInfo*): a projectile's explosion damage, run
+// only on the machine that controls its OwningC (cosmetic copies deal none), whether or not it hits anything.
+constexpr uintptr_t ACrabProjectile_ExplodeDamage = 0x140d62240;
+// void(FCrabDamageInfo*, uint64 {uint8 Type | int32 Stacks << 32}): adds stacks to a debuff of the hit, or appends it.
+constexpr uintptr_t DamageInfo_AddDebuff = 0x140ca3250;
 // void(ACrabPlayerC*): the "Melee" input action on the owning machine: checks the melee cooldown (+0xA28), starts
 // it, lunges (LaunchCharacter, vtable +0x7D8, on this machine) and sends ServerMelee (stub 0x140d7e460).
 constexpr uintptr_t ACrabPlayerC_MeleePressed = 0x140d15980;
+// void(ACrabPlayerC*): the "Aim" input action on the owning machine: with a weapon that can aim, sends ServerStartAim
+// (stub 0x140d7e570), sets bIsAiming (+0x9DC) and updates the aim (0x140d171c0). Aiming slows the player through their
+// CustomTimeDilation (Actor +0x98), which StopAim (0x140d1d640) puts back to 1.
+constexpr uintptr_t ACrabPlayerC_StartAim = 0x140d1c630;
 // The melee hit's pieces (AnimNotify_Melee 0x140d0f900). void(ACrabPlayerC*, FCrabDamageInfo*): the melee mods' tags
 // (Vampire: 2) and element stacks (the Claws). float(ACrabPlayerC*): damage, (1 + Sharp + Iron + Time) x (1 + Brawler);
 // range, 1 + Big Claws.
@@ -415,6 +452,7 @@ constexpr int Object_Flags = 0x08;
 constexpr int Object_Class = 0x10;
 constexpr int Object_Name = 0x18;
 constexpr int Object_Outer = 0x20;
+constexpr int TickFunction_Target = 0x28;   // FActorTickFunction / FActorComponentTickFunction: AActor* / UActorComponent*
 constexpr int Actor_RootComponent = 0x130;     // USceneComponent*
 constexpr int SceneComponent_Location = 0x1D0;  // FVector, world (ComponentToWorld translation)
 constexpr int Character_Capsule = 0x290;       // UCapsuleComponent*
@@ -457,6 +495,7 @@ constexpr int LevelStreamingDynamic_Initially = 0x148;  // bInitiallyLoaded 0x01
 // APlayerState / ACrabPS
 constexpr int PS_PlayerId = 0x224;
 constexpr int PS_Pawn = 0x280;
+constexpr int PS_DamageTakenOnThisIsland = 0x374;  // int32, replicated: 0 = flawless so far (reset each island)
 constexpr int PS_PlayerName = 0x300;  // FString
 constexpr int PS_Eliminations = 0x358;  // int: enemies this player has killed (replicated)
 // Combo level (float): 1, then 2/3/4/5 at 25/75/175/325 ComboCounter (+0x350, int); 6/7/8 with Combo Ring.
@@ -524,6 +563,13 @@ constexpr int WeaponDA_bInfiniteClipSize = 0x14C;
 constexpr int WeaponDA_ShotSpawnType = 0x104;  // 0 Muzzle, 1 AboveCrosshair (Ice Staff: falls from 2500 above the aim)
 // FCrabProjectileInfo
 constexpr int ProjInfo_Dir = 0x08;  // FVector
+// FCrabProjectileInfo (0x30): what SpawnProjectile takes.
+constexpr int ProjInfo_Size = 0x30;
+constexpr int ProjInfo_DA = 0x00;               // UCrabProjectileDA*
+constexpr int ProjInfo_OwningC = 0x18;          // ACrabC*
+constexpr int ProjInfo_LesserType = 0x20;       // uint8: 0 a full weapon shot (with the weapon's mods)
+constexpr int ProjInfo_bIsParentLesser = 0x21;  // bool: FireProjectiles sets it
+constexpr int PlayerC_MeleeCooldown = 0xA28;    // float: not replicated
 // FHitResult (0x88)
 constexpr int Hit_Size = 0x88;
 constexpr int Hit_Time = 0x04;
@@ -533,6 +579,7 @@ constexpr int Hit_TraceEnd = 0x48;
 constexpr int Hit_bBlockingHit = 0x5D;  // bit 0
 constexpr int C_Weapons = 0x538;        // TArray<ACrabWeapon*>
 constexpr int C_bIsEliminated = 0x668;  // bit 0
+constexpr int C_DebuffState = 0x6E8;    // FCrabDebuffState (replicated): int32 stacks of Ice, Fire, Lightning, Poison, Arcane
 // ACrabPlayerC
 constexpr int PlayerC_AbilityDA = 0x7D0;
 constexpr int PlayerC_AbilityCooldown = 0xA10;    // float: seconds left, 0 = not counting down
@@ -608,7 +655,7 @@ constexpr int PickupInfo_OwningPS = 0x38;  // only this player may take it
 constexpr int PickupInfo_CosmeticSpawnLoc = 0x40;  // where it is seen flying from
 // FCrabDamageInfo (0x48 bytes)
 constexpr int DamageInfo_Size = 0x48;
-constexpr int DamageInfo_Type = 0x0C;       // uint8: 1 Radial, 3 Melee, 4 Lesser (not throttled per enemy)
+constexpr int DamageInfo_Type = 0x0C;       // uint8: 1 Radial, 2 Ability, 3 Melee, 4 Lesser (not throttled per enemy)
 constexpr int DamageInfo_Location = 0x30;   // FVector
 constexpr int DamageInfo_Knockback = 0x3C;  // float
 // FCrabDamageInfo

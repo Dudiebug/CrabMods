@@ -1,4 +1,5 @@
-// Key totem: while items are still locked, the lobby's key totem offers a few random locked ones (the game's own
+// Key totem: in a run (Key Totem Spawn puts key totems on islands and in shops), it offers a few random Epic or
+// Legendary run items to choose from. In the lobby, while items are still locked, the key totem offers a few random locked ones (the game's own
 // gives one) in a menu to choose from; once everything is unlocked it lets you choose any item. It opens a menu in the game's own style (its
 // confirmation prompt, with every item's pickup card as a button, category tabs and a search box); the item you
 // choose comes out of the totem, as the game's own one does, and is unlocked if it was locked.
@@ -203,6 +204,14 @@ private:
         std::vector<Candidate> items;
         bool unlocking = false;
         if (!self.Pick(pc, items, unlocking)) return oInteracted(pc, totem);
+        // In a run (key_totem_spawn.cpp puts key totems on islands and in shops): choices_ random run items, each
+        // Epic or (25%) Legendary as the game's own key totem rolls, and nothing is unlocked.
+        if (InRun(pc)) {
+            std::vector<Candidate> run = self.RunChoices(pc, items);
+            if (self.menu_ && self.OpenMenu(pc, totem, run, true)) return;
+            if (HostHasCrabMods(pc) && self.SendRow(pc, totem, Das(run), false)) return;
+            return oInteracted(pc, totem);
+        }
         // Like the game's own while something is still locked: a few random locked items, here as a menu of
         // choices_; once everything is unlocked, the menu of every item.
         if (self.menu_ && self.OpenMenu(pc, totem, unlocking ? self.Some(items, true) : items, unlocking)) return;
@@ -244,6 +253,38 @@ private:
                 }
         }
         return !out.empty();
+    }
+
+    static bool InRun(void* pc) {
+        void* gs = GameStateOf(pc);
+        return gs && At<uint8_t>(gs, off::GS_CurrentIslandType) != uint8_t(IslandType::Lobby);
+    }
+
+    // choices_ different run items (mods, perks, relics the player doesn't hold, charms; no Greed items), each
+    // Legendary with legendaryChance and otherwise Epic (or any rarity when none of that one is left).
+    std::vector<Candidate> RunChoices(void* pc, const std::vector<Candidate>& items) {
+        void* ps = At<void*>(pc, off::Controller_PlayerState);
+        std::vector<Candidate> pool;
+        for (const Candidate& c : items) {
+            if (c.locked || c.list < 3) continue;
+            uint8_t r = At<uint8_t>(c.da, off::DA_Rarity);
+            if (r == rarity::Greed) continue;
+            if (c.list == 7 && ps && LevelOf(ps, Kind::Relic, c.da) > 0) continue;
+            pool.push_back(c);
+        }
+        std::vector<Candidate> out;
+        while (int(out.size()) < choices_ && !pool.empty()) {
+            uint8_t want = std::uniform_real_distribution<float>(0.f, 100.f)(rng_) < 25.f ? rarity::Legendary
+                                                                                          : rarity::Epic;
+            std::vector<size_t> fit;
+            for (size_t i = 0; i < pool.size(); i++)
+                if (At<uint8_t>(pool[i].da, off::DA_Rarity) == want) fit.push_back(i);
+            size_t pick = fit.empty() ? std::uniform_int_distribution<size_t>(0, pool.size() - 1)(rng_)
+                                      : fit[std::uniform_int_distribution<size_t>(0, fit.size() - 1)(rng_)];
+            out.push_back(pool[pick]);
+            pool.erase(pool.begin() + pick);
+        }
+        return out;
     }
 
     // choices_ of them at random.
@@ -811,6 +852,7 @@ private:
         uint8_t before = pickup ? At<uint8_t>(pickup, off::Pickup_NumTimesPickedUp) : 0;
         oPickupInteract(pickup, c);
         if (!pickup || At<uint8_t>(pickup, off::Pickup_NumTimesPickedUp) == before) return;
+        PickupTaken(pickup, c);
         for (auto it = g_self->rows_.begin(); it != g_self->rows_.end(); ++it) {
             Row& row = it->second;
             auto p = std::find(row.pickups.begin(), row.pickups.end(), pickup);

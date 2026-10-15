@@ -313,6 +313,7 @@ spawnKey = none
 
     void InstallHooks() override {
         Hook(va::ACrabPlayerC_MeleePressed, &HkMeleePressed, &oMeleePressed, "ACrabPlayerC melee pressed");
+        Hook(va::ACrabPlayerC_StartAim, &HkStartAim, &oStartAim, "ACrabPlayerC start aim");
     }
 
     void OnBeginPlay(void* lm) override {
@@ -1928,6 +1929,13 @@ private:
         oMeleePressed(c);
     }
 
+    // Right click is the hook's: the game's aim (which zooms and slows you in slow motion) doesn't start while it's
+    // held.
+    static void HkStartAim(void* c) {
+        if (c && self_->enabled_ && self_->Holds(At<void*>(c, off::Pawn_PlayerState))) return;
+        oStartAim(c);
+    }
+
     // For its holders: melee mods (which power the swings) drop meleeModWeight times as often, and of the game's
     // weapon mods only those that work for a chain blade drop (kBladeMods); the bullets' own (formations, ammo,
     // shots' paths, on-impact spawns and procs) don't.
@@ -1946,7 +1954,7 @@ private:
                                              55 /*Supercharged*/, 56 /*Juiced*/};
 
     using MeleePressedFn = void (*)(void*);
-    static inline MeleePressedFn oMeleePressed;
+    static inline MeleePressedFn oMeleePressed, oStartAim;
     static inline Shellbreaker* self_;
     static inline bool noClaw_ = false;
     static inline void* body_[4] = {};  // the borrowed montages (FindMontages); null: the claw's  // the melee hit couldn't be blocked: no claw montage

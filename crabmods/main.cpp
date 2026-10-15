@@ -35,6 +35,7 @@
 
 #include "config.hpp"
 #include "item.hpp"
+#include "profiler.hpp"
 #include "ui.hpp"
 #include "world.hpp"
 #include "items/shared.hpp"
@@ -44,14 +45,27 @@ using namespace crabmods;
 
 namespace {
 
-constexpr const char kVersion[] = "0.15.3";
+constexpr const char kVersion[] = "0.15.4";
 
 std::vector<Item*> g_items;  // enabled items, in ini order
 
+// event: the Item function f calls, under which the profiler counts its time (string literals only: the
+// profiler tells events apart by address).
 template <class F>
-void ForEachEnabled(F&& f) {
-    for (Item* i : g_items)
-        if (i->Enabled()) f(i);
+void ForEachEnabled(const char* event, F&& f) {
+    if (!prof::g_on) {
+        for (Item* i : g_items)
+            if (i->Enabled()) f(i);
+        return;
+    }
+    prof::Enter();
+    for (Item* i : g_items) {
+        if (!i->Enabled()) continue;
+        int64_t t = prof::Now();
+        f(i);
+        prof::Add(i, event, prof::Now() - t);
+    }
+    prof::Leave();
 }
 
 // --- Level start -------------------------------------------------------------------------------------------
@@ -61,7 +75,7 @@ BeginPlayFn oBeginPlay;
 
 void HkBeginPlay(void* lm) {
     oBeginPlay(lm);
-    ForEachEnabled([&](Item* i) { i->OnBeginPlay(lm); });
+    ForEachEnabled("OnBeginPlay", [&](Item* i) { i->OnBeginPlay(lm); });
 }
 
 // --- Damage ------------------------------------------------------------------------------------------------
@@ -92,7 +106,7 @@ float HkDamageBuff(void* ps) {
     if (!ps) return oDamageBuff(ps);
     float bonus = 0.f;
     std::string names, text;
-    ForEachEnabled([&](Item* i) {
+    ForEachEnabled("DamageBonus", [&](Item* i) {
         float b = i->DamageBonus(ps);
         if (b == 0.f) return;
         bonus += b;
@@ -114,7 +128,7 @@ using TakeDamageFn = void (*)(void*, void*);
 TakeDamageFn oTakeDamage;
 
 void HkTakeDamage(void* hc, void* info) {
-    if (hc && info) ForEachEnabled([&](Item* i) { i->OnTakeDamage(hc, info); });
+    if (hc && info) ForEachEnabled("OnTakeDamage", [&](Item* i) { i->OnTakeDamage(hc, info); });
     oTakeDamage(hc, info);
 }
 
@@ -122,9 +136,9 @@ using OutgoingDamageFn = void (*)(void*, void*);
 OutgoingDamageFn oOutgoingDamage;
 
 void HkOutgoingDamage(void* ps, void* info) {
-    if (ps && info) ForEachEnabled([&](Item* i) { i->OnOutgoingDamageBase(ps, info); });
+    if (ps && info) ForEachEnabled("OnOutgoingDamageBase", [&](Item* i) { i->OnOutgoingDamageBase(ps, info); });
     oOutgoingDamage(ps, info);
-    if (ps && info) ForEachEnabled([&](Item* i) { i->OnOutgoingDamage(ps, info); });
+    if (ps && info) ForEachEnabled("OnOutgoingDamage", [&](Item* i) { i->OnOutgoingDamage(ps, info); });
 }
 
 // --- Loot --------------------------------------------------------------------------------------------------
@@ -137,6 +151,7 @@ GetPickupsFn oGetPickups;
 WeightedPickFn oWeightedPick;
 
 int g_rollDepth = 0;            // inside LootRoll
+void* g_choicePlayer = nullptr;  // the player LootRoll's current choice is for (it asks what they hold first)
 void* g_rollSource = nullptr;   // LootRoll's world context
 uint8_t g_rollPool = pool::None;  // LootRoll's loot pool
 std::unordered_map<void*, float> g_baseWeight;  // SpawnWeights changed during this roll, to restore after
@@ -166,15 +181,15 @@ void ApplyWeights(void* ps) {
             uint8_t p = At<uint8_t>(da, off::DA_LootPool);
             float other = 0.f;
             if (RegularPool(g_rollPool) && RegularPool(p) && p != g_rollPool)
-                ForEachEnabled([&](Item* item) { other = std::max(other, item->OtherChestWeight(ps, da)); });
+                ForEachEnabled("OtherChestWeight", [&](Item* item) { other = std::max(other, item->OtherChestWeight(ps, da)); });
             if (other > 0.f) {
-                ForEachEnabled([&](Item* item) {
+                ForEachEnabled("LootWeight", [&](Item* item) {
                     if (item->OtherChestWeight(ps, da) <= 0.f) w *= item->LootWeight(ps, da);
                 });
                 w *= other;
                 moves.emplace_back(da, p);
             } else {
-                ForEachEnabled([&](Item* item) { w *= item->LootWeight(ps, da); });
+                ForEachEnabled("LootWeight", [&](Item* item) { w *= item->LootWeight(ps, da); });
             }
             At<float>(da, off::DA_SpawnWeight) = w;
         }
@@ -191,6 +206,7 @@ void ApplyWeights(void* ps) {
 void* HkGetPickups(void* ps, void* out) {
     void* r = oGetPickups(ps, out);
     if (g_rollDepth == 0 || !ps) return r;
+    g_choicePlayer = ps;
     if (auto* held = static_cast<TArray<void*>*>(r); held && held->Data) {
         int n = 0;
         for (int i = 0; i < held->Num; i++)
@@ -226,9 +242,11 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
     auto* who = reinterpret_cast<TArray<void*>*>(players);
     void* opener = who && who->Num > 0 && who->Data ? who->Data[0] : nullptr;
     if (g_rollDepth == 0) {
+        g_lootSource = reinterpret_cast<void*>(source);
+        g_lootPlayer = opener;
         uint8_t p = uint8_t(pool), r = uint8_t(rarity);
         int n = int(choices);
-        ForEachEnabled([&](Item* i) { i->BeforeLootRoll(p, r, n); });
+        ForEachEnabled("BeforeLootRoll", [&](Item* i) { i->BeforeLootRoll(p, r, n); });
         pool = p;
         rarity = r;
         choices = uint64_t(uint32_t(n));
@@ -247,13 +265,14 @@ void HkLootRoll(uint64_t source, uint64_t pool, uint64_t rarity, uint64_t player
         g_baseWeight.clear();
         for (auto& [da, p] : g_basePool) At<uint8_t>(da, off::DA_LootPool) = p;
         g_basePool.clear();
-        ForEachEnabled([&](Item* i) { i->AfterLootRoll(); });
+        ForEachEnabled("AfterLootRoll", [&](Item* i) { i->AfterLootRoll(); });
+        g_lootSource = g_lootPlayer = nullptr;
         // An opened chest's roll fills its PickupsToSpawn for the opener; it spawns them right after.
         void* chest = reinterpret_cast<void*>(source);
         auto* loot = reinterpret_cast<TArray<uint8_t>*>(out);
         if (chest && loot == &At<TArray<uint8_t>>(chest, off::Chest_PickupsToSpawn) &&
             IsA(chest, StaticClass(va::ACrabChest_StaticClass)) && IsA(opener, StaticClass(va::ACrabPS_StaticClass)))
-            ForEachEnabled([&](Item* i) { i->OnChestLoot(chest, opener, *loot); });
+            ForEachEnabled("OnChestLoot", [&](Item* i) { i->OnChestLoot(chest, opener, *loot); });
     }
 }
 
@@ -273,7 +292,7 @@ bool RewardChests(void* ps, char* frame, int num, void** data) {
         return false;
     }
     if (!ps || num == 0) return false;
-    ForEachEnabled([&](Item* i) { i->OnRewardChests(ps, chests); });
+    ForEachEnabled("OnRewardChests", [&](Item* i) { i->OnRewardChests(ps, chests); });
     if (chests.Num == num) return true;
     CRAB_LOG("island rewards for %p: %d chests instead of %d", ps, chests.Num, num);
     // As when High Roller takes them all: with nothing to open, the portals come now.
@@ -283,6 +302,10 @@ bool RewardChests(void* ps, char* frame, int num, void** data) {
 }
 
 }  // namespace
+
+void crabmods::PickupTaken(void* pickup, void* c) {
+    ForEachEnabled("OnPickupTaken", [&](Item* i) { i->OnPickupTaken(pickup, c); });
+}
 
 extern "C" {
 uintptr_t crabmods_rewardSite;  // Ret_RewardChestsHighRoller, rebased
@@ -296,10 +319,50 @@ bool crabmods_HasRelicAny(void* ps, uint8_t type) {
     if (reinterpret_cast<bool (*)(void*, uint8_t)>(crabmods_hasRelicOrig)(ps, type)) return true;
     if (!ps || !g_grantedRelics[type]) return false;
     bool granted = false;
-    ForEachEnabled([&](Item* i) { granted = granted || i->GrantsRelic(ps, type); });
+    ForEachEnabled("GrantsRelic", [&](Item* i) { granted = granted || i->GrantsRelic(ps, type); });
     return granted;
 }
 }
+
+// --- Rarity luck -----------------------------------------------------------------------------------------
+//
+// LootRoll keeps each choice's luck m in xmm7 and multiplies the upgrade chances by it. crabmods_UpgradeChanceHook
+// (the base chance function) hands m to the items at the first of its two calls per choice (Legendary) and puts their
+// m back in xmm7, which the Epic call then uses too; LootRoll sets it anew for the next choice.
+extern "C" {
+uintptr_t crabmods_luckSite;     // Ret_UpgradeChanceLegendary, rebased
+void* crabmods_upgradeChanceOrig;
+void crabmods_UpgradeChanceHook();
+float crabmods_LootLuck(float m, uintptr_t ret) {
+    if (ret != crabmods_luckSite || g_rollDepth == 0 || !g_choicePlayer || !(m > 0.f)) return m;
+    ForEachEnabled("LootLuck", [&](Item* i) { i->LootLuck(g_choicePlayer, g_rollSource, m); });
+    return m > 0.f ? m : 0.f;
+}
+}
+
+// At entry rsp points at the return address; push rcx (the rarity) and 32 bytes of shadow space leave rsp 16-byte
+// aligned for the call, with the return address at rsp + 40.
+asm(R"(
+.intel_syntax noprefix
+.text
+.globl crabmods_UpgradeChanceHook
+.seh_proc crabmods_UpgradeChanceHook
+crabmods_UpgradeChanceHook:
+    push rcx
+    .seh_pushreg rcx
+    sub rsp, 32
+    .seh_stackalloc 32
+    .seh_endprologue
+    movaps xmm0, xmm7
+    mov rdx, qword ptr [rsp + 40]
+    call crabmods_LootLuck
+    movaps xmm7, xmm0
+    add rsp, 32
+    pop rcx
+    jmp qword ptr [rip + crabmods_upgradeChanceOrig]
+.seh_endproc
+.att_syntax prefix
+)");
 
 // At entry rsp points at the return address; the caller's rsp is 8 above it. crabmods_RewardSite pushes
 // 16 bytes and reserves 40 (shadow space, keeping rsp 16-byte aligned for the call), so the caller's rsp is
@@ -355,7 +418,7 @@ PerkBuffFn oPerkBuff;
 
 float HkPerkBuff(void* ps, uint8_t type) {
     float buff = oPerkBuff(ps, type);
-    if (ps && g_grantedPerks[type]) ForEachEnabled([&](Item* i) { buff += i->PerkBuff(ps, type); });
+    if (ps && g_grantedPerks[type]) ForEachEnabled("PerkBuff", [&](Item* i) { buff += i->PerkBuff(ps, type); });
     return buff;
 }
 
@@ -370,7 +433,7 @@ void HkShowBuff(void* inv, void* da, float buff) {
     void* ps = inv ? At<void*>(inv, off::InventoryUI_OwningPS) : nullptr;
     if (!row || !text || !da || !ps) return;
     std::string note;
-    ForEachEnabled([&](Item* i) {
+    ForEachEnabled("InventoryNote", [&](Item* i) {
         if (note.empty()) note = i->InventoryNote(ps, da);
     });
     if (note.empty()) {
@@ -394,6 +457,14 @@ void HookRewardChests() {
         CRAB_LOG("island rewards: the High Roller check isn't where expected; Double or Nothing can't work");
         crabmods_rewardSite = 0;  // HasRelic is still hooked, for the items that grant relics
     }
+    // The upgrade chance function begins cmp cl,2 (80 F9 02) and LootRoll calls it right before the luck site.
+    crabmods_luckSite = Addr(va::Ret_UpgradeChanceLegendary);
+    if (memcmp(reinterpret_cast<const void*>(Addr(va::LootRoll_UpgradeChance)), "ù", 3) == 0 &&
+        *reinterpret_cast<const uint8_t*>(crabmods_luckSite - 5) == 0xE8)
+        Hook(va::LootRoll_UpgradeChance, &crabmods_UpgradeChanceHook,
+             reinterpret_cast<void (**)()>(&crabmods_upgradeChanceOrig), "LootRoll's upgrade chance");
+    else
+        CRAB_LOG("LootRoll's upgrade chance isn't what was expected: luck items do nothing");
     Hook(va::ACrabPS_HasRelic, &crabmods_HasRelicHook, reinterpret_cast<void (**)()>(&crabmods_hasRelicOrig),
          "ACrabPS::HasRelic (island rewards, granted relics)");
 }
@@ -428,9 +499,9 @@ float BaseRewardWeight(uint8_t p) {
 void HkSpawnPortals(void* lm) {
     for (bool& b : g_rewardUsed) b = false;
     g_spawningPortals = lm;
-    ForEachEnabled([&](Item* i) { i->OnSpawnPortals(lm); });
+    ForEachEnabled("OnSpawnPortals", [&](Item* i) { i->OnSpawnPortals(lm); });
     oSpawnPortals(lm);
-    ForEachEnabled([&](Item* i) { i->OnPortalsSpawned(lm); });
+    ForEachEnabled("OnPortalsSpawned", [&](Item* i) { i->OnPortalsSpawned(lm); });
     g_spawningPortals = nullptr;
 }
 
@@ -440,7 +511,7 @@ void HkSetPortalInfo(void* portal, void* info) {
         // A reward an item weighs at 0 (No Anvil Portals) is always picked again, Anvil and Spiked included.
         float own = 1.f;
         if (reward > 0 && reward < 16)
-            ForEachEnabled([&](Item* i) { own *= i->PortalRewardWeight(g_spawningPortals, reward); });
+            ForEachEnabled("PortalRewardWeight", [&](Item* i) { own *= i->PortalRewardWeight(g_spawningPortals, reward); });
         bool banned = own <= 0.f;
         if (reward > 0 && reward < 16 && (BaseRewardWeight(reward) > 0.f || banned)) {
             float w[16] = {}, total = 0.f;
@@ -448,7 +519,7 @@ void HkSetPortalInfo(void* portal, void* info) {
             for (uint8_t p = 1; p < 16; p++) {
                 if (g_rewardUsed[p] || BaseRewardWeight(p) == 0.f) continue;
                 float m = 1.f;
-                ForEachEnabled([&](Item* i) { m *= i->PortalRewardWeight(g_spawningPortals, p); });
+                ForEachEnabled("PortalRewardWeight", [&](Item* i) { m *= i->PortalRewardWeight(g_spawningPortals, p); });
                 if (m != 1.f) boosted = true;
                 w[p] = BaseRewardWeight(p) * m;
                 total += w[p];
@@ -480,7 +551,7 @@ void HkTickCooldowns(void* c) {
     if (c) {
         void* ps = At<void*>(c, off::Pawn_PlayerState);
         if (IsA(ps, StaticClass(va::ACrabPS_StaticClass)))
-            ForEachEnabled([&](Item* i) { i->OnCooldownTick(c, ps); });
+            ForEachEnabled("OnCooldownTick", [&](Item* i) { i->OnCooldownTick(c, ps); });
     }
     oTickCooldowns(c);
 }
@@ -497,13 +568,13 @@ HealFn oHeal;
 ClampHealFn oClampHeal;
 
 void Overheal(void* ps, float amount) {
-    if (amount > 0.f && ps) ForEachEnabled([&](Item* i) { i->OnOverheal(ps, amount); });
+    if (amount > 0.f && ps) ForEachEnabled("OnOverheal", [&](Item* i) { i->OnOverheal(ps, amount); });
 }
 
 void HkHeal(void* hc, float amount) {
     if (void* ps = hc && amount > 0.f ? PlayerOfHealth(hc) : nullptr) {
         float bonus = 0.f;
-        ForEachEnabled([&](Item* i) { bonus += i->HealingBonus(ps); });
+        ForEachEnabled("HealingBonus", [&](Item* i) { bonus += i->HealingBonus(ps); });
         amount *= std::max(1.f + bonus, 0.f);
     }
     float over = 0.f;
@@ -551,7 +622,7 @@ void HkDestructibleHit(void* d, void* info, uint8_t hitType) {
         }
     }
     oDestructibleHit(d, info, hitType);
-    if (ps) ForEachEnabled([&](Item* i) { i->OnDestructibleBroken(ps); });
+    if (ps) ForEachEnabled("OnDestructibleBroken", [&](Item* i) { i->OnDestructibleBroken(ps); });
 }
 
 // --- Going down -----------------------------------------------------------------------------------------
@@ -566,7 +637,7 @@ void HkSpawnSpectator(void* pc) {
     if (pc && At<uint8_t>(pc, off::Actor_Role) == ROLE_Authority) {
         void* c = At<void*>(pc, off::Controller_Pawn);
         void* ps = IsA(c, StaticClass(va::ACrabPlayerC_StaticClass)) ? At<void*>(c, off::Pawn_PlayerState) : nullptr;
-        if (IsA(ps, StaticClass(va::ACrabPS_StaticClass))) ForEachEnabled([&](Item* i) { i->OnDown(c, ps); });
+        if (IsA(ps, StaticClass(va::ACrabPS_StaticClass))) ForEachEnabled("OnDown", [&](Item* i) { i->OnDown(c, ps); });
     }
     oSpawnSpectator(pc);
 }
@@ -594,7 +665,7 @@ void HkFireProjectiles(void* weapon, void* formation, void* projectile, uint8_t 
     void* ps = ShooterOf(weapon);
     uint8_t* type = ps ? &At<uint8_t>(At<void*>(weapon, off::Weapon_WeaponDA), off::WeaponDA_ShotSpawnType) : nullptr;
     bool above = false;
-    if (type && *type == 0) ForEachEnabled([&](Item* i) { above |= i->ShotsFromAbove(ps); });
+    if (type && *type == 0) ForEachEnabled("ShotsFromAbove", [&](Item* i) { above |= i->ShotsFromAbove(ps); });
     if (above) *type = 1;
     oFireProjectiles(weapon, formation, projectile, lesser);
     if (above) *type = 0;
@@ -604,7 +675,7 @@ void* HkSpawnProjectile(void* info, void* owner, Vec3* start, bool send) {
     if (send && info && start && reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retSpawnShot)
         if (void* ps = ShooterOf(owner)) {
             Vec3& dir = At<Vec3>(info, off::ProjInfo_Dir);
-            ForEachEnabled([&](Item* i) { i->OnShot(owner, ps, *start, dir); });
+            ForEachEnabled("OnShot", [&](Item* i) { i->OnShot(owner, ps, *start, dir); });
         }
     return oSpawnProjectile(info, owner, start, send);
 }
@@ -623,7 +694,7 @@ float HkGetBuff(void* inventory, uint8_t type) {
     float r = oGetBuff(inventory, type);
     if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retBanana && inventory) {
         void* ps = static_cast<char*>(inventory) - off::PS_Perks;
-        ForEachEnabled([&](Item* i) { r += i->MaxHealthMultiplierBonus(ps); });
+        ForEachEnabled("MaxHealthMultiplierBonus", [&](Item* i) { r += i->MaxHealthMultiplierBonus(ps); });
     }
     return r;
 }
@@ -632,7 +703,7 @@ float HkGetBuff(void* inventory, uint8_t type) {
 float HkWeaponModBuff(void* ps, uint8_t type) {
     float r = oWeaponModBuff(ps, type);
     if (reinterpret_cast<uintptr_t>(__builtin_return_address(0)) == g_retRapidFire && ps)
-        ForEachEnabled([&](Item* i) { r += i->FireRateBonus(ps); });
+        ForEachEnabled("FireRateBonus", [&](Item* i) { r += i->FireRateBonus(ps); });
     return r;
 }
 
@@ -651,10 +722,16 @@ void ShowVersion(void* world) {
     } p{};
     if (!ui::Call(text, L"GetText", &p)) return;
     std::wstring now = ui::TextToString(&p.ret);
-    if (now.find(L"CrabMods") != std::wstring::npos) return;
+    // The game's own text: what is before ours, if ours is there already.
+    std::wstring game = now;
+    size_t at = now.find(L"CrabMods ");
+    if (at != std::wstring::npos) game = now.substr(0, at >= 5 && now.compare(at - 5, 5, L"  |  ") == 0 ? at - 5 : at);
     std::wstring tag = L"CrabMods ";
     for (const char* v = kVersion; *v; v++) tag.push_back(wchar_t(*v));
-    ui::SetText(text, (now.empty() ? tag : now + L"  |  " + tag).c_str());
+    std::wstring extra = prof::HudText();
+    if (!extra.empty()) tag += L"  |  " + extra;
+    std::wstring want = game.empty() ? tag : game + L"  |  " + tag;
+    if (want != now) ui::SetText(text, want.c_str());
 }
 
 using EngineTickFn = void (*)(void*, float, bool);
@@ -662,16 +739,19 @@ EngineTickFn oEngineTick;
 float g_sinceTick = 0.f;
 
 void HkEngineTick(void* engine, float dt, bool idle) {
+    int64_t tickStart = prof::g_on ? prof::Now() : 0;
     oEngineTick(engine, dt, idle);
     void* viewport = engine ? At<void*>(engine, off::Engine_GameViewport) : nullptr;
     void* world = viewport ? At<void*>(viewport, off::Viewport_World) : nullptr;
     bool game = world && GameStateOf(world);
-    if (game) ForEachEnabled([&](Item* i) { i->OnFrame(world, dt); });
+    if (game) ForEachEnabled("OnFrame", [&](Item* i) { i->OnFrame(world, dt); });
     g_sinceTick += dt;
-    if (g_sinceTick < 0.25f) return;
-    g_sinceTick = 0.f;
-    if (game) ForEachEnabled([&](Item* i) { i->OnTick(world); });
-    if (game) ShowVersion(world);
+    if (g_sinceTick >= 0.25f) {
+        g_sinceTick = 0.f;
+        if (game) ForEachEnabled("OnTick", [&](Item* i) { i->OnTick(world); });
+        if (game) ShowVersion(world);
+    }
+    if (prof::g_on && tickStart) prof::EndFrame(tickStart, prof::Now());
 }
 
 // --- Enemy elimination -------------------------------------------------------------------------------------
@@ -680,9 +760,9 @@ using EliminatedFn = void (*)(void*);
 EliminatedFn oEliminated;
 
 void HkEliminated(void* enemy) {
-    if (enemy) ForEachEnabled([&](Item* i) { i->OnEnemyEliminating(enemy); });
+    if (enemy) ForEachEnabled("OnEnemyEliminating", [&](Item* i) { i->OnEnemyEliminating(enemy); });
     oEliminated(enemy);
-    if (enemy) ForEachEnabled([&](Item* i) { i->OnEnemyEliminated(enemy); });
+    if (enemy) ForEachEnabled("OnEnemyEliminated", [&](Item* i) { i->OnEnemyEliminated(enemy); });
 }
 
 // --- Host settings -----------------------------------------------------------------------------------------
@@ -754,7 +834,7 @@ void HkClientMessage(void* pc, TArray<wchar_t>* s, uint64_t type, float lifeTime
     // Already in a level: update the items' assets now rather than at the next level.
     void* lm = LevelManagerOf(pc);
     if (lm && At<TArray<void*>>(lm, off::LM_AllUnlockedPickups).Num > 0)
-        ForEachEnabled([&](Item* i) { i->OnBeginPlay(lm); });
+        ForEachEnabled("OnBeginPlay", [&](Item* i) { i->OnBeginPlay(lm); });
 }
 
 // --- Player to host ----------------------------------------------------------------------------------------

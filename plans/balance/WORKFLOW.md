@@ -19,7 +19,7 @@ Write the one-line description, then find the **two closest vanilla items** in `
 
 The same thing with bigger or smaller numbers doesn't count, and neither does turning a vanilla chance into a sure thing (a guaranteed Layered Explosion is still Layered Explosion). Rework it or drop it.
 
-Also check the **name** isn't taken by a vanilla item (relics too) or by a planned item in `plans/`.
+Also check the **name** isn't taken by a vanilla item (relics too) or by a planned item in `plans/`: run `python tools/check_names.py "Name"` (the list is `plans/balance/vanilla-names.md`). Do it while brainstorming, before a name goes on a card, and treat a near miss (Adrenaline vs Adrenaline Amulet) as a rename too.
 
 ## 2. Place it
 

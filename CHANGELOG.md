@@ -4,6 +4,25 @@ Each mod has its own version. Releases are tagged `crabsync-vX.Y.Z`, `crabmods-v
 
 ## CrabMods
 
+### 0.15.4
+
+- **Key totems in runs.** Key totems now turn up on islands and in shops, as rarely as a Gold totem. One costs 3 keys, as in the lobby, and lets you choose one of 3 random Epic or Legendary items for your run (`[keyTotemSpawn] weight`).
+- **12 new items:**
+  - **Thermal Shock** (weapon mod, Epic): hitting a frozen enemy with fire, or a burning one with ice, shatters both for +250% damage. The same enemy can't be shocked again for 1.5 s; levels shorten that.
+  - **Ricochet** (weapon mod, Legendary): your shots ricochet on to the nearest other enemy, once per level (up to 4), for 50% of the shot's damage.
+  - **Speed Loader** (melee mod, Common): melee hits refill 25% of your magazine per level (at most every 1.5 s).
+  - **Culling Blow** (melee mod, Epic): a melee hit that leaves an enemy under 10% health per level (up to 30%) kills it. Elites: half that. Bosses: never.
+  - **Follow Through** (melee mod, Epic): after you use your ability, your next melee within 3 s deals +200% damage and carries the elements of your Ice, Fire, Lightning and Poison Explosion mods.
+  - **Feedback Loop** (ability mod, Common): each enemy your ability kills takes 0.1 s per level off its cooldown, up to half the cooldown per use.
+  - **Shrapnel** (ability mod, Legendary): your ability's explosion fires a ring of 12 of your weapon's projectiles (+6 per level, up to 36), with all your weapon mods.
+  - **Scrapper** (perk, Epic): skip your reward chest (take nothing from it) 3 islands in a row (2 at level 2) and your next reward chest goes up a tier. Taking from one starts the count over.
+  - **Appraiser** (perk, Epic): chest items are more likely to be Epic or Legendary the further into the run you are (+0.12 luck per island per level, up to island 50).
+  - **Clean Sweep** (perk, Epic): clear an island without taking damage and its reward chests get +5 luck per level.
+  - **Connoisseur** (relic, Epic): items in your chests that you already hold come with an extra level.
+  - **Fixation** (Greed relic): every chest you open offers only 1 choice, but rolls its rarity at 8x luck.
+- **Shellbreaker: no more slow motion while you swing.** Right click no longer also aims (the zoom and slow motion) while you hold Shellbreaker; it's only the hook.
+- **Profiler** (off by default): logs where the game's frame time goes, for tracking down slowdowns (`[profiler] enabled = true`).
+
 ### 0.15.3
 
 - **Swings keep you level.** Shellbreaker's swing holds you at the height you started it at (from the ground, a little above it) as you pass under the hook point, keeping your speed. At the end of the chain it swings you up, ready to let go. `swingKeepHeight = false` gives the plain pendulum back.

@@ -11,6 +11,9 @@ int DistinctTags(void* ps);
 // totem).
 inline void* g_totemUser = nullptr;
 
+// Necromancer (necromancer.cpp): is this enemy one of the players' undead (raised or being raised)?
+bool IsUndead(void* c);
+
 // Encore (encore.cpp): a roll of its chance for a player, true on success (only if they hold it and it is on).
 bool EncoreRoll(void* ps);
 

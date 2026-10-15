@@ -263,6 +263,7 @@ soundVolume = 80
     }
     std::string Title() const override { return "Soul Whip (Necromancer)"; }
     static bool HoldsWhip(void* ps) { return self_ && self_->enabled_ && self_->Holds(ps); }
+    static bool Undead(void* c) { return self_ && self_->IsUndead(c); }
     const char* CatalogKind() const override { return "Weapon"; }
 
     void InstallHooks() override {
@@ -2640,5 +2641,6 @@ Necromancer g_item;
 }  // namespace
 
 bool HoldsSoulWhip(void* ps) { return Necromancer::HoldsWhip(ps); }
+bool IsUndead(void* c) { return Necromancer::Undead(c); }
 
 }  // namespace crabmods

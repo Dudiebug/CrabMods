@@ -17,6 +17,11 @@ namespace crabmods {
 
 using namespace crab;
 
+// The outermost loot roll's source and the player it rolls for (the chest and its opener), set from just before
+// BeforeLootRoll until AfterLootRoll (main.cpp).
+inline void* g_lootSource = nullptr;
+inline void* g_lootPlayer = nullptr;
+
 // Relic types some item may grant (Item::GrantsRelic); set by those items' constructors.
 inline bool g_grantedRelics[256] = {};
 // Perk types some item adds a buff to (Item::PerkBuff); set by those items' constructors.
@@ -85,6 +90,11 @@ public:
     // pool, rarity and number of choices. AfterLootRoll comes right after it. Outermost rolls only.
     virtual void BeforeLootRoll(uint8_t& lootPool, uint8_t& rarity, int& choices) {}
     virtual void AfterLootRoll() {}
+    // One choice of a loot roll (host; the key totem's on the player's machine): m is the game's luck for it, which
+    // multiplies the chance to upgrade the choice to Epic (3.75%) and Legendary (0.25%). It starts at 1 (more on shop
+    // islands and some difficulties, 0 for lesser chests, where items should leave it). ps: the player the choice is
+    // for; source: what rolls (an ACrabChest for a chest, the level manager for a shop).
+    virtual void LootLuck(void* ps, void* source, float& m) {}
 
     // Portal rewards (host): how much more likely an island is to reward this loot pool (pool::*). The game
     // picks Damage, Critical, ... for each Arena/Horde/Demolition portal; 1 = unchanged.
@@ -136,6 +146,9 @@ public:
     // before the game's code, then OnEnemyEliminated just after.
     virtual void OnEnemyEliminating(void* enemy) {}
     virtual void OnEnemyEliminated(void* enemy) {}
+    // A player took a pickup (host, ACrabInteractPickup::Interact succeeded): pickup is the ACrabInteractPickup, c
+    // the character that took it (its FCrabPickupInfo is still readable at off::Pickup_PickupInfo).
+    virtual void OnPickupTaken(void* pickup, void* c) {}
     // true: this key of the item's section is the player's own (a keybind), so the host's settings never
     // replace it.
     virtual bool LocalSetting(const std::string& key) const { return false; }
@@ -160,6 +173,9 @@ void SendToPlayer(void* pc, const std::wstring& text);
 // to OnHostMessage. It goes as a chat message the host's CrabMods takes out (a host without CrabMods would show it
 // in chat), so keep it short.
 void SendToHost(void* pc, const std::wstring& text);
+
+// In main.cpp (host): passes a taken pickup to the items' OnPickupTaken (key_totem.cpp has the hook).
+void PickupTaken(void* pickup, void* c);
 
 inline Item* FindItem(const std::string& section) {
     for (Item* i : Items())

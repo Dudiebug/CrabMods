@@ -788,9 +788,10 @@ static void RealCatalog() {
     Setup mods;
     mods.crabMods = true;
     CHECK(MakeSetupCode(*cat, nullptr, mods).size() == 12);
-    // Every item starts on in a new ini, and a setup code of everything reads back.
+    // Every item starts on in a new ini (but the profiler, a tool for finding slowdowns), and a setup code of
+    // everything reads back.
     IniValues fresh = ReadIni(DefaultCrabModsIni(*cat));
-    for (const CatalogItem& it : cat->items) CHECK(ItemOn(fresh, it));
+    for (const CatalogItem& it : cat->items) CHECK(ItemOn(fresh, it) == (it.section != "profiler"));
     auto ini = ParseSyncCatalog(*syncJson);
     CHECK(ini && CrabSyncItem(*ini).settings.size() > 10);
     if (!ini) return;

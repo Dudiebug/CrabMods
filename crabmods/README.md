@@ -27,6 +27,10 @@
 | **Bullet Rain** | weapon mod | Epic | Your shots fall from the sky onto the spot you aim at (the way Ice Staff fires), and deal +35% damage. |
 | **Hellshot** | weapon mod | Epic | Your shots fire straight up out of the ground under the spot you aim at, and deal +35% damage. |
 | **Last Crab Standing** | relic | Epic | +25% damage for every downed teammate, and another +25% when you are the only one still up. Never drops when you play alone. |
+| **Thermal Shock** | weapon mod | Epic | Hitting an enemy that has ice stacks with fire, or fire stacks with ice, **shatters** them: the hit deals **+250%** (+100% for explosion and splash hits) and the enemy loses all its fire and ice stacks. Each enemy can be shocked once every 1.5 s (shorter with more levels). |
+| **Ricochet** | weapon mod | Legendary | A shot that hits an enemy **ricochets** on to the nearest other enemy within 15 m, once per level (up to 4), each for 50% of the shot's damage. Your damage bonuses and crits apply again. |
+| **Culling Blow** | melee mod | Epic | A melee hit that leaves an enemy under **10% health per level** (up to 30%) kills it outright. Elites: half that. Bosses: never. |
+| **Follow Through** | melee mod | Epic | After you use your ability, your next melee within 3 s deals **+200%** damage (+100% per extra level) and carries the elements of your Ice, Fire, Lightning and Poison Explosion ability mods. |
 
 ### Health and fire rate
 
@@ -34,6 +38,7 @@
 |---|---|---|---|
 | **Thick Shell** | perk | Epic | +3% max health multiplier for each perk level you have (this one included). Collector for health. |
 | **Community Support** | perk | Epic | You and every player within 20 m fire faster: one Rapid Fire level (+12%) for each player in range who has Community Support, you included. It stacks when your friends have it too. Never drops when you play alone. |
+| **Speed Loader** | melee mod | Common | Melee hits that land refill **25% of your magazine** per level (up to 4 levels), at most once every 1.5 s. |
 
 ### Loot
 
@@ -49,6 +54,11 @@
 | **Lucky Charm** | relic | Legendary | Each mod and perk in the chests you open has a **25% chance to be level 2**. |
 | **Finishing Move** | perk | Epic | Enemies you kill with a **critical hit** drop **+50% crystals**. |
 | **Rigged Totems** | perk | Epic | Health, Chance and Gamble totems are **25% more likely to go your way** (a 50% totem becomes 62.5%). |
+| **Scrapper** | perk | Epic | Skip your reward chest (take nothing from it) **3 islands in a row** (2 at level 2) and your next reward chest **goes up a tier**: a pool chest becomes an Epic chest, an Epic chest a Legendary one. Taking from a reward chest starts the count over. |
+| **Appraiser** | perk | Epic | Chest items are more likely to be Epic or Legendary the further you get: **+0.12 luck per island** per level (to island 50; the game's luck is 1). Not shops, key chests or the secret chest. |
+| **Clean Sweep** | perk | Epic | Clear an island **without taking damage** (the game's flawless) and its reward chests get **+5 luck** per level. |
+| **Connoisseur** | relic | Epic | Mods and perks in your chests that you **already hold** come with an extra level. |
+| **Fixation** | Greed relic | Greed | Every chest you open offers **only 1 choice**, but rolls its rarity at **8x luck** (50 at most, with other luck). |
 | **Heavy Shot** | the game's own weapon mod | Common | Drops **without Bouncing Shot**, for every weapon. |
 
 ### Ability
@@ -58,13 +68,15 @@
 | **Recharge** | ability mod | Epic | Each kill takes 0.1 s off your ability cooldown. |
 | **Enhanced Turrets** | ability mod | Common | The game's Enhanced Turrets perk, as an ability mod: more turret damage per level, as much as the perk gave. It drops only with a turret ability. The perk no longer drops. |
 | **Pathfinder** | perk | Common | Replaces the Portal Ring relic: one more portal choice after each island for every level (the ring gives one and doesn't level). Portal Ring no longer drops. |
+| **Feedback Loop** | ability mod | Common | Each enemy your ability kills takes **0.1 s** per level off its cooldown, up to half the cooldown per use. |
+| **Shrapnel** | ability mod | Legendary | Your ability's explosion fires a **ring of 12** of your weapon's projectiles (+6 per level, up to 36), with all your weapon mods. |
 
 ### Weapon
 
 | Item | Type | Effect |
 |---|---|---|
 | **Soul Whip** (Necromancer) | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Crossbow. A lash with no ammo: each crack sends a purple **soul bolt** up to 45 m, which bursts where it hits an enemy, the floor, or at the end of its reach, hurting everything within 4 m (100 damage a second: 80 per burst at 1.25 cracks a second). The burst also **tags** enemies within 6 m for 8 s. While you hold it, your ability is replaced by **raising the dead**: kills fill a **soul bar** (100 max; 1 / 3 / 6 / 25 / 60 souls by the enemy's rank, +50% for tagged kills), and four keys (**V, C, X, Z**) spend souls to raise the last fodder, medium, hard or elite enemy you killed this run as an **undead** where you aim (fodder comes as a pack of 3; costs 10 / 15 / 40 / 75). You can have up to 20 undead at once. Undead never get the shield or armor plates an enemy can spawn with. Undead fight the island's enemies, go after tagged ones first and hit them 25% harder, and never hurt players. They get half your damage bonus. Their kills give you half the souls, and their crystals drop, but your on-kill perks and relics don't go off. Each costs 1% of its raise cost a second while enemies are alive; when the souls run out, they starve, losing health until you have souls again. They all crumble when the fight ends, and those still standing give half their raise cost back as souls. It has its own model (a cord lash that hangs and sways as you move, and cracks out toward your aim when you fire, sending a purple soul bolt the rest of the way), a soul glow that pulses down the cord and flares on each crack, its own sounds, and a HUD of its own: the soul bar above your health and the four raise pictures, with their keys and costs, where the ability was (left of the melee slot). |
-| **Shellbreaker** | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Soul Whip. A barbed blade on a 40-link chain, held by a handle in the claw, with no ammo. **Left click** swings a string of five: right to left, left to right, a chop, the rebound and a circle over the head. Each swing hits as a melee strike (it breaks shields and everything a claw breaks) in a 4.5 m radius, 22 m in front of you, and the circle hits everything within 24 m. Over the string it does **75 damage a second**, each swing its share by its length (0.32 / 0.32 / 0.32 / 0.24 / 0.56 s). Fire rate makes the string faster, damage perks and damage weapon mods scale its hits like a gun's, and **melee mods power it** at a quarter of their worth (damage, Big Claws' range, the Claws' elements, Vampire). **Right click** fires the **hook**. You swing on it like Spider-Man: it catches the best spot near your crosshair (an orange diamond on screen shows it; the hook display says what right click will do), you hold right click to swing (it keeps you at the height you started at, then swings you up at the end of the chain), steer with your movement keys to swing faster, and let go to fly off with a boost (hold left click to reel in). Swinging uses no charge, so swings chain. An enemy near the crosshair (a red diamond) is hooked instead, up to 60 m (one charge, 6 s cooldown): it yanks fodder and medium enemies to you and pulls you to heavier ones. It **replaces your melee** while you hold it, its own items drop for you, melee mods drop 3x as often, and of the game's weapon mods only the ones that work for a blade drop (Wind Up, Aerial Shot, Uppercut, Heavy Hitter, Rapid Fire, Escalating Shot, Damage Shot, Supercharged, Juiced). The crab's body plays the game's own Katana, Hammer and Grenade-throw animations with it. It has its own model (the chain swings with real physics), sounds and a hook display where the melee slot was. |
+| **Shellbreaker** | weapon | In the lobby's weapon list, unlocked, and on its own pedestal left of the Soul Whip. A barbed blade on a 40-link chain, held by a handle in the claw, with no ammo. **Left click** swings a string of five: right to left, left to right, a chop, the rebound and a circle over the head. Each swing hits as a melee strike (it breaks shields and everything a claw breaks) in a 4.5 m radius, 22 m in front of you, and the circle hits everything within 24 m. Over the string it does **75 damage a second**, each swing its share by its length (0.32 / 0.32 / 0.32 / 0.24 / 0.56 s). Fire rate makes the string faster, damage perks and damage weapon mods scale its hits like a gun's, and **melee mods power it** at a quarter of their worth (damage, Big Claws' range, the Claws' elements, Vampire). **Right click** fires the **hook**. You swing on it like Spider-Man: it catches the best spot near your crosshair (an orange diamond on screen shows it; the hook display says what right click will do), you hold right click to swing (it keeps you at the height you started at, then swings you up at the end of the chain), steer with your movement keys to swing faster, and let go to fly off with a boost (hold left click to reel in). Swinging uses no charge, so swings chain. Right click doesn't aim (no zoom or slow motion) while you hold it. An enemy near the crosshair (a red diamond) is hooked instead, up to 60 m (one charge, 6 s cooldown): it yanks fodder and medium enemies to you and pulls you to heavier ones. It **replaces your melee** while you hold it, its own items drop for you, melee mods drop 3x as often, and of the game's weapon mods only the ones that work for a blade drop (Wind Up, Aerial Shot, Uppercut, Heavy Hitter, Rapid Fire, Escalating Shot, Damage Shot, Supercharged, Juiced). The crab's body plays the game's own Katana, Hammer and Grenade-throw animations with it. It has its own model (the chain swings with real physics), sounds and a hook display where the melee slot was. |
 
 ### Shellbreaker loot
 
@@ -139,6 +151,7 @@ Charms are a kind of item of their own, and they're what give you more inventory
 |---|---|
 | **Melee mods** | The game's melee mods get stronger numbers (the game's own in brackets): Sharp Claws +200% melee damage [100], Time Claws +300% [150], Iron Claws +500% [300] with only +20% cooldown [40], Big Claws +3% range a level up to +35% [20 a level, no cap], Blender −15% cooldown a level up to −75% [20 a level, no cap], Vampire heals 15 per kill [5], and Ice, Fire, Lightning, Poison and Arcane Claws apply twice the stacks. |
 | **Key totem** | While you still have **locked items**, the lobby's key totem works like the game's own but lets you **choose one of 3** random locked items from a menu (`choices`); closing the menu and reopening it shows the same three. Once everything is unlocked it opens a **menu of every item** (CrabMods' own included), shown as the game's own pickup cards in a scrolling list, with **category tabs** (locked items have a tab of their own; the gamepad bumpers switch tabs) and a **search box** (name, type or description). The item you click (or select with a gamepad) comes out of the totem, and is unlocked if it was locked. It works with any host. With `menu = false` a row of the items comes out of the totem instead and you pick one up (this needs CrabMods on the host too). |
+| **Key totems in runs** | Key totems also turn up on islands and in shops, **as rarely as a Gold totem** (spawn weight 0.3). One costs 3 keys and lets you **choose one of 3** random Epic or Legendary items for your run, each Epic or (25%) Legendary. |
 | **Spiked Chest** | The Spiked island's Epic chest costs **35%** of your base max health instead of the game's 25%, and the island's portal says so. With [CrabSync](../crabsync/README.md)'s shared health pool, 35% is what the **whole team** loses once every player has opened theirs (about 10% each with four players), and the portal says "All the team's spiked chests together cost 35% of base max health". |
 | **No Anvil Portals** | The portals after an island never lead to an **Anvil** island. A portal the game would make an Anvil gets another reward instead, picked by the game's own weights. Host only: the host spawns the portals. |
 | **Parkour islands** (experimental) | Brings back the **Parkour island** the game dropped in 2025. On islands 1 to 3 the Demolition portal is sometimes (`chance`, 50%) a Parkour portal instead. Arctic runs get Arctic_Parkour_01, the other biomes Tropical_Parkour_01. **Needs the Parkour maps add-on on every player's game** (see [Parkour maps](#parkour-maps)); if anyone lacks it, Parkour isn't offered. |
@@ -245,6 +258,22 @@ The Parkour maps are the game's own, from an older version, so they can't be sha
 | | `vampireHealth` | `15` | Game: 5. |
 | | `elementalClawsMultiplier` | `2` | Stacks per hit of Ice, Fire, Lightning, Poison and Arcane Claws. |
 | `[keyTotem]` | `menu` | `true` | `false`: a row of random locked pickups comes out of the totem instead of the menu. |
+| `[keyTotemSpawn]` | `weight` | `0.3` | How often key totems spawn in runs, as a weight beside the game's totems (Loot 1, Gold 0.3, Greed 0.4). |
+| `[thermalShock]` | `bonusPercent`, `splashPercent` | `250`, `100` | Extra damage of a shocking hit, and of a shocking explosion or splash hit. |
+| | `cooldown`, `cooldownPerLevel`, `minCooldown` | `1.5`, `25`, `0.5` | Seconds before the same enemy can be shocked again; each level divides it by 1 + this percent more; the shortest it gets. |
+| `[ricochet]` | `ricochetsPerLevel`, `maxRicochets` | `1`, `4` | |
+| | `damagePercent`, `range`, `delay` | `50`, `1500`, `0.08` | Of the shot's damage; how far a ricochet looks (cm); seconds between jumps. |
+| `[speedLoader]` | `percentPerLevel`, `maxLevel`, `cooldown` | `25`, `4`, `1.5` | |
+| `[cullingBlow]` | `percentPerLevel`, `maxLevel`, `elitePercent` | `10`, `3`, `50` | The health threshold per level; elites get this percent of it. |
+| `[followThrough]` | `damagePercent`, `damagePercentPerLevel`, `window` | `200`, `100`, `3` | |
+| `[feedbackLoop]` | `secondsPerKill`, `maxPercentPerUse` | `0.1`, `50` | |
+| `[shrapnel]` | `projectiles`, `projectilesPerLevel`, `maxProjectiles` | `12`, `6`, `36` | |
+| `[scrapper]` | `scrapNeeded`, `maxLevel` | `3`, `2` | Islands in a row to skip for an upgrade (one less per level after the first). |
+| `[appraiser]` | `luckPerIsland`, `maxIsland` | `0.12`, `50` | |
+| `[cleanSweep]` | `luckPerLevel`, `maxLevel` | `5`, `4` | |
+| `[connoisseur]` | `extraLevels` | `1` | |
+| `[fixation]` | `luckMultiplier`, `maxLuck` | `8`, `50` | |
+| `[profiler]` | `enabled` | `false` | **Your own**: logs where the game's frame time goes (frame times, the costliest classes and blueprint functions, hitches) to `CrabMods.log`. Takes effect when the game starts. |
 | | `choices` | `3` | Without the menu: how many items are in the row (1 to 8). |
 | `[necromancer]` | `whipDps` | `80` | Soul Whip damage a second: each bolt's burst does `whipDps / whipFireRate` (64) to every enemy in it, less at its edge. |
 | | `whipFireRate`, `whipRangeMeters` | `1.25`, `45` | Cracks a second; how far the bolt flies. |
@@ -350,6 +379,7 @@ The effects:
 - **Community Support** counts players by their character's position, so a downed player neither gives nor gets it.
 - **Soul Whip** is tested only by reading the game's code, not in play yet: its pedestal, model, lash, HUD and sounds are all new and unchecked in game. If its art can't be built on your machine, it falls back to the Sniper's look (your log says why). Its sounds don't follow the game's volume settings (`soundVolume` sets them). It isn't kept as your weapon between runs. If something looks wrong, please open an issue with your `CrabMods.log`.
 - **Shellbreaker** is new: tested in play only briefly. Its hook swing launches you on your own machine, so a client in multiplayer may rubber-band while swinging. Every player needs CrabMods 0.14.1 to see its chain and animations.
+- **The 0.15.4 items** (Thermal Shock, Ricochet, Speed Loader, Culling Blow, Follow Through, Feedback Loop, Shrapnel, Scrapper, Appraiser, Clean Sweep, Connoisseur, Fixation) and **key totems in runs** are tested only by reading the game's code, not in play yet. If one misbehaves, please open an issue with your `CrabMods.log`.
 - Everyone should run the same CrabMods version: a player on an older one can't see the newer items.
 - If the game updates, CrabMods turns itself off (see `CrabMods.log`) until a new release is out.
 

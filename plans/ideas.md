@@ -4,7 +4,7 @@ Ideas waiting to be built, written up in the wiki's card format. All addresses a
 
 ---
 
-## Encore (relic, Epic)
+## Encore (relic, Epic): BUILT
 
 **Activated perks have a chance to activate a second time**
 
@@ -60,7 +60,7 @@ chance = 15
 
 The four perks below come from the same batch of cards. They are new: the game has none of them (`re/perk_sites.json` lists every vanilla perk). Grave Dodger, which was in the batch too, is vanilla (`DA_Perk_GraveDodger`, Epic, Health pool, hyperbolic) and only shows how the cards are laid out. New perks are built the usual way: copy a perk from `SpawnablesDA.Perks`, a free type id from 200 up.
 
-## Autoloader (perk, Rare)
+## Autoloader (perk, Rare): BUILT
 
 **Chance to instantly reload after each elimination**
 
@@ -71,7 +71,7 @@ The four perks below come from the same batch of cards. They are new: the game h
 
 How: the GM damage handler `0x140ce5780` calls `0x140d26c00` to count a kill and knows the killer (**V**, REPORT.md). Hook it, roll `1 - 1/(1 + 0.1*level)` for the killer, and on a hit fill the current weapon's magazine. Still to find: the weapon's ammo field and the reload/refill function (the reload has to run on the owning client, so it may need a client RPC or a CrabSync message).
 
-## Finishing Move (perk, Rare)
+## Finishing Move (perk, Rare): BUILT
 
 **Enemies eliminated with critical hits drop more crystals**
 
@@ -82,7 +82,7 @@ How: the GM damage handler `0x140ce5780` calls `0x140d26c00` to count a kill and
 
 How: crits are worked out in `ACrabPS::CalcOutgoingDamage` `0x140d21480` (**V**), which fills `FCrabDamageInfo`. Note on the damage info (or a per-enemy map) that the hit was a crit, and when `0x140ce5780` reports that hit eliminated the enemy, scale its crystal drop by `1 + 0.5*level`. Still to find: where an enemy's crystal drop amount is decided (Bonus Crystals / Crystal Fertilizer read it, so their `perk_sites.json` entries are the starting point).
 
-## Rigged Totems (perk, Rare)
+## Rigged Totems (perk, Rare): BUILT
 
 **Chance based totems are more likely to roll in your favor**
 
@@ -93,7 +93,7 @@ How: crits are worked out in `ACrabPS::CalcOutgoingDamage` `0x140d21480` (**V**)
 
 How: find the chance and gamble totems' success roll (they share the totem class with the key totem `key_totem.cpp` already hooks). Multiply the success chance by `1 + 0.25*level`, capped at 100%. Sturdy Totems (vanilla) is a totem perk too, so its `perk_sites.json` entries are a good place to start looking.
 
-## Cursed Lottery (perk, Legendary, cursed)
+## Cursed Lottery (perk, Legendary, cursed): BUILT
 
 **Gain a gigantic amount of crystals but lose most of your max health**
 
@@ -206,9 +206,9 @@ Twelve ideas, each checked against vanilla by the workflow (steps 1–5). Number
 **Fun:** big popup, hold the last round for the Elite.
 **Decision needed:** keep the rework, or drop it as too close to Uppercut.
 
-## Adrenaline (perk, Epic): PASS WITH CHANGES
+## Last Gasp (perk, Epic): PASS WITH CHANGES
 
-(Pitched as "Second Wind"; renamed, since that name is planned for a necro item in `necromancer-loot.md`.)
+(Pitched as "Second Wind", then "Adrenaline"; renamed, since Second Wind is planned for a necro item in `necromancer-loot.md` and Adrenaline Amulet is a vanilla relic.)
 
 **A burst of health and speed when you're nearly dead**
 
@@ -218,7 +218,7 @@ Twelve ideas, each checked against vanilla by the workflow (steps 1–5). Number
 
 **Different from:** Grave Dodger (20% heal at 1 HP, saves from a lethal hit), Speed Demon. Triggers earlier, adds speed, doesn't stop death. Close to Grave Dodger, but different enough.
 **Number:** based on Grave Dodger 20%. At 20% it tied or beat Grave Dodger and added speed, so it was cut to 15%.
-**Vs vanilla:** Amber Resin < Grim Reaper < **Adrenaline** < Grave Dodger < Survivor.
+**Vs vanilla:** Amber Resin < Grim Reaper < **Last Gasp** < Grave Dodger < Survivor.
 **Break it:** Unverified: with CrabSync's health pool, is 25% measured on the shared pool or your own?
 **Fun:** visible speed burst; pulls toward health builds.
 
@@ -236,21 +236,65 @@ Twelve ideas, each checked against vanilla by the workflow (steps 1–5). Number
 **Break it:** the refunded swing must not reopen the window. Level 5 would be ×11 → cap ×7. Vampire + Overflow combo already capped. Unverified: which pool melee damage goes through; whether blocked hits count (suggest damage > 0 only).
 **Fun:** cooldown-refund flash, play toward the window.
 
-## Trick Shot (weapon mod, Legendary): REWORK
+## Ricochet (weapon mod, Legendary): BUILT (beta, untested), flat 50% chosen
+(Pitched as "Trick Shot", a vanilla name, then reworked from "bounce off a wall, then home in". This is the user's
+version, 2026-10-14.)
 
-**Your shots ricochet into enemies**
+**Your shots ricochet from enemy to enemy**
 
-- Reworked: shots bounce once (+1 per level), re-aim at the nearest enemy on each bounce, and bounced hits get +50% per bounce (max +150%) as a separate multiplier.
-- Spawn weight: 1.0    Scaling: Linear (bounces)
-- Appears in: Skill chests
+- A shot that hits an enemy ricochets to the nearest other enemy within 15 m, then on from there: 1 ricochet, +1 per
+  level, at most 4. Each ricochet deals 50% of the shot's damage (chosen 2026-10-14 over halving per bounce; see below).
+- Spawn weight: 1.0    Levels: Limited (not offered once you have 4 ricochets)
+- Pool: outside (extra hits, after every multiplier, so it doesn't dilute)
+- Appears in: Damage and Skill chests
 
-**Different from:** Bouncing Shot (Common, +150% per bounce), Homing Shot (10% chance). As pitched it needed Bouncing Shot to do anything and was +50% in W (×1.11): a Common-sized, dead Legendary.
-**Number:** reworked ≈ ×1.3 if ~60% of hits are bounced (a guess); best case ×1.9.
-**Vs vanilla:** Square Shot < Homing Shot < **Trick Shot ≈ ×1.3** < Splash Damage < Firepower.
-**Break it:** exclude Soul Whip and Flamethrower; check rockets and beams. Unverified: whether a hook can redirect the game's bounce.
-**Fun:** visible arcs, shoot at walls, map-dependent.
+**Different from:** Targeting Shot (Epic, a *chance* to re-aim one shot on impact), Piercing Shot (Epic, full damage,
+but only enemies in a line), Bouncing Shot (Common, bounces off walls), Homing Shot (Legendary, a chance to curve, hits
+once). Nothing vanilla guarantees a hit jumps to a new enemy.
+**Number:** a multiplier on hits, like Firepower. p = chance a ricochet finds an enemy within 15 m [G]: horde 0.8,
+mixed fight 0.5, lone boss ≈ 0. Value = 1 + Σ (0.5·p)^k for k = 1..ricochets:
 
-## Momentum (perk, Common): PASS WITH CHANGES
+| Ricochets | Horde (p 0.8) | Mixed (p 0.5) | Boss |
+|---|---|---|---|
+| 1 | ×1.40 | ×1.25 | ×1.0 |
+| 2 | ×1.56 | ×1.31 | ×1.0 |
+| 3 | ×1.62 | ×1.33 | ×1.0 |
+| 4 | ×1.65 | ×1.33 | ×1.0 |
+
+**Vs vanilla:** Legendary bar is ×1.3–2 (a new damage source or more projectiles). Homing Shot ≈ ×1.1 < **Ricochet L1
+×1.25–1.4** < Firepower ×1.33–2. One down: Piercing Shot / Targeting Shot (Epic) are about the same at L1 in a line or a
+crowd, so L1 is a weak Legendary. One up: n/a.
+**Decision open: halving per bounce makes levels 3 and 4 almost worthless** (+3% and +1% in a horde), which step 2
+counts as a dead level. Options, all with the 4-ricochet cap:
+  - *As pitched* (each ricochet half the last): L4 ×1.33–1.65. Safe, but only level 2 is worth taking.
+  - *Each ricochet 50% of the shot* (flat, not compounding): ×1.25/1.38/1.44/1.47 mixed, ×1.40/1.72/1.98/2.18 horde. Every
+    level matters; L4 in a horde is top of the Legendary band. **Recommended.**
+  - *Each ricochet 75% of the last* (`falloffPercent = 25`): ×1.38/1.52/1.57/1.59 mixed, L4 ×2.30 horde. Strongest.
+**Run:** worth a slot when offered, best in biomes 1–3 hordes. It's a multiplier on hits, so it keeps up with enemy
+health, and the cap stops it running away. Weak on bosses by design (unless they have adds).
+**Break it:**
+  - *Piercing Shot*: every pierced enemy starting its own chain multiplies → one chain per shot, from the first enemy hit.
+  - *Procs*: if ricochet hits roll the weapon's procs, Proc Generator and elemental chances multiply by up to ×2 → ricochets
+    carry damage and the shot's elements at the ricochet's share, but don't roll procs or count as a "shot".
+  - *Explosions and ticking damage*: Rocket / Cluster splash, Flamethrower and Lightning Scepter hit many times → direct
+    projectile hits only (`DamageInfo_Type` not Radial, not melee); exclude Flamethrower; check the Scepter.
+  - Soul Whip (necro) excluded. Thermal Shock: a ricochet can shock (fine; its cooldown is per enemy).
+  - 4 players: more enemies → p goes up a little; fine.
+**Fun:** you see the arcs (needs a visual); you play toward packed enemies; it changes picks toward Firepower/Split Shot
+(more shots → more chains).
+**How (built, `crabmods/items/ricochet.cpp`):** host. A direct hit (`DamageInfo_Type` 0) from the holder's character
+starts a chain, unless they hold the Flamethrower. Its pre-buff damage comes from `OnOutgoingDamageBase`. Every
+`delay` (0.08 s) the chain jumps to the nearest live enemy within `range` that it hasn't hit, skipping undead, and hits
+it through `UCrabHC_TakeDamage` from the player's character, as type 4 (Lesser, not throttled per enemy), for
+`damagePercent` of that base. The game then applies the player's buffs and crit again, as for any hit, and the kill is
+theirs. Ricochets start no chains and carry no elements.
+**Differs from the card:** every direct hit starts a chain, pierced ones too. It's a per-hit multiplier, like a damage
+bonus, so Piercing Shot gains the same ×1.25–2.2 from it as from any other hit. There's no tracer yet: the damage
+numbers on each enemy are the only visual.
+**Unverified:** that `TakeDamage` runs the player's buffs for a ricochet (the log's first 5 ricochets show the damage
+before and after); whether clients see the damage numbers; p per fight type; ricochet range (15 m [G]).
+
+## Inertia (perk, Common): PASS WITH CHANGES (renamed from Momentum: Shellbreaker's loot has a Momentum)
 
 **Deal more damage while you keep moving**
 
@@ -395,3 +439,370 @@ re/pickup_catalog.json.
   (8 levels at the default), which also bounds Whirlwind's drag radius.
 - Solo or 4 players: everything is per holder, and the host applies the hook's effects.
 
+---
+
+## Thermal Shock (weapon mod, Epic): BUILT (beta, untested)
+
+**Hitting a burning enemy with ice, or a frozen one with fire, shatters both for a burst of damage**
+
+- If a weapon hit applies fire to an enemy that already has ice stacks, or ice to an enemy that already has fire
+  stacks, the hit deals +250% damage and all of that enemy's fire and ice stacks are removed. Each enemy can be
+  shocked once every 1.5 s. Explosion and splash hits get +100% instead.
+- Spawn weight: 1 (1 of 24.5 Epic weapon-mod weight)    Levels: the cooldown shrinks, 1.5 s / (1 + 0.25(L − 1)),
+  Limited at 0.5 s (level 9)
+- Pool: outside (a multiplier on the finished hit, after crit, like Death Mark)
+- Appears in: Elemental and Epic chests
+
+**Different from:** Elemental Expert (+X per debuff type the target holds) and Elemental Specialist (+50% against
+one debuff type). Both are passive bonuses for *holding* statuses. Thermal Shock *spends* them: the trigger (the
+opposite element landing) and the effect (a burst that removes the stacks) are new. Vanilla treats fire and ice as
+opposites (Fire Ring zeroes ice, Ice Ring zeroes fire [C, vanilla-power §2]); this is the first item that rewards
+using both.
+**Number:** pitched at +300%, with no cooldown, triggering on any hit while both elements were present. Mid-run
+(W ≈ 4.5 [G]) that's AutoRifle ≈ ×1.15, Flamethrower ≈ ×1.26 and Sniper ≈ ×1.43, but **Proc Generator ≈ ×4**:
+every hit applies both elements (roll ×100 [C]), so every hit shocks. Fixed:
+- a 1.5 s cooldown per enemy (shared by all players);
+- the stacks must already be on the enemy *before* the hit, so one hit applying both elements can't trigger it;
+- 300% → 250%, and splash and explosion hits get only +100%, so one Fire Explosion can't shock a whole iced crowd
+  at full strength.
+
+Value = 1 + 2.5 × (share of hits that shock). Elemental shots are 3% × the weapon's roll multiplier [C], so
+reapplying both elements after a shock takes:
+
+| Weapon (Fire Shot + Ice Shot, L1) | Hits per shock | Value |
+|---|---|---|
+| AutoRifle (7.5% each, 10/s) | ≈ 20 (reapplying), 15 at L2 elements (cooldown) | ×1.11–1.17 |
+| Flamethrower (fire built in; ice 8.6%, 12/s) | ≈ 18 (cooldown) | ×1.14 |
+| Proc Generator (both every hit, 8/s) | 12 (cooldown) | ×1.21; L5 ×1.42, L9 ×1.63 |
+| Sniper (21% each, 1/s) | ≈ 7–8 (reapplying) | ×1.33–1.36 |
+
+The value doesn't drop as the build fills (it's outside the W pool), so islands 7 / 14 / 28 are the same:
+×1.11–1.36.
+**Vs vanilla (Epic weapon mods, mid-run, [C] vanilla-power §3):** Juiced ×1.18 ≈ **Thermal Shock ×1.11–1.36** <
+Supercharged ×1.25 < Damage Shot ×1.33 < Triple Shot ×1.35. Above the Commons (×1.11–1.22), below Firepower (×1.33–2.0).
+On Sniper it's at the top of the Epics, like every chance item there (roll ×7).
+**Run:**
+- Dead without an element source. Island 3: only with Flamethrower, Ice Staff or an elemental shot already held.
+  That's fine for an Epic in Elemental chests, which are where the elements come from.
+- Island 14 and later it keeps up, while W-pool Epics fade: Damage Shot at W ≈ 15 is ×1.10, this is still ×1.11–1.36.
+  It doesn't run away: the cooldown fixes the shock rate, and levels only shorten the cooldown, to a 0.5 s floor.
+  Islands 35 / 57: the same multiplier; the enemy-health bar is met by the rest of the build.
+**Break it:**
+- Proc Generator: fixed (cooldown, stacks must already be there). It's ×1.63 at level 9, which is in line with every
+  other proc item on that gun.
+- AoE: Fire / Ice Explosion on a pre-iced crowd shocks every enemy at once → splash and explosions +100%. [G]
+- 4 players: one cooldown per enemy, not per player, so 4 holders can't shock one target 4×. Any player's stacks
+  count, which makes a fire player and an ice player a combo.
+- Encore: a weapon mod, not a perk, so Encore doesn't repeat it. Necro undead and turret hits don't trigger (the
+  hit must come from the holder's own weapon).
+- Fire Ring or Ice Ring zeroes one element's damage, but the stacks still trigger the shock. That's fine: it's
+  still a choice between the ring and the burst.
+**Fun:**
+- You see it: a steam burst and a "Shock!" popup.
+- You play toward it: hit with one element, then the other.
+- It changes what you pick next: the opposite element.
+- Its drawback changes how you play: the shock removes the burn's damage over time and ends freezes early, so you
+  choose when to cash in.
+**How:** host, hook `ACrabPS::CalcOutgoingDamage` `0x140d21480`. Read the hit's `DamageInfo_Debuffs` (+0x20,
+FCrabDebuff: Type 1 Ice / 2 Fire) and the target character's `DebuffState` (`ACrabC+0x6E8`: IceStack +0,
+FireStack +4, replicated). If the hit adds one element and the target already holds the other, and the target's
+cooldown is up: Damage (+0x08) ×3.5 (×2 if `DamageInfo_Type` is 1 Radial), zero IceStack and FireStack, drop the
+hit's fire and ice debuffs, and call `OnRep_DebuffState` (`0x140cbbae0`) for the host's own screen. Melee hits are
+excluded, and so are undead and turrets (`DamageInfo_DamagingC` +0x40 must be the holder's character). Not offered
+once the cooldown is at its floor (LootWeight 0).
+`items/thermal_shock.cpp`; ini keys `bonusPercent = 250`, `splashPercent = 100`, `cooldown = 1.5`,
+`cooldownPerLevel = 25`, `minCooldown = 0.5`.
+**Unverified:**
+- Whether `DebuffState` is updated before or after CalcOutgoingDamage. This decides whether "already there" can be
+  read directly.
+- How many stacks each element proc adds, and what removing them costs (burn damage lost, freeze shortened).
+- Elemental uptime per weapon: the hits-per-shock table assumes L1 Fire Shot + Ice Shot [G].
+- Whether burn ticks (damage types 7–10) go through CalcOutgoingDamage. They must not trigger the shock.
+- The splash +100% [G]. All of these go to `balanceLog` (the share of damage, shocks per island).
+
+
+## Scrapper (perk, Epic): BUILT (untested)
+
+**Skip your reward chests to upgrade a later one**
+
+- Leaving an island without opening your reward chest (or opening it and taking nothing) gives 1 scrap. At 3 scrap, your
+  next reward chest goes up a tier and the scrap is spent: a pool chest (Damage, Crit, ...) becomes an Epic chest, an Epic
+  chest (elite islands) a Legendary chest. A Legendary chest keeps the scrap for the next one.
+- The skips must be in a row: taking anything from a reward chest puts scrap back to 0.
+- Level 2: 2 scrap per upgrade. Limited: not offered after level 2 (1 scrap would make every other chest Epic).
+- Spawn weight: 1 (like most perks)    Levels: Limited (2)
+- Pool: outside (loot)
+- Appears in: luck, economy and random chests; loot, chance, gamble and random totems
+
+**Different from:** Upgrade Ring (every choice becomes a level-up, 2 fewer choices), Streamer Loot (a % chance at a better
+roll), because it's a trade you choose: a pick now for a better chest later. Nothing in vanilla rewards skipping.
+**Number:** based on the game's chest tiers [C, `vanilla-difficulty.md` §3]: 3 Common picks for one Epic chest (3 Epic
+choices). An Epic is worth about 2× a Common [C, WORKFLOW §2], so early it's a loss (3 → about 2), and it only pays when
+the picks you skip are worth little. Elite islands (7, 14, 21, ...) are the jackpot: 3 skips turn their Epic chest into a
+Legendary one (4 choices) [C].
+**Vs vanilla:** extra-choice items are the closest: Limited Loot (fewer choices) < Big Chests < **Scrapper** < Coral Amulet
+(+2 choices, relic). One rarity down: no Common changes chest tiers. One up: Streamer Loot's forced rolls.
+**Run:** weak when offered in biome 1 (every pick still fills a slot). It grows as slots fill: once a category is full,
+a chest of new items you can't take is a free scrap [C, `count < NumSlots`]. So it rises late and never runs away: at most
+one upgrade per 2–3 islands.
+**Break it:** economy: an Epic chest every 2 islands late is about +1 Epic pick per 2 islands; fine at Epic [G].
+Multiplayer: each player has their own chest, scrap is per player [C, 0x140d01610]. Double or Nothing: zero chests isn't a
+skip (no chest to leave); doubled chests give one scrap per untaken chest, so cap it at 1 scrap per island.
+Bonus chests (Care Package, totems, Lucky Charm): not reward chests, don't count.
+Faulty Chests (Legendary perk: 15% per level that each unchosen item stays [C, DA]): it only acts once you take
+something, which already uses the chest, so it can't give a pick and a scrap. Leftovers it keeps are still the chest's.
+**Fun:** you play toward it (skip chests on purpose), it changes what you pick, and a counter shows the scrap
+("Scrapper 2/3").
+**How:** host. `OnRewardChests` (0x140d01610, as Double or Nothing) notes each player's reward chest; the chest roll
+(0x140caf1c0, opener) notes the pickups it spawns (`SpawnPickup` 0x140d00060 calls during the roll), and only taking
+one of those (0x140d3cf00) marks the chest used. Pickups from anywhere else (totems, shop, the ground) don't count. At the next `OnRewardChests`, an unused chest from
+the last island gives a scrap; with enough scrap, swap the main chest class for SpawnablesDA +0x588 (Epic) or +0x590
+(Legendary).
+**Unverified:** whether a chest left on the island is still alive (and readable) when the next island's rewards spawn,
+or needs noting at portal time; how often slots are full by biome 3 [M, balanceLog].
+
+## Connoisseur (relic, Epic): BUILT (untested)
+
+**Items you already hold come with an extra level**
+
+- Taking an item you already hold (from a chest, shop or totem) gives it 2 levels instead of 1.
+- Chosen Epic by the user (2026-10-14).
+- Spawn weight: 0.3 (like most relics)    Levels: none (relic)
+- Pool: outside (levels)
+- Appears in: relic chests
+
+**Different from:** Upgrade Ring (Greed: every choice is a level-up, 2 fewer choices), Level Up (Legendary perk: random
+items +1 level every 3rd island), because it doubles levels you choose, not random ones, and costs no choices.
+**Number:** late in a run most picks are levels on items you hold (slots are full) [C, `count < NumSlots`]. Guess about
+10–20 such picks a run [G], so +10–20 levels, against Level Up's ~+9 (Legendary) [G, `ideas.md` Snap Decision].
+**Vs vanilla (Epic relics):** Ring of Precision (+150% crit damage, needs crit) < **Connoisseur** ≈ Ring of Fury (×1.5
+MUL) < Ring of Power [C, `vanilla-power.md` §3]. It fits Epic only because relics are judged big: as a perk it would be
+Legendary.
+**Run:** weak in biome 1 (you hold little), strong from biome 2 on, best late when slots are full. Keeps up, since
+levels are what late runs are made of [WORKFLOW §4]; it doesn't run away, it at most doubles the rate.
+**Break it:** Upgrade Ring + Connoisseur: every choice is +2 levels; two relics plus a Greed drawback, fine. Limited items
+(offered until 100%): the extra level may overshoot 100%, so clamp. Level 255 cap [C]. Not for levels the game gives
+itself (Level Up, the Enhancement totem, the Key totem menu).
+**Fun:** it changes what you pick (you favour items you hold), and a popup shows "+2".
+**How:** host. A pickup taken (`ACrabInteractPickup` Interact 0x140d3cf00) by a player who already holds its DA: after the
+game adds its level, add one more through the inventory arrays (as `inventory_edit.hpp` does).
+**Unverified:** picks a run on held items [G, balanceLog]; whether shop and totem pickups go through the same Interact.
+
+## Appraiser (perk, Epic): BUILT (untested)
+
+**Chests get luckier the further you get**
+
+- Chest choices roll Epic and Legendary more often the further into the run you are: the game's luck multiplier m
+  (Epic 3.75% × m, Legendary 0.25% × m) gets +0.12 × island × level, counting islands up to 50.
+- Epic chosen by the user (2026-10-14); pitched as Common.
+- Spawn weight: 1 (like most perks)    Levels: Linear
+- Pool: outside (loot)
+- Appears in: luck and random chests; loot, chance, gamble and random totems
+
+**Different from:** Streamer Loot (Common, flat 4% per level to force Epic, 0.6% Legendary [C, DA_Perk_StreamerLoot]),
+Ring of Luck (Legendary relic: chance perks and totems +75%), because it grows with the run: it gives normal chests the
+island scaling only shops have [C, `vanilla-difficulty.md` §3]. A slow ramp is Epic's kind of effect [WORKFLOW §2].
+**Number:** at L1, per choice [C formula, value G]:
+
+| Island | m | Epic | Legendary |
+|---|---|---|---|
+| 7 | 1.84 | 6.9% | 0.46% |
+| 14 | 2.7 | 10% | 0.67% |
+| 28 | 4.4 | 16.5% | 1.1% |
+| 50+ | 7 | 26% | 1.75% |
+
+  Averaged over islands 1–35 that's about +8% Epic per choice, 2× Streamer Loot L1 (+4%), as an Epic should be.
+  Level 3 at island 50: m = 19, Epic 71%, Legendary 4.75% per choice; shops already reach m = 62 there [C], so fine.
+**Vs vanilla:** Streamer Loot L1 < **Appraiser** (early) < Streamer Loot L2 < **Appraiser** (biome 3+). One rarity up:
+Ring of Luck. It loses to Streamer Loot when picked late at low island, beats it from island ~14.
+**Run:** weak in biome 1 (m ≈ 1.5), worth it from biome 2 on. Picked early it ramps the whole run; picked late it's
+strong at once. The island-50 cap stops loops from making every choice Epic.
+**Break it:** chests only: not shops (they have their own scaling), not the secret chest (m = 0), not key chests. Stacks
+with the Lucky modifier (m = 2) by adding. Multiplayer: the roll uses one random player's items [C, LootRoll], so it
+counts the holder's level only when the roll picks them [C]; fine, like Streamer Loot. Ultra Luck already maxes it.
+**Fun:** you can see it (more purple and gold choices as the run goes on); it changes what you pick next (better rarity
+makes chests worth more than shops); a HUD line could show the current odds.
+**How:** host. Hook the rarity chance function (0x140d31c00, Epic 3.75% / Legendary 0.25% × m) or LootRoll
+(0x140d33240) and add the bonus to m when the roll is a chest roll and the rolled player holds Appraiser. Island from
+`GS+0x2D4`, island type `GS+0x2D8` (skip Shop 9).
+**Unverified:** that 0x140d31c00 gets m as an argument (or where m lives) and that the chest/shop source can be told
+apart there; the +0.12 per island [G], tuned from balanceLog's Epic picks per island.
+
+## Fixation (relic, Greed): BUILT (untested)
+
+**Chests offer one choice, but it's much more likely to be rare**
+
+- Every chest offers 1 choice, but its rarity rolls at ×8 luck (m × 8): Epic 30%, Legendary 2% per chest instead of
+  3.75% / 0.25% per choice [C base odds, `vanilla-difficulty.md` §3].
+- Spawn weight: 0.3 (like Greed relics [C])    Levels: none (relic)
+- Pool: outside (loot)
+- Appears in: greed chests; greed and random totems
+
+**Different from:** Coral Amulet (Common relic: +2 choices), Upgrade Ring (Greed: −2 choices, all upgrades), Streamer
+Loot (flat upgrade chance), because it trades choice for rarity: you stop building around synergies and take what comes.
+**Number:** per chest, vanilla is best-of-3 Commons with an 11% chance of at least one Epic [C]. Fixation is one item
+with 30% Epic and 2% Legendary. An Epic is worth about 2× a Common [C, WORKFLOW §2], so about 1.35 Commons' worth
+against best-of-3 Commons (≈1.2 with the choice [G]): a small gain in power, a big loss in control. That is Greed's
+trade.
+**Vs vanilla (Greed relics):** Upgrade Ring < **Fixation** ≈ Ring of Favoritism < High Roller < Trigger Ring (guessed;
+relic values aren't worked out [G]).
+**Run:** fine early (any item fills a slot). Worse late: one forced choice is often a new item you have no slot for
+[C, `count < NumSlots`], so it's a run-start gamble. Elite and boss chests: their 3–4 choices drop to 1 too (Epic and
+Legendary chests already have their rarity, so ×8 only helps them to Legendary).
+**Break it:** Coral Amulet, Big Chests, Upgrade Ring: set the count to 1 after every modifier (REPORT "Chest choices":
+rewrite `Choices` on the first `LootRoll`). Hoarder Backpack (take all): Fixation cuts it to 1, a bad combo by design.
+Appraiser / Clean Sweep: their luck adds first, then ×8; cap m at 50 (UltraLuck's level).
+**Fun:** its drawback changes how you play (no picking, adapt to what you get); every chest is a reveal.
+**How:** host. Chest roll (0x140caf1c0) notes the opener; on its first `LootRoll` (0x140d33240) set `Choices = 1` and
+multiply m for that roll. Same luck hook as Appraiser.
+**Unverified:** where m lives in the roll (shared with Appraiser); ×8 [G], tuned so a chest's worth ≈ vanilla's.
+
+## Clean Sweep (perk, Epic): BUILT (untested)
+
+**Flawless islands give luckier reward chests**
+
+- Clearing an island without taking damage (the game's own "flawless") makes that island's reward chest roll at
+  +5 luck per level (m + 5L): at level 1, Epic 22.5% and Legendary 1.5% per choice instead of 3.75% / 0.25% [C base].
+- Limited: not offered after level 4 (m = 21: Epic 79% per choice).
+- Spawn weight: 1 (like most perks)    Levels: Linear, Limited (4)
+- Pool: outside (loot)
+- Appears in: luck and random chests; loot, chance, gamble and random totems
+
+**Different from:** Skill Ring (Epic relic: a flawless clear upgrades an Epic chest to a Legendary chest), Duplication
+Ring (Epic relic: an extra chest for a flawless elite or boss island), because it works on every island's chest, as a
+perk that levels, and raises the odds instead of the chest. Stacks with both.
+**Number:** flawless islands are about 40% [G]. 40% × 22.5% − 3.75% ≈ +7.5% Epic per choice averaged, 2× Streamer Loot L1
+(+4%, Common [C, DA]), as an Epic should be.
+**Vs vanilla:** Streamer Loot L1 < **Clean Sweep** (40% flawless) < Skill Ring (relic). At 20% flawless it drops to
+about Streamer Loot; at 80% it beats Appraiser. The flawless rate decides it, so measure it.
+**Run:** worth it in biome 1 (early islands are easy to clear clean). Falls off when islands get hard to flawless
+(biome 4+) [G]: that's the design, skill keeps it going.
+**Break it:** chests only (not shops). Multiplayer: flawless is per player [unverified]; each player's own chest.
+Double or Nothing / XL totem: every reward chest of that island gets it. Fixation: adds before ×8, m capped at 50.
+**Fun:** you play toward it (dodge to keep flawless), you see it work (a "Clean Sweep!" popup on a flawless clear, then
+better choices).
+**How:** host. Find the flawless flag Skill Ring (relic 41) and Duplication Ring (relic 42) read at the island end
+(0x140d01610); on reward-chest rolls that island, add 5L to m (same luck hook as Appraiser).
+**Unverified:** the flawless flag and whether it's per player; flawless rate per biome [G, balanceLog].
+
+## Speed Loader (melee mod, Common): BUILT (untested)
+
+**Melee hits reload your weapon**
+
+- A melee swing that hits at least one enemy refills 25% of your weapon's magazine per level (once per swing, not per
+  enemy). Limited: not offered after level 4 (100%).
+- Spawn weight: 0.75 (like melee mods [C])    Levels: Linear, Limited (4)
+- Pool: outside (uptime)
+- Appears in: skill and random chests; loot, chance, gamble and random totems
+
+**Different from:** Ammo Ring (Epic relic: dashing reloads fully [C, DA]), Ring of Reloading (Common relic: reload speed
++75% [C]), because the trigger is a melee hit: you weave melee into your reloads.
+**Number:** melee cooldown is 3–6 s (Claw 3, Katana 4, Pickaxe 5, Hammer 6 [C, DA]). If a magazine lasts 2–3 s [G],
+25% per 4 s swing is about 0.6 s more firing per 4 s, so about +15% DPS at L1 and +60% at L4 [G]. Common-sized at L1
+(Sharp Claws: +100% melee damage, Common).
+**Vs vanilla:** Ring of Reloading < **Speed Loader** L1 < Ammo Ring (a full reload per dash). One rarity up: Ammo Ring.
+**Run:** good early and late (uptime scales with every damage item). Blender (−20% melee cooldown per level) raises it.
+Weapons that never reload get nothing: the description says so.
+**Break it:** Blender stacks → at most one refill per 1.5 s. Dagger (fast melee) is the best case; the limit covers it.
+**Fun:** you play toward it (melee between bursts); the magazine counter jumps.
+**How:** ammo may be client-predicted: find what Ammo Ring (relic) calls on a dash and call the same with a fraction.
+Melee hits: `OnOutgoingDamage` with Type 3 (Melee).
+**Unverified:** where ammo lives and who owns it (client or host); magazine time per weapon [G].
+
+## Culling Blow (melee mod, Epic): BUILT (untested) (renamed from Executioner: Shellbreaker's loot has one)
+
+**Melee finishes off weak enemies**
+
+- A melee hit on an enemy under 10% health per level kills it outright. Elites: half the threshold. Bosses: never.
+  Limited: not offered after level 3 (30%).
+- Spawn weight: 0.75 [C]    Levels: Linear, Limited (3)
+- Pool: outside (a % of health: a true multiplier on enemies you melee)
+- Appears in: damage and random chests; loot, chance, gamble and random totems
+
+**Different from:** Sharp Claws and Iron Claws (more melee damage), Grim Reaper (heals on kills), because it's a
+threshold: melee becomes the finisher for enemies your gun has worn down.
+**Number:** killing at 10% skips the last 10% of health: ×1.11 damage on enemies you melee; ×1.25 at 20%, ×1.43 at 30%.
+The value is in the role (no chasing the last sliver), not raw DPS. Epic, since a percentage never dilutes.
+**Vs vanilla:** Sharp Claws (+100% melee, but melee is a small share of damage late) < **Executioner** < Arcane Claws.
+**Run:** keeps up: a % of health scales with enemy health for free. That's a "yes" in step 5, so it's capped at 30% and
+elites get half.
+**Break it:** Blender + Dagger spam still needs the enemy under 30%. Big Claws reaches more enemies per swing: fine.
+Multiplayer: kills go to the hitter.
+**Fun:** you see it (an "Executed!" popup), you play toward it (shoot, then finish in melee).
+**How:** host. `OnOutgoingDamage` with Type 3 (Melee): after the hit, if the enemy's health / max is under the
+threshold and it isn't a boss, deal its remaining health through `UCrabHC_TakeDamage` (as Ricochet does).
+**Unverified:** the elite and boss flags.
+
+## Feedback Loop (ability mod, Common): BUILT (untested)
+
+**Ability kills cut its cooldown**
+
+- Each enemy your ability kills takes 0.1 s per level off its cooldown (the user's number, 2026-10-14), at most 50% of
+  the cooldown per use.
+- Spawn weight: 0.75 (like ability mods [C])    Levels: Linear
+- Pool: outside (uptime)
+- Appears in: skill and random chests; loot, chance, gamble and random totems
+
+**Different from:** Heat Sink (Common: −10% ability cooldown per level [C, DA]), because it pays for kills: packed rooms
+chain abilities, empty ones don't.
+**Number:** cooldowns are 6–10 s (Ice Blast, Laser Beam 6; Black Hole 9; Air Strike, Electro Globe 10 [C]). An ability
+that kills 10 enemies at L1 saves 1 s, −10 to −17%: about one Heat Sink, as a Common should be. Weak where enemies are
+few (bosses, elites).
+**Vs vanilla:** **Feedback Loop** (few kills) < Heat Sink < **Feedback Loop** (horde).
+**Run:** falls off where abilities stop killing (tanky late enemies), keeps up on hordes. It feeds itself (kills →
+ability → kills), so it's capped at 50% per use.
+**Break it:** Triple / Split Ability and explosion mods give more kills per use; the 50% cap holds. Stacks with Heat
+Sink: fine.
+**Fun:** you play toward it (aim abilities into crowds); the cooldown visibly snaps.
+**How:** find the ability cooldown (PS or ability component) and how a kill is tagged as the ability's (DamageInfo tags
+or the damage causer).
+**Unverified:** both of those; kills per use [G, balanceLog].
+
+## Shrapnel (ability mod, Legendary): BUILT (untested)
+
+**Your ability's blast fires your weapon's projectiles**
+
+- Each ability use fires a ring of 12 of your weapon's projectiles (+6 per level, at most 36) from where it hits, at
+  your weapon's damage, with your weapon mods. One ring per use, not per explosion.
+- Legendary chosen by the user (2026-10-14): a new damage source [WORKFLOW §2].
+- Spawn weight: 0.75 [C]    Levels: Linear, capped at 36
+- Pool: weapon (each projectile is a weapon shot)
+- Appears in: skill and random chests; loot, chance, gamble and random totems
+
+**Different from:** Reload Arc (Common weapon mod: reloading fires an arc of projectiles [C]), Dagger Blast and the
+explosion mods (the ability's own damage), because it turns every ability use into a weapon volley with all your weapon
+mods: weapon and ability builds help each other.
+**Number:** 12 shots per 6–10 s use is 1.2–2 extra shots a second; against a weapon's 2–10 shots a second that's
+×1.15–1.9 [G], plus every on-hit mod. Heat Sink and Feedback Loop raise it.
+**Vs vanilla (Legendary):** in line with new damage sources; Ricochet ×1.25–2.2 [ideas.md].
+**Run:** keeps up: it scales with every weapon mod you collect.
+**Break it:** one ring per use (Triple / Split Ability, Layered Explosion don't multiply it). Split Shot and Ricochet
+apply to each projectile: allowed, they're weapon mods; the 36 cap and the use rate hold it. Shotguns: one projectile
+per ring slot, not a full spread.
+**Fun:** you see it (a ring of your bullets), it changes what you pick (weapon mods help your ability).
+**How:** host. Find what Reload Arc calls to fire its arc (weapon projectiles with mods) and call it in a ring where the
+ability hits.
+**Unverified:** Reload Arc's spawn function; the ability's hit location; how projectiles carry their owner's mods.
+
+## Follow Through (melee mod, Epic): BUILT (untested)
+
+**Using your ability empowers your next melee**
+
+- After you use your ability, your next melee within 3 s deals +200% damage (+100% per level after the first) and
+  applies the elements of your elemental explosion mods (Fire, Ice, Lightning, Poison, Arcane Explosion).
+- Spawn weight: 0.75 [C]    Levels: Linear
+- Pool: melee damage
+- Appears in: skill and random chests; loot, chance, gamble and random totems
+
+**Different from:** Sharp Claws and Iron Claws (always more melee damage), the elemental claws (always an element),
+because it's a combo: ability, then melee.
+**Number:** ability every 6–10 s, melee every 3–6 s: about every other melee is empowered, so about ×2 melee damage
+on average at L1 [G]. Iron Claws is +300% with a cooldown penalty at Common [C]; Follow Through is Epic because it also
+carries elements (the elemental claws are Epic [C]).
+**Vs vanilla:** Sharp Claws < **Follow Through** < Arcane Claws (Epic, always on).
+**Run:** melee is a small share of damage late, like every melee mod.
+**Break it:** none (one empowered melee per ability use).
+**Fun:** you play toward it (ability, then dive in); you see it (a glow or popup for 3 s).
+**How:** host. Note the ability use; on the next Type 3 (Melee) `OnOutgoingDamage` within 3 s, raise the damage and add
+the element debuffs (DamageInfo +0x20 Debuffs, as the elemental claws do).
+**Unverified:** how to see an ability use on the host; how the claws add their element.
